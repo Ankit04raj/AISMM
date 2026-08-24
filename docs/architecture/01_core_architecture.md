@@ -1,754 +1,534 @@
 # AISMM Core Architecture Design
-
-## Overview
-This document defines the high-level architecture for AISMM — a universal, platform-agnostic AI-powered social media management system.
-
----
-
-## 1. High-Level Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              USER                                            │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                     │
-                                     ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        AISMM WEB DASHBOARD (Frontend)                        │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐           │
-│  │  Overview   │ │  Platforms  │ │ Create Post │ │ AI Optimize │  ...     │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘           │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                     │
-                    ┌────────────────┼────────────────┐
-                    ▼                ▼                ▼
-        ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-        │  Content Mgmt   │ │   AI Engine     │ │  Analytics      │
-        │   Service       │ │   Service       │ │  Service        │
-        └────────┬────────┘ └────────┬────────┘ └────────┬────────┘
-                 │                   │                   │
-                 └───────────────────┼───────────────────┘
-                                     ▼
-                    ┌─────────────────────────────────┐
-                    │      PLATFORM REGISTRY          │
-                    │  (Central adapter discovery)    │
-                    └─────────────────┬───────────────┘
-                                      │
-         ┌──────────────┬─────────────┼─────────────┬──────────────┐
-         ▼              ▼             ▼             ▼              ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│  Instagram   │ │   Facebook   │ │      X       │ │  LinkedIn    │ │   YouTube    │
-│   Adapter    │ │   Adapter    │ │   Adapter    │ │   Adapter    │ │   Adapter    │
-└──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘
-       │                │                │                │                │
-       ▼                ▼                ▼                ▼                ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│ Instagram    │ │ Facebook     │ │ X (Twitter)  │ │ LinkedIn     │ │ YouTube      │
-│ Graph API    │ │ Graph API    │ │ API v2       │ │ API v2       │ │ Data API v3  │
-└──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘
-```
+**Phase 2 — Architecture Design**  
+**Version:** 1.0  
+**Date:** 2026-08-25  
+**Status:** DESIGN — AWAITING APPROVAL
 
 ---
 
-## 2. Layered Architecture (Separation of Concerns)
+## 1. System Overview
+
+AISMM is a **platform-agnostic AI social media management ecosystem**. The core principle is:
+
+> **AISMM Core contains intelligence. Platform adapters contain platform-specific complexity.**
+
+The system follows a layered architecture with clear separation of concerns:
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        FRONTEND LAYER                           │
-│  React/Vue + TypeScript | Dynamic UI | Capability-driven       │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                         API GATEWAY                             │
-│  REST/GraphQL | Auth Middleware | Rate Limiting | Validation   │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    APPLICATION SERVICES LAYER                   │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌──────────┐  │
-│  │  Content    │ │   Scheduling│ │  Sentiment  │ │  Growth  │  │
-│  │  Service    │ │  Service    │ │  Service    │ │ Service  │  │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └──────────┘  │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌──────────┐  │
-│  │  Auto-Reply │ │ Caption/    │ │Recommendation│ │Analytics │  │
-│  │  Service    │ │ Hashtag Svc │ │  Service    │ │ Service  │  │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └──────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      DOMAIN / CORE LAYER                        │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌──────────┐  │
-│  │  Post       │ │  Social     │ │  Universal  │ │  Event   │  │
-│  │  Entity     │ │  Account    │ │  Content    │ │  Bus     │  │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └──────────┘  │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌──────────┐  │
-│  │  Metric     │ │  Comment    │ │  Schedule   │ │ Capability│  │
-│  │  Entity     │ │  Entity     │ │  Entity     │ │  Registry│  │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └──────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                       AI ENGINE LAYER                           │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌──────────┐  │
-│  │ Scheduling  │ │  Sentiment  │ │  Engagement │ │ Growth   │  │
-│  │  Engine     │ │  Engine     │ │ Prediction  │ │ Engine   │  │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └──────────┘  │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌──────────┐  │
-│  │Auto-Reply   │ │  Caption    │ │  Hashtag    │ │Recommend.│  │
-│  │  Engine     │ │  Engine     │ │  Engine     │ │ Engine   │  │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └──────────┘  │
-│  All engines consume NORMALIZED data only                       │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                   PLATFORM ADAPTER LAYER                        │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │                    BasePlatformAdapter                   │    │
-│  │  authenticate() | publish() | fetch_comments() | ...     │    │
-│  │  supports(capability) | get_capabilities()               │    │
-│  └─────────────────────────────────────────────────────────┘    │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────┐  │
-│  │Instagram │ │ Facebook │ │    X     │ │ LinkedIn │ │YouTube│  │
-│  │ Adapter  │ │ Adapter  │ │ Adapter  │ │ Adapter  │ │Adapter│  │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └───────┘  │
-│  Each adapter: auth.py, publisher.py, analytics.py, comments.py, │
-│  mapper.py (UniversalContent → PlatformSpecificPayload)          │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     EXTERNAL PLATFORM APIs                      │
-│  Instagram Graph API | Facebook Graph API | X API v2           │
-│  LinkedIn API v2 | YouTube Data API v3 | Future platforms      │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                        FRONTEND (React)                       │
+│         Platform-agnostic, capability-driven UI components    │
+└───────────────────────────┬─────────────────────────────────┘
+                            │ REST/WebSocket API
+┌───────────────────────────┴─────────────────────────────────┐
+│                     API LAYER (FastAPI)                       │
+│              Authentication, Rate Limiting, Validation        │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+┌───────────────────────────┴─────────────────────────────────┐
+│                 APPLICATION SERVICES LAYER                    │
+│   PostService, AccountService, AnalyticsService, etc.        │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+┌───────────────────────────┴─────────────────────────────────┐
+│                    DOMAIN / CORE LAYER                        │
+│         Universal Data Models, Business Logic, Events        │
+└──────────┬──────────────────────────────────┬───────────────┘
+           │                                  │
+┌──────────┴───────────────┐    ┌─────────────┴──────────────────┐
+│      AI ENGINE LAYER     │    │      PLATFORM REGISTRY         │
+│  Sentiment, Scheduling,  │    │  Adapter discovery & routing   │
+│  Growth, Reply, Caption, │    └─────────────┬──────────────────┘
+│  Hashtag, Recommendation │                  │
+└──────────┬───────────────┘    ┌─────────────┴──────────────────┐
+           │                    │   PLATFORM ADAPTERS            │
+┌──────────┴───────────────┐    │  Instagram, Facebook, X,      │
+│    EVENT BUS / WEBHOOKS   │    │  LinkedIn, YouTube, Mock      │
+└───────────────────────────┘    └─────────────┬──────────────────┘
+                                              │
+                                        ┌─────┴──────┐
+                                        │  EXTERNAL  │
+                                        │   APIs     │
+                                        └────────────┘
 ```
 
 ---
 
-## 3. Data Flow Architecture
+## 2. Technology Stack
 
-### 3.1 Post Creation Flow
-```
-User Input
-    │
-    ▼
-PostComposer (Frontend) → UniversalContent
-    │
-    ▼
-Content Service → Validate & Store Post Entity
-    │
-    ▼
-AI Optimize (Optional) → CaptionEngine + HashtagEngine → Platform Variants
-    │
-    ▼
-User Selects Platforms → PlatformContentStrategy per platform
-    │
-    ▼
-Schedule Service → Scheduling Engine → Optimal Time (or user time)
-    │
-    ▼
-Platform Adapter (per selected platform)
-    │
-    ├─► mapper.py: UniversalContent → PlatformSpecificPayload
-    ├─► upload_media() → Media IDs
-    └─► publish_post() / schedule_post() → Platform Post ID
-    │
-    ▼
-Store PostPublication records (per platform)
-    │
-    ▼
-Event: PostPublished → Event Bus → Analytics Service → Notification Engine
-```
+| Layer | Technology | Rationale |
+|-------|-----------|----------|
+| **Backend** | FastAPI (Python 3.11+) | Async, type-safe, fast, good ML ecosystem |
+| **Frontend** | React 18 + TypeScript | Component-based, dynamic UI, large ecosystem |
+| **Database** | PostgreSQL 16 | ACID, JSON support, mature, scalable |
+| **ORM** | SQLAlchemy 2.0 | Python-native, async support, migrations via Alembic |
+| **Cache/Queue** | Redis 7 | Rate limiting, caching, background jobs |
+| **Task Queue** | Celery / RQ | Async scheduling, webhook processing |
+| **ML** | scikit-learn, XGBoost, MLflow | Research baselines, model registry |
+| **Auth** | JWT + OAuth2 | Stateless auth, platform OAuth flows |
+| **Config** | Pydantic Settings + YAML | Type-safe config, environment overrides |
+| **Testing** | pytest, pytest-asyncio | Unit, integration, e2e |
+| **Monitoring** | Prometheus + Grafana | Metrics, dashboards |
+| **Logging** | structlog | Structured logging |
 
-### 3.2 Post-Posting Intelligence Flow
-```
-Platform Webhook / Scheduled Sync
-    │
-    ▼
-Event Gateway → Event Normalizer → Event Bus
-    │
-    ├─► CommentReceived → Comment Service → Store NormalizedComment
-    │                     │
-    │                     ▼
-    │              Sentiment Engine (PostPostAnalyzer)
-    │                     │
-    │                     ▼
-    │              Auto-Reply Engine (if confidence ≥ threshold)
-    │                     │
-    │                     ▼
-    │              PlatformAdapter.reply() → Platform API
-    │
-    ├─► EngagementUpdated → Analytics Service → Update Metrics
-    │                     │
-    │                     ▼
-    │              Growth Engine (retrain trigger)
-    │
-    └─► SentimentCalculated → Notification Engine (if NEGATIVE_SENTIMENT)
-```
+---
 
-### 3.3 Scheduled Publishing Flow
+## 3. Directory Structure
+
 ```
-Scheduler (Cron/Queue)
-    │
-    ▼
-ScheduleTriggered Event → Event Bus
-    │
-    ▼
-Publishing Service → PlatformAdapter.publish_post()
-    │
-    ├─► Success → PostPublished Event → Update PostPublication
-    │
-    └─► Failure → PlatformError → Retry with exponential backoff
-                   │
-                   └─► Max retries → NOTIFICATION: PLATFORM_ERROR
+aismm/
+├── backend/
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── main.py                 # FastAPI app entry
+│   │   ├── config/
+│   │   │   ├── __init__.py
+│   │   │   ├── settings.py         # Pydantic settings
+│   │   │   ├── platform_config.yaml
+│   │   │   ├── model_config.yaml
+│   │   │   ├── feature_config.yaml
+│   │   │   ├── scheduler_config.yaml
+│   │   │   ├── sentiment_config.yaml
+│   │   │   └── notification_config.yaml
+│   │   ├── core/                   # Domain layer
+│   │   │   ├── __init__.py
+│   │   │   ├── models/             # SQLAlchemy models
+│   │   │   │   ├── user.py
+│   │   │   │   ├── account.py
+│   │   │   │   ├── post.py
+│   │   │   │   ├── publication.py
+│   │   │   │   ├── comment.py
+│   │   │   │   ├── metric.py
+│   │   │   │   ├── sentiment.py
+│   │   │   │   ├── schedule.py
+│   │   │   │   ├── model.py
+│   │   │   │   └── event.py
+│   │   │   ├── schemas/            # Pydantic schemas
+│   │   │   ├── events/             # Event definitions & bus
+│   │   │   │   ├── event_types.py
+│   │   │   │   ├── event_bus.py
+│   │   │   │   └── webhook_gateway.py
+│   │   │   ├── normalization/      # Universal content normalization
+│   │   │   │   ├── universal_content.py
+│   │   │   │   └── normalizer.py
+│   │   │   └── errors/             # Error hierarchy
+│   │   │       ├── platform_errors.py
+│   │   │       └── base_errors.py
+│   │   ├── services/               # Application services
+│   │   │   ├── post_service.py
+│   │   │   ├── account_service.py
+│   │   │   ├── analytics_service.py
+│   │   │   ├── schedule_service.py
+│   │   │   ├── notification_service.py
+│   │   │   └── sync_service.py
+│   │   ├── ai/                     # AI Engine layer
+│   │   │   ├── sentiment/
+│   │   │   ├── scheduling/
+│   │   │   ├── growth/
+│   │   │   ├── reply/
+│   │   │   ├── caption/
+│   │   │   ├── hashtag/
+│   │   │   ├── recommendation/
+│   │   │   └── registry/
+│   │   ├── platforms/              # Platform adapter layer
+│   │   │   ├── base/
+│   │   │   │   ├── adapter.py
+│   │   │   │   ├── capabilities.py
+│   │   │   │   ├── models.py
+│   │   │   │   └── rate_limit.py
+│   │   │   ├── instagram/
+│   │   │   ├── facebook/
+│   │   │   ├── x/
+│   │   │   ├── linkedin/
+│   │   │   ├── youtube/
+│   │   │   └── mock/
+│   │   ├── api/                    # API routes
+│   │   │   ├── v1/
+│   │   │   │   ├── auth.py
+│   │   │   │   ├── posts.py
+│   │   │   │   ├── accounts.py
+│   │   │   │   ├── platforms.py
+│   │   │   │   ├── analytics.py
+│   │   │   │   ├── scheduling.py
+│   │   │   │   ├── sentiment.py
+│   │   │   │   ├── ai.py
+│   │   │   │   ├── webhooks.py
+│   │   │   │   └── notifications.py
+│   │   │   └── deps.py
+│   │   ├── db/
+│   │   │   ├── session.py
+│   │   │   ├── base.py
+│   │   │   └── migrations/
+│   │   ├── security/
+│   │   │   ├── auth.py
+│   │   │   ├── credentials.py
+│   │   │   └── secrets.py
+│   │   ├── logging/
+│   │   │   └── logger.py
+│   │   └── middleware/
+│   │       ├── rate_limit.py
+│   │       ├── auth.py
+│   │       └── error_handler.py
+│   ├── tests/
+│   │   ├── unit/
+│   │   ├── integration/
+│   │   └── e2e/
+│   ├── alembic.ini
+│   ├── pyproject.toml
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── components/             # Reusable platform-agnostic components
+│   │   │   ├── PlatformSelector.tsx
+│   │   │   ├── PostComposer.tsx
+│   │   │   ├── MediaUploader.tsx
+│   │   │   ├── CaptionEditor.tsx
+│   │   │   ├── HashtagSelector.tsx
+│   │   │   ├── SchedulePicker.tsx
+│   │   │   ├── SentimentPanel.tsx
+│   │   │   ├── AnalyticsPanel.tsx
+│   │   │   ├── CommentPanel.tsx
+│   │   │   ├── ReplyPanel.tsx
+│   │   │   ├── GrowthChart.tsx
+│   │   │   ├── RecommendationPanel.tsx
+│   │   │   └── PlatformStatus.tsx
+│   │   ├── pages/                  # Dashboard pages
+│   │   │   ├── Overview.tsx
+│   │   │   ├── Platforms.tsx
+│   │   │   ├── CreatePost.tsx
+│   │   │   ├── AIOptimize.tsx
+│   │   │   ├── Calendar.tsx
+│   │   │   ├── ScheduledPosts.tsx
+│   │   │   ├── PublishedPosts.tsx
+│   │   │   ├── Comments.tsx
+│   │   │   ├── AutoReply.tsx
+│   │   │   ├── Sentiment.tsx
+│   │   │   ├── Analytics.tsx
+│   │   │   ├── GrowthPrediction.tsx
+│   │   │   ├── AIRecommendations.tsx
+│   │   │   ├── Notifications.tsx
+│   │   │   ├── Models.tsx
+│   │   │   └── Settings.tsx
+│   │   ├── hooks/
+│   │   ├── services/              # API client
+│   │   ├── store/                 # State management
+│   │   └── types/                 # TypeScript types
+│   ├── package.json
+│   └── vite.config.ts
+├── ml/
+│   ├── pipelines/
+│   │   ├── training_pipeline.py
+│   │   ├── feature_engineering.py
+│   │   └── evaluation.py
+│   ├── datasets/
+│   ├── models/
+│   └── registry/
+└── docs/
+    ├── architecture/
+    └── api/
 ```
 
 ---
 
-## 4. Component Specifications
+## 4. Database Schema (Entity Relationship Diagram)
 
-### 4.1 Platform Registry
+```
+┌──────────────┐       ┌──────────────────┐
+│    users     │       │  social_accounts │
+├──────────────┤       ├──────────────────┤
+│ id (PK)      │◄──┐   │ id (PK)          │
+│ email        │   └───┤ user_id (FK)     │
+│ name         │       │ platform_id      │
+│ password_hash│       │ platform_acc_id  │
+│ created_at   │       │ account_name     │
+│ updated_at   │       │ account_username │
+└──────────────┘       │ access_token_ref │
+                       │ refresh_token_ref│
+                       │ status           │
+                       │ capabilities     │
+                       │ created_at       │
+                       │ updated_at       │
+                       └────────┬─────────┘
+                                │
+                                │ 1:N
+                                ▼
+┌──────────────┐       ┌──────────────────┐
+│    posts     │       │ post_publications│
+├──────────────┤       ├──────────────────┤
+│ id (PK)      │◄──┐   │ id (PK)          │
+│ user_id (FK) │   └───┤ post_id (FK)     │
+│ content      │       │ account_id (FK)  │
+│ caption      │       │ platform_post_id │
+│ status       │       │ platform         │
+│ scheduled_at │       │ published_at     │
+│ published_at │       │ status           │
+│ media (JSON) │       │ raw_response     │
+│ metadata     │       │ metrics_id (FK)  │
+└──────────────┘       └────────┬─────────┘
+                                │
+                                │ 1:N
+                                ▼
+                       ┌──────────────────┐
+                       │    metrics       │
+                       ├──────────────────┤
+                       │ id (PK)          │
+                       │ publication_id   │
+                       │ metric_type      │
+                       │ value            │
+                       │ original_metric  │
+                       │ source_platform  │
+                       │ timestamp        │
+                       └──────────────────┘
+
+┌──────────────┐       ┌──────────────────┐
+│   comments   │       │  sentiments      │
+├──────────────┤       ├──────────────────┤
+│ id (PK)      │       │ id (PK)          │
+│ publication_id│◄──┐   │ target_type      │
+│ platform_cmt │   └───┤ target_id        │
+│ content      │       │ score            │
+│ author       │       │ label            │
+│ created_at   │       │ phase            │
+│ sentiment_id │       │ timestamp        │
+└──────────────┘       └──────────────────┘
+
+┌──────────────┐       ┌──────────────────┐
+│  schedules   │       │  ml_models       │
+├──────────────┤       ├──────────────────┤
+│ id (PK)      │       │ id (PK)          │
+│ post_id (FK) │       │ name             │
+│ platform     │       │ version          │
+│ scheduled_at │       │ type             │
+│ status       │       │ status           │
+│ window_start │       │ dataset_version  │
+│ window_end   │       │ feature_version  │
+└──────────────┘       │ metrics (JSON)   │
+                       │ trained_at       │
+                       └──────────────────┘
+```
+
+---
+
+## 5. Event Architecture
+
+### Event Types (Normalized Internal Events)
+
 ```python
-class PlatformRegistry:
-    """Central registry for platform adapter discovery and management."""
-    
-    def register(platform_id: str, adapter_class: Type[BasePlatformAdapter]) -> None
-    def get(platform_id: str) -> BasePlatformAdapter
-    def get_all() -> List[BasePlatformAdapter]
-    def get_capabilities(platform_id: str) -> PlatformCapabilities
-    def supports(platform_id: str, capability: str) -> bool
-    def discover_platforms() -> List[PlatformMetadata]
-```
-
-### 4.2 Base Platform Adapter Contract
-```python
-class BasePlatformAdapter(ABC):
-    """Abstract base class all platform adapters must implement."""
-    
-    # Authentication
-    @abstractmethod
-    async def authenticate(self, credentials: Dict) -> AuthResult
-    @abstractmethod
-    async def refresh_token(self) -> AuthResult
-    @abstractmethod
-    async def disconnect(self) -> bool
-    @abstractmethod
-    async def validate_credentials(self) -> bool
-    
-    # Publishing
-    @abstractmethod
-    async def validate_content(self, content: UniversalContent) -> ValidationResult
-    @abstractmethod
-    async def upload_media(self, media: MediaItem) -> MediaUploadResult
-    @abstractmethod
-    async def publish_post(self, payload: PlatformSpecificPayload) -> PublishResult
-    @abstractmethod
-    async def schedule_post(self, payload: PlatformSpecificPayload, 
-                           scheduled_at: datetime) -> ScheduleResult
-    @abstractmethod
-    async def update_post(self, publication_id: str, payload: PlatformSpecificPayload) -> bool
-    @abstractmethod
-    async def delete_post(self, publication_id: str) -> bool
-    
-    # Content Fetching
-    @abstractmethod
-    async def fetch_posts(self, account_id: str, limit: int) -> List[NormalizedPost]
-    @abstractmethod
-    async def fetch_comments(self, publication_id: str) -> List[NormalizedComment]
-    @abstractmethod
-    async def fetch_replies(self, comment_id: str) -> List[NormalizedComment]
-    
-    # Engagement
-    @abstractmethod
-    async def reply_to_comment(self, comment_id: str, text: str) -> ReplyResult
-    @abstractmethod
-    async def fetch_engagement(self, publication_id: str) -> NormalizedEngagement
-    @abstractmethod
-    async def fetch_account_metrics(self, account_id: str) -> NormalizedAccountMetrics
-    @abstractmethod
-    async def fetch_post_analytics(self, publication_id: str) -> NormalizedPostAnalytics
-    
-    # Webhooks
-    @abstractmethod
-    async def register_webhook(self, url: str, events: List[str]) -> WebhookRegistration
-    @abstractmethod
-    async def handle_webhook(self, payload: Dict, signature: str) -> List[NormalizedEvent]
-    
-    # Capabilities
-    @abstractmethod
-    def get_capabilities(self) -> PlatformCapabilities
-    @abstractmethod
-    def supports(self, capability: str) -> bool
-```
-
-### 4.3 Universal Data Models
-
-```python
-# Core entities (platform-neutral)
-class User:
-    id: UUID
-    name: str
-    email: str
-    created_at: datetime
-    updated_at: datetime
-
-class SocialAccount:
-    id: UUID
-    user_id: UUID
-    platform_id: str          # "instagram", "facebook", "x", "linkedin", "youtube"
-    platform_account_id: str  # Platform's native user ID
-    account_name: str
-    account_username: str
-    access_token_ref: str     # Reference to secure credential store
-    refresh_token_ref: str    # Reference to secure credential store
-    status: AccountStatus     # CONNECTED, DISCONNECTED, ERROR, TOKEN_EXPIRED
-    capabilities: PlatformCapabilities
-    last_synced_at: datetime
-    created_at: datetime
-    updated_at: datetime
-
-class Post:
-    id: UUID
-    user_id: UUID
-    content: str              # Main text content
-    caption: str              # AI-optimized caption
-    status: PostStatus        # DRAFT, SCHEDULED, PUBLISHING, PUBLISHED, FAILED
-    created_at: datetime
-    scheduled_at: Optional[datetime]
-    published_at: Optional[datetime]
-    media: List[MediaItem]
-    metadata: Dict            # Platform-specific customizations
-
-class PostPublication:
-    id: UUID
-    post_id: UUID
-    social_account_id: UUID
-    platform_id: str
-    platform_post_id: str     # Platform's native post ID
-    status: PublicationStatus
-    platform_payload: Dict    # Exact payload sent to platform
-    error_message: Optional[str]
-    published_at: Optional[datetime]
-    created_at: datetime
-
-class UniversalContent:
-    """Platform-neutral content representation."""
-    text: str
-    caption: str
-    title: Optional[str]
-    media: List[MediaItem]
-    hashtags: List[str]
-    mentions: List[str]
-    links: List[str]
-    location: Optional[str]
-    language: str
-    content_type: ContentType  # POST, STORY, REEL, SHORT, ARTICLE, VIDEO
-    metadata: Dict
-
-class NormalizedEngagement:
-    """Platform-normalized engagement metrics."""
-    metric_type: MetricType    # LIKE, COMMENT, SHARE, REACTION, VIEW, SAVE, CLICK
-    value: int
-    source_platform: str
-    original_metric: str       # e.g., "retweet_count", "reaction_count"
+@dataclass
+class AISMEvent:
+    event_type: str
+    aggregate_id: str
+    payload: dict
     timestamp: datetime
+    source_platform: str = None
 
-class NormalizedPost:
-    """Platform-normalized post representation."""
-    platform_post_id: str
-    platform_id: str
-    content: str
-    caption: str
-    media_type: MediaType
-    posted_at: datetime
-    engagement: NormalizedEngagement
-    engagement_score: float    # Platform-aware engagement score
+# Event types
+POST_CREATED = "post.created"
+POST_PUBLISHED = "post.published"
+COMMENT_RECEIVED = "comment.received"
+REPLY_RECEIVED = "reply.received"
+ENGAGEMENT_UPDATED = "engagement.updated"
+SENTIMENT_CALCULATED = "sentiment.calculated"
+PREDICTION_GENERATED = "prediction.generated"
+SCHEDULE_CREATED = "schedule.created"
+SCHEDULE_TRIGGERED = "schedule.triggered"
+PLATFORM_CONNECTED = "platform.connected"
+PLATFORM_DISCONNECTED = "platform.disconnected"
+TOKEN_EXPIRING = "token.expiring"
+```
+
+### Event Flow (Webhook → Intelligence Loop)
+
+```
+Platform Webhook
+    ↓
+Webhook Gateway (validate signature)
+    ↓
+Event Normalizer (platform → AISMEvent)
+    ↓
+Event Bus (Redis Pub/Sub)
+    ↓
+┌───────────────┬───────────────┬───────────────┐
+↓               ↓               ↓               ↓
+Sentiment     Auto-Reply     Analytics      Notification
+Engine        Engine         Service        Service
+    ↓               ↓               ↓               ↓
+Storage        Platform       Metrics         User Alert
+                 Adapter
 ```
 
 ---
 
-## 5. AI Engine Architecture
+## 6. API Architecture
 
-### 5.1 Engine Interface
-```python
-class BaseAIEngine(ABC):
-    """Base interface for all AI engines."""
-    
-    @abstractmethod
-    async def predict(self, input_data: NormalizedInput) -> PredictionResult
-    
-    @abstractmethod
-    async def train(self, training_data: TrainingDataset) -> ModelArtifact
-    
-    @abstractmethod
-    def get_model_version(self) -> str
-    
-    @abstractmethod
-    def get_model_metadata(self) -> ModelMetadata
+### API Versioning
+- Versioned under `/api/v1/`
+- OpenAPI docs at `/docs`
+- WebSocket for real-time notifications at `/ws`
+
+### Route Structure
 ```
-
-### 5.2 Engine Specifications
-
-| Engine | Input | Output | Model | Config |
-|--------|-------|--------|-------|--------|
-| **Scheduling** | Historical posts, engagement, time features | Optimal posting times per platform | RandomForest + XGBoost (hard voting) | scheduler_config |
-| **Sentiment (Pre)** | UniversalContent | SentimentScore (-1 to 1) + Label | VADER + k-NN (k=5) | sentiment_config |
-| **Sentiment (Post)** | NormalizedComment[] | TemporalSentiment + Aggregation | VADER + k-NN + TemporalAnalyzer | sentiment_config |
-| **Engagement Prediction** | Post features + platform + time | Predicted engagement score | RandomForest Regressor | engagement_config |
-| **Growth** | Platform account metrics history | Follower growth prediction (R²) | RandomForest Regressor (per platform) | growth_config |
-| **Auto-Reply** | NormalizedComment | ReplyResponse + Confidence | TF-IDF + LogisticRegression | reply_config |
-| **Caption** | UniversalContent + platform | Optimized caption + quality score | Statistical/Template (LLM-ready) | caption_config |
-| **Hashtag** | Post content + platform + history | Top-K hashtags + performance | Frequency + ML (embedding-ready) | hashtag_config |
-| **Recommendation** | All engine outputs | Recommendation[] with reason/confidence | Ensemble of all engines | recommendation_config |
-
-### 5.3 Model Registry
-```python
-class ModelRegistry:
-    """Versioned model management with lifecycle states."""
-    
-    # Model lifecycle: DEVELOPMENT → STAGING → PRODUCTION → DEPRECATED
-    def register(model: ModelArtifact, version: str, stage: ModelStage) -> ModelRecord
-    def get_production(model_type: str, platform: Optional[str]) -> ModelArtifact
-    def promote(version: str, from_stage: ModelStage, to_stage: ModelStage) -> bool
-    def record_performance(model_id: str, metrics: Dict, dataset_version: str) -> None
-    def detect_drift(model_id: str, current_metrics: Dict) -> DriftReport
-```
-
----
-
-## 6. Database Architecture
-
-### 6.1 Entity Relationship Diagram
-```
-┌─────────────┐       ┌──────────────────┐       ┌──────────────────┐
-│    User     │───────│  SocialAccount   │───────│  PostPublication │
-└─────────────┘       └──────────────────┘       └──────────────────┘
-                              │                           │
-                              │                           │
-                    ┌─────────┴─────────┐       ┌────────┴────────┐
-                    │                   │       │                 │
-              ┌─────────┐         ┌─────────┐ ┌─────────┐   ┌─────────┐
-              │ Platform│         │ Platform│ │ Platform│   │ Platform│
-              │Capabilities     │   │  Config   │   │Analytics    │
-              └─────────┘         └─────────┘ └─────────┘   └─────────┘
-
-┌─────────────┐       ┌──────────────────┐       ┌──────────────────┐
-│    Post     │───────│    MediaItem     │       │  PostVariation   │
-└─────────────┘       └──────────────────┘       └──────────────────┘
-                              │                           │
-                              │                           │
-                    ┌─────────┴─────────┐       ┌────────┴────────┐
-                    │                   │       │                 │
-              ┌─────────┐         ┌─────────┐ ┌─────────┐   ┌─────────┐
-              │Normalized│        │  Raw     │   │  AI      │   │ Schedule│
-              │Comment   │        │  Platform │   │  Results │   │ Record  │
-              │          │        │  Data     │   │          │   │         │
-              └─────────┘         └─────────┘ └─────────┘   └─────────┘
-
-┌─────────────┐       ┌──────────────────┐
-│  Schedule   │───────│  Notification    │
-└─────────────┘       └──────────────────┘
-```
-
-### 6.2 Key Tables
-
-```sql
--- Users
-CREATE TABLE users (
-    id UUID PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Social Accounts
-CREATE TABLE social_accounts (
-    id UUID PRIMARY KEY,
-    user_id UUID REFERENCES users(id),
-    platform_id VARCHAR(50) NOT NULL,
-    platform_account_id VARCHAR(255) NOT NULL,
-    account_name VARCHAR(255),
-    account_username VARCHAR(255),
-    access_token_ref VARCHAR(500),  -- Encrypted reference
-    refresh_token_ref VARCHAR(500), -- Encrypted reference
-    status VARCHAR(50) DEFAULT 'CONNECTED',
-    capabilities JSONB,
-    last_synced_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(user_id, platform_id, platform_account_id)
-);
-
--- Posts (Universal)
-CREATE TABLE posts (
-    id UUID PRIMARY KEY,
-    user_id UUID REFERENCES users(id),
-    content TEXT NOT NULL,
-    caption TEXT,
-    status VARCHAR(50) DEFAULT 'DRAFT',
-    scheduled_at TIMESTAMP,
-    published_at TIMESTAMP,
-    media JSONB,           -- Array of media items
-    metadata JSONB,        -- Platform-specific customizations
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Post Publications (Per-platform)
-CREATE TABLE post_publications (
-    id UUID PRIMARY KEY,
-    post_id UUID REFERENCES posts(id),
-    social_account_id UUID REFERENCES social_accounts(id),
-    platform_id VARCHAR(50) NOT NULL,
-    platform_post_id VARCHAR(255),
-    status VARCHAR(50) DEFAULT 'PENDING',
-    platform_payload JSONB,
-    error_message TEXT,
-    published_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Normalized Metrics
-CREATE TABLE normalized_metrics (
-    id UUID PRIMARY KEY,
-    social_account_id UUID REFERENCES social_accounts(id),
-    post_publication_id UUID REFERENCES post_publications(id),
-    metric_type VARCHAR(50) NOT NULL,  -- LIKE, COMMENT, SHARE, REACTION, VIEW, SAVE, CLICK
-    value BIGINT NOT NULL,
-    source_platform VARCHAR(50) NOT NULL,
-    original_metric VARCHAR(100),      -- Platform-native metric name
-    timestamp TIMESTAMP NOT NULL
-);
-
--- Normalized Comments
-CREATE TABLE normalized_comments (
-    id UUID PRIMARY KEY,
-    social_account_id UUID REFERENCES social_accounts(id),
-    post_publication_id UUID REFERENCES post_publications(id),
-    platform_comment_id VARCHAR(255),
-    author_username VARCHAR(255),
-    author_id VARCHAR(255),
-    text TEXT NOT NULL,
-    sentiment_score FLOAT,
-    sentiment_label VARCHAR(50),
-    parent_comment_id UUID,  -- For replies
-    created_at TIMESTAMP NOT NULL,
-    fetched_at TIMESTAMP DEFAULT NOW()
-);
-
--- AI Model Registry
-CREATE TABLE model_registry (
-    id UUID PRIMARY KEY,
-    model_type VARCHAR(50) NOT NULL,  -- scheduling, sentiment, growth, etc.
-    platform_id VARCHAR(50),          -- NULL for universal models
-    version VARCHAR(50) NOT NULL,
-    stage VARCHAR(50) NOT NULL,       -- DEVELOPMENT, STAGING, PRODUCTION, DEPRECATED
-    model_path VARCHAR(500),          -- Path to serialized model
-    dataset_version VARCHAR(50),
-    feature_version VARCHAR(50),
-    training_date TIMESTAMP,
-    metrics JSONB,                    -- Accuracy, R², RMSE, etc.
-    hyperparameters JSONB,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Schedules
-CREATE TABLE schedules (
-    id UUID PRIMARY KEY,
-    post_id UUID REFERENCES posts(id),
-    social_account_id UUID REFERENCES social_accounts(id),
-    scheduled_at TIMESTAMP NOT NULL,
-    status VARCHAR(50) DEFAULT 'PENDING',  -- PENDING, TRIGGERED, PUBLISHED, FAILED, CANCELLED
-    retry_count INT DEFAULT 0,
-    error_message TEXT,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Events (Event sourcing / audit log)
-CREATE TABLE events (
-    id UUID PRIMARY KEY,
-    event_type VARCHAR(100) NOT NULL,
-    aggregate_id UUID NOT NULL,  -- Post ID, Account ID, etc.
-    aggregate_type VARCHAR(50) NOT NULL,
-    payload JSONB NOT NULL,
-    metadata JSONB,
-    created_at TIMESTAMP DEFAULT NOW()
-);
+/api/v1/
+├── /auth/
+│   ├── POST /login
+│   ├── POST /register
+│   ├── POST /refresh
+│   └── POST /logout
+├── /platforms/
+│   ├── GET /                    # List platforms + capabilities
+│   ├── GET /{platform}/connect # OAuth initiation
+│   ├── GET /{platform}/callback# OAuth callback
+│   ├── POST /{platform}/disconnect
+│   └── GET /{platform}/status
+├── /accounts/
+│   ├── GET /                    # List connected accounts
+│   ├── GET /{account_id}
+│   └── POST /{account_id}/sync
+├── /posts/
+│   ├── GET /
+│   ├── POST /
+│   ├── GET /{post_id}
+│   ├── PUT /{post_id}
+│   ├── DELETE /{post_id}
+│   └── POST /{post_id}/publish
+├── /scheduling/
+│   ├── POST /recommend         # AI best-time
+│   ├── POST /create
+│   └── GET /{schedule_id}
+├── /sentiment/
+│   ├── POST /analyze           # Pre-post
+│   └── GET /{target_id}        # Post-post
+├── /ai/
+│   ├── POST /caption/optimize
+│   ├── POST /hashtag/recommend
+│   ├── POST /content/adapt
+│   └── GET /recommendations
+├── /analytics/
+│   ├── GET /overview
+│   ├── GET /platforms/compare
+│   ├── GET /content
+│   ├── GET /time
+│   ├── GET /sentiment
+│   └── GET /growth
+├── /comments/
+│   ├── GET /
+│   └── POST /{comment_id}/reply
+├── /webhooks/
+│   └── POST /{platform}
+└── /notifications/
+    ├── GET /
+    └── POST /{id}/read
 ```
 
 ---
 
-## 7. Event Architecture
+## 7. Security Architecture
 
-### 7.1 Normalized Internal Events
-```python
-class EventType(Enum):
-    # Post lifecycle
-    POST_CREATED = "post_created"
-    POST_UPDATED = "post_updated"
-    POST_DELETED = "post_deleted"
-    POST_PUBLISHED = "post_published"
-    POST_SCHEDULED = "post_scheduled"
-    POST_PUBLISH_FAILED = "post_publish_failed"
-    
-    # Scheduling
-    SCHEDULE_CREATED = "schedule_created"
-    SCHEDULE_TRIGGERED = "schedule_triggered"
-    SCHEDULE_CANCELLED = "schedule_cancelled"
-    
-    # Engagement
-    COMMENT_RECEIVED = "comment_received"
-    REPLY_RECEIVED = "reply_received"
-    ENGAGEMENT_UPDATED = "engagement_updated"
-    
-    # AI
-    SENTIMENT_CALCULATED = "sentiment_calculated"
-    PREDICTION_GENERATED = "prediction_generated"
-    RECOMMENDATION_CREATED = "recommendation_created"
-    
-    # Platform
-    PLATFORM_CONNECTED = "platform_connected"
-    PLATFORM_DISCONNECTED = "platform_disconnected"
-    TOKEN_EXPIRING = "token_expiring"
-    PLATFORM_ERROR = "platform_error"
-    
-    # Alerts
-    HIGH_ENGAGEMENT = "high_engagement"
-    LOW_ENGAGEMENT = "low_engagement"
-    NEGATIVE_SENTIMENT = "negative_sentiment"
-    REPLY_REQUIRED = "reply_required"
-    GROWTH_ALERT = "growth_alert"
-    MODEL_ALERT = "model_alert"
-
-class NormalizedEvent:
-    event_type: EventType
-    aggregate_id: UUID
-    aggregate_type: str
-    payload: Dict
-    metadata: Dict
-    timestamp: datetime
-    source_platform: Optional[str]
+### Authentication Flow
+```
+User → /auth/login → JWT Access + Refresh Token
+         ↓
+   Store refresh in httpOnly cookie
+         ↓
+Access token in Authorization header
+         ↓
+   Middleware validates JWT
+         ↓
+   Scoped access to resources
 ```
 
-### 7.2 Event Bus
-```python
-class EventBus:
-    """In-memory / distributed event bus for decoupled communication."""
-    
-    def publish(event: NormalizedEvent) -> None
-    def subscribe(event_type: EventType, handler: Callable) -> Subscription
-    def unsubscribe(subscription: Subscription) -> None
-    
-    # Handlers are async, errors logged but don't block other handlers
+### Platform OAuth Flow
+```
+AISMM → Platform OAuth URL (user authorizes)
+         ↓
+Platform → Authorization Code
+         ↓
+AISMM → Exchange code for tokens
+         ↓
+   Encrypt tokens → Store in credential vault
+         ↓
+   Access via credential service only
+```
+
+### Credential Storage
+- **Never** store raw tokens in normal DB fields
+- Use encrypted vault (HashiCorp Vault / AWS KMS / environment)
+- Token references in DB point to vault keys
+- Rotation on expiry
+
+### Rate Limiting
+- Per-platform rate limits from config
+- Global API rate limit (100 req/min/user)
+- Exponential backoff for platform APIs
+- Redis-based sliding window counter
+
+---
+
+## 8. Configuration Architecture
+
+### Config Files (in `app/config/`)
+- `platform_config.yaml` — per-platform capabilities, limits, media types
+- `model_config.yaml` — active model selection per task
+- `feature_config.yaml` — feature engineering parameters
+- `scheduler_config.yaml` — scheduling model parameters
+- `sentiment_config.yaml` — thresholds, model paths
+- `notification_config.yaml` — notification channels, events
+
+### Example `platform_config.yaml`
+```yaml
+platforms:
+  instagram:
+    name: "Instagram"
+    capabilities:
+      - publishing
+      - scheduling
+      - image_post
+      - video_post
+      - carousel_post
+      - stories
+      - comments
+      - replies
+      - analytics
+      - audience_metrics
+      - webhooks
+    limits:
+      caption_max_length: 2200
+      hashtag_max_count: 30
+      media_max_count: 10
+    supported_media: [image, video, carousel]
+    api_version: "v18.0"
+    rate_limit:
+      requests_per_hour: 200
+      retry_policy: exponential
+      max_retries: 3
+  facebook:
+    ...
 ```
 
 ---
 
-## 8. Frontend Architecture
+## 9. Frontend Architecture
 
-### 8.1 Component Hierarchy
-```
-App
-├── Layout
-│   ├── Header (PlatformSelector, UserMenu, Notifications)
-│   ├── Sidebar (Navigation: Overview, Platforms, Create, Calendar, Analytics, Settings)
-│   └── Main Content Area
-│
-├── Pages
-│   ├── DashboardOverview
-│   ├── PlatformsPage (Connection status, capabilities grid)
-│   ├── CreatePostPage
-│   │   ├── PostComposer
-│   │   │   ├── CaptionEditor (with AI suggestions)
-│   │   │   ├── HashtagSelector (with AI recommendations)
-│   │   │   ├── MediaUploader (drag-drop, preview)
-│   │   │   └── PlatformSelector (checkboxes, capability-aware)
-│   │   ├── PlatformCustomizationTabs (per-platform preview)
-│   │   └── SchedulePicker (Immediate | Scheduled | AI Recommended | AI + Constraints)
-│   │
-│   ├── CalendarPage (Month/Week/Day view with scheduled posts)
-│   ├── ScheduledPostsPage (List with filters, actions)
-│   ├── PublishedPostsPage (List with engagement preview)
-│   ├── CommentsPage (Unified comment inbox with sentiment badges)
-│   ├── AutoReplyPage (Rules, confidence thresholds, approval queue)
-│   ├── SentimentPage (Pre/Post sentiment trends, temporal analysis)
-│   ├── AnalyticsPage
-│   │   ├── OverviewTab
-│   │   ├── ContentTab
-│   │   ├── TimeTab
-│   │   ├── SentimentTab
-│   │   ├── GrowthTab
-│   │   └── ComparisonTab
-│   ├── GrowthPredictionPage (Charts: actual vs predicted per platform)
-│   ├── AIRecommendationsPage (Priority cards with reasons)
-│   ├── NotificationsPage (In-app notification center)
-│   ├── ModelsPage (Model registry, performance, drift)
-│   └── SettingsPage (Account, Platforms, AI Config, Notifications)
-│
-└── Shared Components (Capability-driven rendering)
-    ├── PlatformSelector
-    ├── PostComposer
-    ├── MediaUploader
-    ├── CaptionEditor
-    ├── HashtagSelector
-    ├── SchedulePicker
-    ├── SentimentPanel
-    ├── AnalyticsPanel
-    ├── CommentPanel
-    ├── ReplyPanel
-    ├── GrowthChart
-    ├── RecommendationPanel
-    └── PlatformStatus
-```
+### Component Design Principles
+- **No platform-specific components** (e.g., no `InstagramDashboard.tsx`)
+- All components receive `capabilities` prop
+- Components render based on capability flags
+- Shared state via React Context / Zustand
 
-### 8.2 Dynamic UI via Capabilities
+### Dynamic UI Example
 ```typescript
-// Frontend queries backend for platform capabilities
-interface PlatformCapabilities {
-  publishing: boolean;
-  scheduling: boolean;
-  text_post: boolean;
-  image_post: boolean;
-  video_post: boolean;
-  carousel_post: boolean;
-  stories: boolean;
-  short_video: boolean;
-  comments: boolean;
-  replies: boolean;
-  analytics: boolean;
-  audience_metrics: boolean;
-  webhooks: boolean;
-  direct_messages: boolean;
-  hashtags: boolean;
-  mentions: boolean;
-  limits: {
-    text_length: number;
-    hashtag_count: number;
-    media_count: number;
-    video_duration_seconds: number;
-  };
-}
-
-// UI renders conditionally:
-function PostComposer({ platformId }) {
-  const caps = useCapabilities(platformId);
+function PostComposer({ platform }: { platform: Platform }) {
+  const capabilities = platform.capabilities;
   
   return (
     <div>
-      {caps.text_post && <CaptionEditor />}
-      {caps.hashtags && <HashtagSelector />}
-      {caps.image_post && <MediaUploader accept="image/*" />}
-      {caps.video_post && <MediaUploader accept="video/*" />}
-      {caps.carousel_post && <CarouselBuilder />}
-      {caps.scheduling && <SchedulePicker />}
-      {!caps.scheduling && <SchedulerUnavailableNotice />}
+      {capabilities.includes('text_post') && <TextInput />}
+      {capabilities.includes('image_post') && <MediaUploader type="image" />}
+      {capabilities.includes('video_post') && <MediaUploader type="video" />}
+      {capabilities.includes('scheduled_post') && <SchedulePicker />}
+      {capabilities.includes('hashtags') && <HashtagSelector />}
+      {capabilities.includes('comments') && <CommentPanel />}
+      {capabilities.includes('analytics') && <AnalyticsPanel />}
     </div>
   );
 }
@@ -756,198 +536,67 @@ function PostComposer({ platformId }) {
 
 ---
 
-## 9. Security Architecture
-
-### 9.1 Authentication & Authorization
-```
-┌────────────────────────────────────────────────────────────┐
-│                    AUTHENTICATION FLOW                      │
-│                                                             │
-│  User → Login (email/password) → JWT Access + Refresh     │
-│         │                                                   │
-│         ▼                                                   │
-│  Platform OAuth → Platform Auth Server → Auth Code         │
-│         │                                                   │
-│         ▼                                                   │
-│  Token Exchange → Access Token + Refresh Token             │
-│         │                                                   │
-│         ▼                                                   │
-│  Secure Credential Store (Encrypted)                       │
-│         │                                                   │
-│         ▼                                                   │
-│  Platform Adapter uses tokens from secure store            │
-└────────────────────────────────────────────────────────────┘
-```
-
-### 9.2 Security Measures
-| Layer | Measure |
-|-------|---------|
-| **Transport** | TLS 1.3 everywhere, HSTS, secure cookies |
-| **Auth** | JWT with short expiry (15min), refresh token rotation, OAuth 2.0 PKCE |
-| **Secrets** | Encrypted at rest (AES-256), never in logs, env vars for config |
-| **API** | Rate limiting per user/IP, input validation, CORS policy |
-| **Database** | Parameterized queries, row-level security, audit logging |
-| **Platform Tokens** | Encrypted storage, automatic refresh, scope minimization |
-| **Audit** | All admin actions, token access, config changes logged |
-
----
-
 ## 10. Deployment Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        PRODUCTION                                │
-│                                                                  │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
-│  │   CDN/      │    │   Load      │    │   WAF       │         │
-│  │   Edge      │───►│   Balancer  │───►│   (Rate     │         │
-│  │   Cache     │    │   (ALB)     │    │   Limit)    │         │
-│  └─────────────┘    └──────┬──────┘    └─────────────┘         │
-│                            │                                      │
-│         ┌──────────────────┼──────────────────┐                  │
-│         ▼                  ▼                  ▼                  │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
-│  │  Frontend   │    │   API       │    │  Worker     │         │
-│  │  (Static)   │    │  (FastAPI/  │    │  (Celery/   │         │
-│  │  S3+Cloud   │    │   Express)  │    │   Dramatiq) │         │
-│  └─────────────┘    └──────┬──────┘    └─────────────┘         │
-│                            │                                      │
-│         ┌──────────────────┼──────────────────┐                  │
-│         ▼                  ▼                  ▼                  │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
-│  │ PostgreSQL  │    │   Redis     │    │  Object     │         │
-│  │  (Primary)  │    │  (Cache/    │    │  Storage    │         │
-│  │  + Replica  │    │   Queue)    │    │  (Media)    │         │
-│  └─────────────┘    └─────────────┘    └─────────────┘         │
-│                                                                  │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
-│  │   MLflow    │    │ Prometheus  │    │   Grafana   │         │
-│  │  (Models)   │    │  (Metrics)  │    │  (Dashboards)│         │
-│  └─────────────┘    └─────────────┘    └─────────────┘         │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│              Load Balancer (Nginx)           │
+└──────────────┬──────────────────────────────┘
+               │
+┌──────────────┴──────────────┐
+│   Frontend (React SPA)      │
+│   Static files + CDN        │
+└──────────────┬──────────────┘
+               │
+┌──────────────┴──────────────┐
+│   Backend (FastAPI)         │
+│   Multiple workers (uvicorn)│
+│   + Celery workers          │
+└────────┬──────────┬─────────┘
+         │          │
+    ┌────┴────┐  ┌──┴────────┐
+    │PostgreSQL│  │  Redis    │
+    │         │  │ (Cache/   │
+    │         │  │  Queue/   │
+    │         │  │  PubSub)  │
+    └─────────┘  └───────────┘
 ```
 
----
-
-## 11. Configuration Architecture
-
-```yaml
-# config/platforms.yaml
-platforms:
-  instagram:
-    enabled: true
-    api_version: "v18.0"
-    auth:
-      type: "oauth2"
-      scopes: ["instagram_basic", "instagram_content_publish", "pages_show_list"]
-    capabilities:
-      publishing: true
-      scheduling: true
-      text_post: true
-      image_post: true
-      video_post: true
-      carousel_post: true
-      stories: true
-      short_video: true
-      comments: true
-      replies: true
-      analytics: true
-      audience_metrics: true
-      webhooks: true
-      hashtags: true
-      mentions: true
-    limits:
-      text_length: 2200
-      hashtag_count: 30
-      media_count: 10
-      video_duration_seconds: 3600
-    rate_limits:
-      requests_per_hour: 200
-      burst: 50
-  
-  linkedin:
-    enabled: true
-    api_version: "v2"
-    auth:
-      type: "oauth2"
-      scopes: ["w_member_social", "r_organization_social"]
-    capabilities:
-      publishing: true
-      scheduling: false  # Native scheduling not available
-      text_post: true
-      image_post: true
-      video_post: true
-      carousel_post: false
-      stories: false
-      short_video: false
-      comments: true
-      replies: true
-      analytics: true
-      audience_metrics: true
-      webhooks: false
-      hashtags: true
-      mentions: true
-    limits:
-      text_length: 3000
-      hashtag_count: 10
-      media_count: 9
-    rate_limits:
-      requests_per_day: 100000
-```
+### Container Strategy
+- Docker Compose for dev
+- Kubernetes for prod
+- Separate containers: frontend, backend, celery, postgres, redis
 
 ---
 
-## 12. Technology Stack Recommendations
+## 11. Decision Records (ADRs)
 
-| Layer | Technology | Rationale |
-|-------|------------|-----------|
-| **Frontend** | React 18 + TypeScript + Vite | Modern, typed, great ecosystem |
-| **UI Library** | Radix UI + Tailwind CSS | Accessible, customizable, capability-driven |
-| **State** | TanStack Query + Zustand | Server state + client state |
-| **Backend** | FastAPI (Python) | Async, type hints, OpenAPI, ML ecosystem |
-| **Database** | PostgreSQL 15+ | JSONB, full-text, ACID, mature |
-| **ORM** | SQLAlchemy 2.0 + Alembic | Async, typed, migrations |
-| **Cache/Queue** | Redis + Celery | Distributed task queue, caching |
-| **ML** | scikit-learn + XGBoost + MLflow | Research-aligned, versioned models |
-| **Auth** | python-jose + passlib + OAuthlib | JWT, OAuth 2.0, secure |
-| **Monitoring** | Prometheus + Grafana + Sentry | Metrics, dashboards, error tracking |
-| **Deploy** | Docker + Kubernetes (or Fly.io/Railway) | Containerized, scalable |
-| **CI/CD** | GitHub Actions | Integrated, free for public |
+| ADR | Decision | Rationale |
+|-----|----------|-----------|
+| ADR-001 | Platform-agnostic adapter architecture | Future-proof, no rewrites for new platforms |
+| ADR-002 | Capability-based platform system | Dynamic UI, graceful degradation |
+| ADR-003 | Universal data models (normalized + raw) | AI/analytics on normalized, audit on raw |
+| ADR-004 | AI core independent from platforms | Replaceable models, platform isolation |
+| ADR-005 | Event-driven architecture | Loose coupling, real-time intelligence loop |
+| ADR-006 | Configuration-driven system | No hardcoded platform logic |
+| ADR-007 | Model registry with versioning | Reproducibility, A/B testing |
+| ADR-008 | Mock platform adapter for testing | Test without external APIs |
+| ADR-009 | Dynamic UI from capabilities | One UI for all platforms |
+| ADR-010 | Secure credential vault | No raw secrets in DB |
 
 ---
 
-## 13. Architecture Decision Records (ADRs)
+## 12. Open Questions / Risks
 
-| ADR | Decision | Status |
-|-----|----------|--------|
-| ADR-001 | Platform-agnostic adapter pattern | ✅ Accepted |
-| ADR-002 | Capability-based platform system | ✅ Accepted |
-| ADR-003 | Universal data models with platform-specific publications | ✅ Accepted |
-| ADR-004 | AI engines consume normalized data only | ✅ Accepted |
-| ADR-005 | Event-driven architecture for post-posting intelligence | ✅ Accepted |
-| ADR-006 | Configuration-driven platform definitions | ✅ Accepted |
-| ADR-007 | Model registry with lifecycle stages | ✅ Accepted |
-| ADR-008 | Mock platform adapter for testing | ✅ Accepted |
-| ADR-009 | Frontend renders dynamically from capabilities | ✅ Accepted |
-| ADR-010 | Secure credential store for platform tokens | ✅ Accepted |
+| # | Question/Risk | Mitigation |
+|---|---------------|-----------|
+| 1 | LinkedIn scheduling not supported natively | AISMM-side scheduling fallback (configurable) |
+| 2 | Rate limits vary widely per platform | Per-platform config + adaptive backoff |
+| 3 | Model drift over time | Performance monitoring + retrain pipeline |
+| 4 | OAuth token expiry | Refresh flow + TOKEN_EXPIRING event |
+| 5 | API version changes | Adapter isolation, version-specific code |
 
 ---
 
-## 14. Next Steps
-
-1. **Review & Approve** this architecture design
-2. **Phase 3** — Core Foundation Implementation:
-   - Configuration system
-   - Database models & migrations
-   - Authentication system
-   - Logging & error handling
-   - Platform registry & base adapter
-   - Capability system
-   - Universal data models
-3. **Phase 4** — First Platform (Instagram) Implementation
-
----
-
-*Document Version: 1.0*  
-*Created: 2026-08-25*  
-*Status: DRAFT — Awaiting Review*
+**Status:** DESIGN — AWAITING APPROVAL  
+**Next:** Upon approval, proceed to Phase 3 (Core Foundation) implementation.
