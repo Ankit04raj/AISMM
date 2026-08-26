@@ -1,4 +1,9 @@
-from app.core.normalization import ContentNormalizer, MetricNormalizer, NormalizedContent, NormalizedMetric
+from backend.app.core.normalization import (
+    ContentNormalizer,
+    MetricNormalizer,
+    NormalizedContent,
+    NormalizedMetric,
+)
 
 
 def test_content_normalizer_extracts_hashtags_mentions_and_links():

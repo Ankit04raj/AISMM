@@ -1,0 +1,48 @@
+platform_id: "linkedin"
+name: "LinkedIn"
+enabled: true
+api_version: "v2"
+
+auth:
+  type: "oauth2"
+  scopes:
+    - "w_member_social"
+    - "r_organization_social"
+    - "rw_organization_admin"
+  token_url: "https://www.linkedin.com/oauth/v2/accessToken"
+  auth_url: "https://www.linkedin.com/oauth/v2/authorization"
+  client_id_env: "LINKEDIN_CLIENT_ID"
+  client_secret_env: "LINKEDIN_CLIENT_SECRET"
+
+capabilities:
+  publishing: true
+  scheduling: false
+  text_post: true
+  image_post: true
+  video_post: true
+  carousel_post: false
+  stories: false
+  short_video: false
+  comments: true
+  replies: true
+  analytics: true
+  audience_metrics: true
+  webhooks: false
+  direct_messages: false
+  hashtags: true
+  mentions: true
+
+limits:
+  text_length: 3000
+  hashtag_count: 10
+  media_count: 9
+  video_duration_seconds: 600
+  carousel_cards: 0
+
+rate_limits:
+  requests_per_window: 100
+  window_seconds: 86400
+  burst: 20
+  backoff_base: 2.0
+  backoff_max: 120.0
+  max_retries: 3

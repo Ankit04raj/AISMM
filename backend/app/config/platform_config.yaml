@@ -1,0 +1,296 @@
+# AISMM Platform Configuration
+# Each platform's capabilities, limits, and API settings
+
+platforms:
+  instagram:
+    name: "instagram"
+    display_name: "Instagram"
+    auth_type: "oauth2"
+    api_version: "v18.0"
+    base_url: "https://graph.facebook.com"
+    capabilities:
+      - "publishing"
+      - "scheduling"
+      - "text_post"
+      - "image_post"
+      - "video_post"
+      - "carousel_post"
+      - "stories"
+      - "short_video"
+      - "comments"
+      - "replies"
+      - "analytics"
+      - "audience_metrics"
+      - "post_analytics"
+      - "engagement_metrics"
+      - "webhooks"
+      - "hashtags"
+      - "mentions"
+      - "location"
+    limits:
+      caption_max_length: 2200
+      hashtag_max_count: 30
+      media_max_count: 10
+      video_max_duration_seconds: 3600
+      video_max_size_mb: 4096
+      carousel_max_items: 10
+    supported_media:
+      - "image"
+      - "video"
+      - "carousel"
+    rate_limit:
+      requests_per_window: 200
+      window_seconds: 3600
+      retry_policy: "exponential"
+      max_retries: 3
+      backoff_base: 1.0
+    oauth:
+      authorize_url: "https://api.instagram.com/oauth/authorize"
+      token_url: "https://api.instagram.com/oauth/access_token"
+      scopes: ["instagram_graph_user_profile", "instagram_graph_user_media", "pages_show_list", "pages_read_engagement"]
+    webhook:
+      verify_token_env: "INSTAGRAM_WEBHOOK_VERIFY_TOKEN"
+      events: ["comments", "messages", "mentions"]
+
+  facebook:
+    name: "facebook"
+    display_name: "Facebook"
+    auth_type: "oauth2"
+    api_version: "v18.0"
+    base_url: "https://graph.facebook.com"
+    capabilities:
+      - "publishing"
+      - "scheduling"
+      - "text_post"
+      - "image_post"
+      - "video_post"
+      - "carousel_post"
+      - "stories"
+      - "short_video"
+      - "comments"
+      - "replies"
+      - "analytics"
+      - "audience_metrics"
+      - "post_analytics"
+      - "engagement_metrics"
+      - "webhooks"
+      - "hashtags"
+      - "mentions"
+      - "location"
+    limits:
+      caption_max_length: 63206
+      hashtag_max_count: 30
+      media_max_count: 10
+      video_max_duration_seconds: 7200
+      video_max_size_mb: 4096
+      carousel_max_items: 10
+    supported_media:
+      - "image"
+      - "video"
+      - "carousel"
+    rate_limit:
+      requests_per_window: 200
+      window_seconds: 3600
+      retry_policy: "exponential"
+      max_retries: 3
+      backoff_base: 1.0
+    oauth:
+      authorize_url: "https://www.facebook.com/v18.0/dialog/oauth"
+      token_url: "https://graph.facebook.com/v18.0/oauth/access_token"
+      scopes: ["pages_manage_posts", "pages_read_engagement", "pages_show_list", "instagram_basic"]
+    webhook:
+      verify_token_env: "FACEBOOK_WEBHOOK_VERIFY_TOKEN"
+      events: ["feed", "messages", "comments"]
+
+  x:
+    name: "x"
+    display_name: "X (Twitter)"
+    auth_type: "oauth2"
+    api_version: "2"
+    base_url: "https://api.twitter.com"
+    capabilities:
+      - "publishing"
+      - "scheduling"
+      - "text_post"
+      - "image_post"
+      - "video_post"
+      - "gif_post"
+      - "comments"
+      - "replies"
+      - "analytics"
+      - "audience_metrics"
+      - "post_analytics"
+      - "engagement_metrics"
+      - "webhooks"
+      - "hashtags"
+      - "mentions"
+      - "location"
+      - "poll"
+      - "thread"
+    limits:
+      caption_max_length: 280
+      hashtag_max_count: 10
+      media_max_count: 4
+      video_max_duration_seconds: 140
+      video_max_size_mb: 512
+      thread_max_tweets: 25
+    supported_media:
+      - "image"
+      - "video"
+      - "gif"
+    rate_limit:
+      requests_per_window: 300
+      window_seconds: 900
+      retry_policy: "exponential"
+      max_retries: 3
+      backoff_base: 1.0
+    oauth:
+      authorize_url: "https://twitter.com/i/oauth2/authorize"
+      token_url: "https://api.twitter.com/2/oauth2/token"
+      scopes: ["tweet.read", "tweet.write", "users.read", "offline.access"]
+    webhook:
+      verify_token_env: "X_WEBHOOK_VERIFY_TOKEN"
+      events: ["tweet_create", "like", "follow", "mention"]
+
+  linkedin:
+    name: "linkedin"
+    display_name: "LinkedIn"
+    auth_type: "oauth2"
+    api_version: "v2"
+    base_url: "https://api.linkedin.com"
+    capabilities:
+      - "publishing"
+      - "text_post"
+      - "image_post"
+      - "video_post"
+      - "document_post"
+      - "article_post"
+      - "comments"
+      - "replies"
+      - "analytics"
+      - "audience_metrics"
+      - "post_analytics"
+      - "engagement_metrics"
+      - "hashtags"
+      - "mentions"
+      - "location"
+    limits:
+      caption_max_length: 3000
+      hashtag_max_count: 10
+      media_max_count: 9
+      video_max_duration_seconds: 600
+      video_max_size_mb: 5120
+      article_max_length: 110000
+    supported_media:
+      - "image"
+      - "video"
+      - "document"
+    rate_limit:
+      requests_per_window: 100
+      window_seconds: 3600
+      retry_policy: "exponential"
+      max_retries: 3
+      backoff_base: 1.0
+    oauth:
+      authorize_url: "https://www.linkedin.com/oauth/v2/authorization"
+      token_url: "https://www.linkedin.com/oauth/v2/accessToken"
+      scopes: ["r_liteprofile", "r_emailaddress", "w_member_social", "rw_organization_admin"]
+    webhook:
+      verify_token_env: "LINKEDIN_WEBHOOK_VERIFY_TOKEN"
+      events: ["comment", "like", "share"]
+
+  youtube:
+    name: "youtube"
+    display_name: "YouTube"
+    auth_type: "oauth2"
+    api_version: "v3"
+    base_url: "https://www.googleapis.com/youtube/v3"
+    capabilities:
+      - "publishing"
+      - "scheduling"
+      - "video_post"
+      - "short_video"
+      - "comments"
+      - "replies"
+      - "analytics"
+      - "audience_metrics"
+      - "post_analytics"
+      - "engagement_metrics"
+      - "webhooks"
+      - "hashtags"
+      - "mentions"
+      - "location"
+    limits:
+      title_max_length: 100
+      description_max_length: 5000
+      tags_max_count: 500
+      video_max_size_gb: 256
+      video_max_duration_seconds: 43200
+      short_max_duration_seconds: 60
+    supported_media:
+      - "video"
+    rate_limit:
+      requests_per_window: 10000
+      window_seconds: 86400
+      retry_policy: "exponential"
+      max_retries: 3
+      backoff_base: 1.0
+    oauth:
+      authorize_url: "https://accounts.google.com/o/oauth2/v2/auth"
+      token_url: "https://oauth2.googleapis.com/token"
+      scopes: ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly", "https://www.googleapis.com/auth/youtube.force-ssl"]
+    webhook:
+      verify_token_env: "YOUTUBE_WEBHOOK_VERIFY_TOKEN"
+      events: ["video.upload", "comment", "subscription"]
+
+  mock:
+    name: "mock"
+    display_name: "Mock Platform (Testing)"
+    auth_type: "none"
+    api_version: "mock"
+    base_url: "mock://localhost"
+    capabilities:
+      - "publishing"
+      - "scheduling"
+      - "text_post"
+      - "image_post"
+      - "video_post"
+      - "carousel_post"
+      - "stories"
+      - "short_video"
+      - "comments"
+      - "replies"
+      - "analytics"
+      - "audience_metrics"
+      - "post_analytics"
+      - "engagement_metrics"
+      - "webhooks"
+      - "hashtags"
+      - "mentions"
+      - "location"
+      - "poll"
+      - "thread"
+      - "article_post"
+      - "document_post"
+    limits:
+      caption_max_length: 10000
+      hashtag_max_count: 100
+      media_max_count: 20
+      video_max_duration_seconds: 86400
+      video_max_size_mb: 10240
+    supported_media:
+      - "image"
+      - "video"
+      - "carousel"
+      - "document"
+      - "gif"
+    rate_limit:
+      requests_per_window: 10000
+      window_seconds: 60
+      retry_policy: "none"
+      max_retries: 0
+      backoff_base: 0.0
+    oauth:
+      authorize_url: "mock://authorize"
+      token_url: "mock://token"
+      scopes: []

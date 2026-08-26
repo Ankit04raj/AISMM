@@ -1,0 +1,49 @@
+platform_id: "x"
+name: "X (Twitter)"
+enabled: true
+api_version: "v2"
+
+auth:
+  type: "oauth2"
+  scopes:
+    - "tweet.read"
+    - "tweet.write"
+    - "users.read"
+    - "offline.access"
+  token_url: "https://api.twitter.com/2/oauth2/token"
+  auth_url: "https://twitter.com/i/oauth2/authorize"
+  client_id_env: "X_CLIENT_ID"
+  client_secret_env: "X_CLIENT_SECRET"
+
+capabilities:
+  publishing: true
+  scheduling: true
+  text_post: true
+  image_post: true
+  video_post: true
+  carousel_post: false
+  stories: false
+  short_video: false
+  comments: true
+  replies: true
+  analytics: true
+  audience_metrics: true
+  webhooks: true
+  direct_messages: true
+  hashtags: true
+  mentions: true
+
+limits:
+  text_length: 280
+  hashtag_count: 10
+  media_count: 4
+  video_duration_seconds: 140
+  carousel_cards: 0
+
+rate_limits:
+  requests_per_window: 300
+  window_seconds: 900
+  burst: 50
+  backoff_base: 1.0
+  backoff_max: 60.0
+  max_retries: 5
