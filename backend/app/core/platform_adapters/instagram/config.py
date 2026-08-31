@@ -1,6 +1,6 @@
 """Instagram Adapter Configuration Schema."""
 
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, ClassVar
 from dataclasses import dataclass, field
 from pydantic import BaseModel, Field, validator
 
@@ -68,13 +68,13 @@ class InstagramConfig(BaseModel):
     # Media
     media: InstagramMediaConfig = Field(default_factory=InstagramMediaConfig)
 
-    # Webhooks
-    webhook: Optional[InstagramWebhookConfig] = None
-
     # Feature flags
     enable_scheduling: bool = Field(default=True)
     enable_insights: bool = Field(default=True)
     enable_webhooks: bool = Field(default=False)
+
+    # Webhooks
+    webhook: Optional[InstagramWebhookConfig] = None
     enable_carousel: bool = Field(default=True)
     enable_reels: bool = Field(default=True)
     enable_stories: bool = Field(default=True)
@@ -90,6 +90,9 @@ class InstagramConfig(BaseModel):
     # Cache
     cache_ttl_seconds: int = Field(default=300, ge=60, le=3600)
 
+
+    presets: ClassVar = None  # Set after InstagramConfigPresets is defined
+
     @validator("auth")
     def validate_auth(cls, v):
         if not v.client_id or not v.client_secret:
@@ -98,8 +101,8 @@ class InstagramConfig(BaseModel):
 
     @validator("webhook")
     def validate_webhook(cls, v, values):
-        if v and values.get("enable_webhooks"):
-            if not v.verify_token or not v.callback_url or not v.app_secret:
+        if values.get("enable_webhooks", False):
+            if v is None or not v.verify_token or not v.callback_url or not v.app_secret:
                 raise ValueError("Webhook config requires verify_token, callback_url, and app_secret")
         return v
 
@@ -121,6 +124,7 @@ class InstagramConfig(BaseModel):
             "retry_backoff_factor": self.retry_backoff_factor,
             "cache_ttl": self.cache_ttl_seconds,
         }
+
 
 
 # Default configuration for development/testing
@@ -226,3 +230,4 @@ def load_config_from_env() -> InstagramConfig:
         webhook=webhook,
         enable_webhooks=bool(webhook),
     )
+InstagramConfig.presets = InstagramConfigPresets

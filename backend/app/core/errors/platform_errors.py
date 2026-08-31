@@ -105,3 +105,19 @@ class NotFoundError(PlatformError):
         super().__init__(f"Resource not found: {resource}", platform, details)
         self.error_code = "NOT_FOUND"
         self.resource = resource
+
+
+class WebhookError(PlatformError):
+    """Webhook processing failed."""
+
+    def __init__(self, message: str, platform: str = "", details: dict = None):
+        super().__init__(message, platform, details)
+        self.error_code = "WEBHOOK_FAILED"
+
+
+class InsufficientPermissionsError(PlatformError):
+    """Insufficient permissions for requested operation."""
+
+    def __init__(self, message: str, platform: str = "", details: dict = None):
+        super().__init__(message, platform, details)
+        self.error_code = "INSUFFICIENT_PERMISSIONS"

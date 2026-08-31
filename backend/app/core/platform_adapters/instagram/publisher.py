@@ -8,7 +8,7 @@ import httpx
 
 from .adapter import InstagramAdapter
 from .endpoints import InstagramMediaType, get_media_metrics
-from ..errors import PublishingError, ValidationError
+from ...errors import PublishingError, ValidationError
 from ...normalization import UniversalContent, UniversalMedia
 
 

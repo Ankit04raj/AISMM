@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from ..errors import ValidationError, PlatformError
+from ...errors import ValidationError, PlatformError
 
 
 class InstagramWebhookField(str, Enum):
@@ -159,6 +159,7 @@ class InstagramWebhookHandler:
             object_type=object_type,
             object_id=object_id,
             timestamp=timestamp,
+            raw=value,
             data={
                 "comment_id": value.get("comment_id"),
                 "media_id": value.get("media_id"),
@@ -181,6 +182,7 @@ class InstagramWebhookHandler:
             object_type=object_type,
             object_id=object_id,
             timestamp=timestamp,
+            raw=value,
             data={
                 "mention_id": value.get("mention_id"),
                 "media_id": value.get("media_id"),
@@ -202,6 +204,7 @@ class InstagramWebhookHandler:
             object_type=object_type,
             object_id=object_id,
             timestamp=timestamp,
+            raw=value,
             data={
                 "story_id": value.get("story_id"),
                 "reply_id": value.get("reply_id"),
@@ -224,6 +227,7 @@ class InstagramWebhookHandler:
             object_type=object_type,
             object_id=object_id,
             timestamp=timestamp,
+            raw=value,
             data={
                 "story_id": value.get("story_id"),
                 "metrics": value.get("metrics", {}),

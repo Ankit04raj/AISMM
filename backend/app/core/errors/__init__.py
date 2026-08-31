@@ -12,6 +12,8 @@ from .platform_errors import (
     UnsupportedCapabilityError,
     PlatformUnavailableError,
     NotFoundError,
+    WebhookError,
+    InsufficientPermissionsError,
 )
 
 __all__ = [
@@ -26,4 +28,6 @@ __all__ = [
     "UnsupportedCapabilityError",
     "PlatformUnavailableError",
     "NotFoundError",
+    "WebhookError",
+    "InsufficientPermissionsError",
 ]

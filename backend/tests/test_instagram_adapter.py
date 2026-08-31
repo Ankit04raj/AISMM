@@ -5,6 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta
 
 from backend.app.core.platform_adapters.instagram.adapter import InstagramAdapter
+from backend.app.core.normalization import ContentType
+from backend.app.core.normalization.content import MediaType
 from backend.app.core.platform_adapters.instagram.auth import InstagramAuth, InstagramAuthConfig
 from backend.app.core.platform_adapters.instagram.config import (
     InstagramConfig,
@@ -53,16 +55,18 @@ class TestInstagramAdapter:
             Cap.POST_REEL,
             Cap.POST_STORY,
             Cap.SCHEDULE_POST,
-            Cap.FETCH_INSIGHTS,
-            Cap.WEBHOOK_SUBSCRIBE,
-            Cap.MANAGE_COMMENTS,
+            Cap.GET_INSIGHTS,
+            Cap.MANAGE_WEBHOOKS,
+            Cap.REPLY_COMMENT,
+            Cap.DELETE_COMMENT,
+            Cap.HIDE_COMMENT,
             Cap.GET_PROFILE,
         }
         assert caps == expected
 
     @pytest.mark.asyncio
     async def test_health_check(self, adapter):
-        with patch.object(adapter, 'validate_token', return_value=True):
+        with patch.object(adapter, 'validate_connection', return_value=True):
             health = await adapter.health_check()
             assert health["platform"] == "instagram"
             assert health["status"] == "healthy"
@@ -75,34 +79,36 @@ class TestInstagramAdapter:
 
         # Image
         content = UniversalContent(
+            content_type=ContentType.POST,
             text="Test",
-            media=[UniversalMedia(type="image", url="http://example.com/img.jpg")]
+            media=[UniversalMedia(type=MediaType.IMAGE, url="http://example.com/img.jpg")]
         )
         assert adapter._determine_media_type(content) == "IMAGE"
 
         # Carousel
         content = UniversalContent(
+            content_type=ContentType.POST,
             text="Test",
             media=[
-                UniversalMedia(type="image", url="http://example.com/img1.jpg"),
-                UniversalMedia(type="image", url="http://example.com/img2.jpg"),
+                UniversalMedia(type=MediaType.IMAGE, url="http://example.com/img1.jpg"),
+                UniversalMedia(type=MediaType.IMAGE, url="http://example.com/img2.jpg"),
             ]
         )
         assert adapter._determine_media_type(content) == "CAROUSEL"
 
         # Reel (video)
         content = UniversalContent(
+            content_type=ContentType.REEL,
             text="Test",
-            media=[UniversalMedia(type="video", url="http://example.com/video.mp4")],
-            content_type="reel"
+            media=[UniversalMedia(type=MediaType.VIDEO, url="http://example.com/video.mp4")],
         )
         assert adapter._determine_media_type(content) == "REELS"
 
         # Story
         content = UniversalContent(
+            content_type=ContentType.STORY,
             text="Test",
-            media=[UniversalMedia(type="image", url="http://example.com/img.jpg")],
-            content_type="story"
+            media=[UniversalMedia(type=MediaType.IMAGE, url="http://example.com/img.jpg")],
         )
         assert adapter._determine_media_type(content) == "STORIES"
 
@@ -222,11 +228,11 @@ class TestInstagramPublisher:
     async def test_publish_image_validation(self, publisher):
         from backend.app.core.normalization import UniversalContent, UniversalMedia
 
-        content = UniversalContent(text="Test")
-        media = UniversalMedia(type="image", url="http://example.com/img.jpg")
+        content = UniversalContent(content_type=ContentType.POST, text="Test")
+        media = UniversalMedia(type=MediaType.IMAGE, url="http://example.com/img.jpg")
 
         # Should fail without media URL
-        media_no_url = UniversalMedia(type="image", url="")
+        media_no_url = UniversalMedia(type=MediaType.IMAGE, url="")
         with pytest.raises(ValidationError, match="Media URL required"):
             await publisher.publish_image(content, media_no_url)
 
@@ -285,15 +291,14 @@ class TestInstagramWebhook:
         assert result is None
 
     def test_verify_signature(self, handler):
+        import hmac
+        import hashlib
         payload = b'{"test": "data"}'
         signature = "sha256=" + hmac.new(
             b"test_app_secret",
             payload,
             hashlib.sha256
         ).hexdigest()
-
-        import hmac
-        import hashlib
         assert handler.verify_signature(payload, signature) is True
 
         # Invalid signature
@@ -391,31 +396,28 @@ class TestInstagramAdapterIntegration:
         with patch.object(adapter, '_get_client') as mock_client:
             mock_response = AsyncMock()
             mock_response.status_code = 200
-            mock_response.json.return_value = {
+            mock_response.json = MagicMock(return_value={
                 "access_token": "short_token",
                 "expires_in": 3600,
-            }
+            })
             mock_client.return_value.post.return_value = mock_response
 
             # Mock long-lived token exchange
             mock_response_long = AsyncMock()
             mock_response_long.status_code = 200
-            mock_response_long.json.return_value = {
+            mock_response_long.json = MagicMock(return_value={
                 "access_token": "long_token",
                 "expires_in": 5184000,
-            }
-            mock_client.return_value.get.return_value = mock_response_long
-
-            # Mock get IG user ID
+            })
             mock_response_accounts = AsyncMock()
             mock_response_accounts.status_code = 200
-            mock_response_accounts.json.return_value = {
+            mock_response_accounts.json = MagicMock(return_value={
                 "data": [{
                     "instagram_business_account": {"id": "987654321"}
                 }]
-            }
-            mock_client.return_value.get.return_value = mock_response_accounts
+            })
 
+            mock_client.return_value.get.side_effect = [mock_response_long, mock_response_accounts]
             result = await adapter.authenticate({"code": "auth_code_123"})
 
             assert result["access_token"] == "long_token"
@@ -429,16 +431,16 @@ class TestInstagramAdapterIntegration:
             # Mock media upload
             mock_upload = AsyncMock()
             mock_upload.status_code = 200
-            mock_upload.json.return_value = {"id": "media_container_123"}
+            mock_upload.json = MagicMock(return_value={"id": "media_container_123"})
             mock_client.return_value.post.return_value = mock_upload
 
             # Mock publish
             mock_publish = AsyncMock()
             mock_publish.status_code = 200
-            mock_publish.json.return_value = {
+            mock_publish.json = MagicMock(return_value={
                 "id": "post_456",
                 "permalink": "https://instagram.com/p/abc123"
-            }
+            })
 
             # Need to mock the second call
             call_count = [0]
@@ -451,31 +453,31 @@ class TestInstagramAdapterIntegration:
             mock_client.return_value.post.side_effect = mock_post
 
             content = UniversalContent(
+                content_type=ContentType.POST,
                 text="Test post",
-                media=[UniversalMedia(type="image", url="http://example.com/img.jpg")]
+                media=[UniversalMedia(type=MediaType.IMAGE, url="http://example.com/img.jpg")]
             )
 
             result = await adapter.publish_post(content)
 
-            assert result["platform"] == "instagram"
-            assert result["post_id"] == "post_456"
-            assert result["container_id"] == "media_container_123"
-            assert result["media_type"] == "IMAGE"
+            assert result.platform_post_id == "post_456"
+            assert result.status == "published"
+            assert result.platform_data["container_id"] == "media_container_123"
+            assert result.platform_data["media_type"] == "IMAGE"
 
     @pytest.mark.asyncio
     async def test_fetch_insights(self, adapter):
         with patch.object(adapter, '_get_client') as mock_client:
             mock_response = AsyncMock()
             mock_response.status_code = 200
-            mock_response.json.return_value = {
+            mock_response.json = MagicMock(return_value={
                 "data": [
                     {"name": "impressions", "values": [{"value": 1000}]},
                     {"name": "reach", "values": [{"value": 800}]},
                     {"name": "likes", "values": [{"value": 150}]},
                 ]
-            }
+            })
             mock_client.return_value.get.return_value = mock_response
-
             result = await adapter.fetch_insights("post_123")
 
             assert "normalized" in result

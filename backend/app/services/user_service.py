@@ -19,18 +19,19 @@ class UserService:
 
     async def get_user(self, user_id: UUID) -> Optional[User]:
         """Get a user by ID."""
-        result = await self.db.execute(
-            select(User).
-            options(selectinload(User.social_accounts)).
-            where(User.id == user_id).
+        statement = (
+            select(User)
+            .options(selectinload(User.social_accounts))
+            .where(User.id == user_id)
         )
+        result = await self.db.execute(statement)
         return result.scalar_one_or_none()
 
     async def get_users(self, page: int = 1, page_size: int = 20) -> Dict[str, Any]:
         """Get paginated users."""
-        query = select(User).
+        query = select(User)
         query = query.order_by(User.created_at.desc())
-        query = query.offset((page - 1) * page_size).
+        query = query.offset((page - 1) * page_size)
         query = query.limit(page_size)
 
         count_query = select(func.count()).select_from(query.subquery())
