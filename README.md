@@ -1,7 +1,7 @@
 # AISMM — Universal Multi-Platform AI Social Media Management
 
-![Phase](https://img.shields.io/badge/phase-10%20Auto%20Reply%20Complete-brightgreen)
-![Tests](https://img.shields.io/badge/tests-97%2F97%20passing%20(100%25)-brightgreen)
+![Phase](https://img.shields.io/badge/phase-11%20Predictive%20Growth%20Complete-brightgreen)
+![Tests](https://img.shields.io/badge/tests-103%2F103%20passing%20(100%25)-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![Framework](https://img.shields.io/badge/framework-FastAPI%20%7C%20SQLAlchemy%20%7C%20Alembic-blue)
 
@@ -44,39 +44,41 @@ AISMM is a **platform-agnostic, AI-powered social media management platform** bu
 | **7** | **AI Content Engine** | ✅ Verified | Dual-Phase Sentiment, Caption Quality Analyzer, Top-K Hashtags |
 | **8** | **Intelligent Scheduling Engine** | ✅ Verified | ML Temporal Ensemble, Auto-Scheduler, Queue Dispatch |
 | **9** | **Post-Posting Intelligence** | ✅ Verified | Comment Sync, Temporal Sentiment Trajectory, Spike Alerts |
-| **10** | **Auto-Reply Engine** | ✅ **100% Verified** | **97/97 Tests Passing** (TF-IDF Intent Classifier, Human-in-the-Loop Routing, Auto-Execution) |
-| **11** | **Predictive Growth Engine** | 🔄 **Next** | Platform-specific growth regression models ($R^2$, RMSE) |
+| **10** | **Auto-Reply Engine** | ✅ Verified | TF-IDF Intent Classifier, Human-in-the-Loop Routing |
+| **11** | **Predictive Growth Engine** | ✅ **100% Verified** | **103/103 Tests Passing** (Platform-Specific Random Forest Regressors, 7/30/90-Day Projections) |
+| **12** | **Universal Analytics Dashboard** | 🔄 **Next** | Multi-platform metrics aggregation, platform comparison, content/time/sentiment analytics |
 
 ---
 
-### Phase 10 Auto-Reply Deliverables
+### Phase 11 Predictive Growth Deliverables
 
-| Component | Module | Description | Research Alignment |
+| Component | Module | Description | Research Baseline |
 |-----------|--------|-------------|-------------------|
-| **Comment Intent Classifier** | `backend/app/ai/reply/engine.py` | TF-IDF (1,2-grams) + Multinomial Logistic Regression identifying pricing inquiries, support issues, compliments, general questions, and spam | **88.00% accuracy baseline** |
-| **Human-in-the-Loop Policy** | `backend/app/ai/reply/engine.py` | Automatic execution (`confidence >= 0.90`), Approval Required (`0.70-0.90`), Manual Routing (`<0.70` or support issues), and Spam Hiding | Full safety guardrails |
-| **Reply Service & Execution** | `backend/app/services/reply_service.py` | Real-time comment ingestion, routing policy evaluation, automated response sending, and human approval execution | Complete workflow |
-| **Auto-Reply REST API** | `backend/app/api/v1/reply.py` | `/api/v1/reply/classify`, `/suggest`, `/process-comment`, `/approve` | FastAPI v1 endpoints |
+| **Platform Growth Models** | `backend/app/ai/growth/engine.py` | Calibrated `RandomForestRegressor` per platform predicting follower & reach velocity over 7, 30, and 90 days | **Instagram 89.2%, Facebook 87.5%, Twitter 85.8% $R^2$** |
+| **Growth Feature Pipeline** | `backend/app/ai/growth/features.py` | 10-feature vector: current followers, posting frequency, engagement rate, 7d/30d velocity, media ratios, sentiment | Standardized representation |
+| **Growth Service & DB Persistence** | `backend/app/services/growth_service.py` | Multi-horizon projections with `ModelPrediction` database record persistence and model status reporting | Complete workflow |
+| **Predictive Growth REST API** | `backend/app/api/v1/growth.py` | `/api/v1/growth/predict`, `/accounts/{id}/projections`, `/models/status` | FastAPI v1 endpoints |
 
 ---
 
-## 🧪 Test Results: 97/97 Passing (100%)
+## 🧪 Test Results: 103/103 Passing (100%)
 
 ```
-backend/tests/test_auto_reply.py ..........                              [ 10%]
-backend/tests/test_post_intelligence.py ......                           [ 16%]
-backend/tests/test_scheduling_engine.py .......                          [ 23%]
-backend/tests/test_ai_content_engine.py ............                     [ 36%]
-backend/tests/test_api_v1.py .....                                       [ 41%]
-backend/tests/test_content_management.py ....                            [ 45%]
-backend/tests/test_e2e_instagram.py .                                    [ 46%]
-backend/tests/test_facebook_adapter.py ..........                        [ 56%]
-backend/tests/test_foundation.py ...........                             [ 68%]
-backend/tests/test_instagram_adapter.py .........................        [ 93%]
-backend/tests/test_normalization.py ..                                   [ 95%]
+backend/tests/test_growth_engine.py ......                               [  6%]
+backend/tests/test_auto_reply.py ..........                              [ 16%]
+backend/tests/test_post_intelligence.py ......                           [ 22%]
+backend/tests/test_scheduling_engine.py .......                          [ 29%]
+backend/tests/test_ai_content_engine.py ............                     [ 41%]
+backend/tests/test_api_v1.py .....                                       [ 46%]
+backend/tests/test_content_management.py ....                            [ 50%]
+backend/tests/test_e2e_instagram.py .                                    [ 51%]
+backend/tests/test_facebook_adapter.py ..........                        [ 61%]
+backend/tests/test_foundation.py ...........                             [ 72%]
+backend/tests/test_instagram_adapter.py .........................        [ 96%]
+backend/tests/test_normalization.py ..                                   [ 98%]
 backend/tests/test_services.py ....                                      [100%]
 
-======================= 97 passed in 11.12s =======================
+======================= 103 passed in 13.28s =======================
 ```
 
 ---
@@ -97,7 +99,7 @@ pip install -r requirements.txt
 # Run migrations
 alembic upgrade head
 
-# Run full test suite (97 tests)
+# Run full test suite (103 tests)
 pytest -v
 
 # Start FastAPI server
@@ -106,21 +108,24 @@ uvicorn backend.app.main:app --reload
 
 ---
 
-## 💬 Auto-Reply Engine Usage
+## 📈 Predictive Growth Engine Usage
 
 ```python
-from backend.app.ai.reply import TFIDFReplyEngine, ReplyAction
+from backend.app.ai.growth import GrowthEngine
 
-engine = TFIDFReplyEngine()
+engine = GrowthEngine()
 
-# 1. Classify incoming comment
-classification = engine.classify_comment("What are your subscription rates for pro accounts?")
-print(f"Detected Intent: {classification.intent.value} (Confidence: {classification.confidence})")
+# Predict follower growth trajectory across 7, 30, and 90 day horizons
+result = engine.predict_growth(
+    platform="instagram",
+    current_followers=10000,
+    posting_frequency_weekly=4.0,
+    avg_engagement_rate=4.8,
+)
 
-# 2. Generate response with Human-in-the-Loop policy
-suggestion = engine.generate_reply("Love the new update, great work team! ❤️")
-print(f"Action: {suggestion.routing_action.value}")  # "automatic"
-print(f"Suggested Reply: {suggestion.suggested_reply}")
+print(f"Platform: {result.platform.upper()} (Model R2: {result.baseline_r2})")
+for horizon, proj in result.projections.items():
+    print(f"[{horizon.upper()}] Predicted: {proj.predicted_followers} (+{proj.net_growth_followers} followers, +{proj.growth_rate_percent}%) — Est. Reach: {proj.predicted_reach}")
 ```
 
 ---
@@ -145,7 +150,8 @@ AISMM/
 │   │   │   ├── caption/         # Caption Quality & Adaptation Engine
 │   │   │   ├── hashtag/         # Top-K Hashtag Recommendation Engine
 │   │   │   ├── scheduling/      # Intelligent Scheduling Engine (RF + GB)
-│   │   │   └── reply/           # Auto-Reply Engine (TF-IDF + Logistic Regression)
+│   │   │   ├── reply/           # Auto-Reply Engine (TF-IDF + Logistic Regression)
+│   │   │   └── growth/          # Predictive Growth Engine (Random Forest Regressors)
 │   │   ├── api/                 # Modular API v1 routers
 │   │   │   └── v1/
 │   │   │       ├── accounts.py
@@ -153,6 +159,7 @@ AISMM/
 │   │   │       ├── auth.py
 │   │   │       ├── comments.py
 │   │   │       ├── content.py   # Multi-Platform Composer & Previews
+│   │   │       ├── growth.py    # Predictive Growth Endpoints
 │   │   │       ├── intelligence.py # Post Intelligence & Temporal Sentiment
 │   │   │       ├── metrics.py
 │   │   │       ├── platforms.py
@@ -177,15 +184,16 @@ AISMM/
 │   │   ├── logging/             # Structured JSON logger
 │   │   ├── services/            # Business logic service layer
 │   │   │   ├── account_service.py
+│   │   │   ├── growth_service.py# Predictive Growth Service
 │   │   │   ├── intelligence_service.py
 │   │   │   ├── metrics_service.py
 │   │   │   ├── post_service.py
 │   │   │   ├── preview_service.py
-│   │   │   ├── reply_service.py # Auto-Reply Service
+│   │   │   ├── reply_service.py
 │   │   │   ├── scheduling_service.py
 │   │   │   └── user_service.py
 │   │   └── main.py              # FastAPI application entry point
-│   └── tests/                   # 97 unit, integration & E2E tests
+│   └── tests/                   # 103 unit, integration & E2E tests
 ├── docs/
 │   └── architecture/            # Architecture specifications (29 ADRs)
 └── frontend/                    # React dashboard (Phase 4+)
@@ -193,12 +201,12 @@ AISMM/
 
 ---
 
-## 🎯 Next Phase: Phase 11 — Predictive Growth Engine
+## 🎯 Next Phase: Phase 12 — Universal Analytics Dashboard
 
-1. **Platform-Specific Growth Regression Models** — Random Forest Regressor predicting follower & reach trajectory over 7, 30, and 90 days ($R^2$ baseline: Instagram 89.2%, Facebook 87.5%)
-2. **Growth Feature Pipeline** — Historical follower velocity, post frequency, engagement rate, content distribution
-3. **Model Evaluation & Drift Monitoring** — Tracking actual vs predicted growth with RMSE metrics
-4. **Growth REST API** — Projections, historical comparisons, and growth alert triggers
+1. **Overview Dashboard Aggregations** — Cross-platform total reach, impressions, engagement, and follower counts
+2. **Platform Comparison Analytics** — Normalized performance comparisons without incompatible metric collisions
+3. **Content & Temporal Analytics** — Best/worst posts, content type ROI, weekday vs weekend performance
+4. **Actual vs Predicted Growth Tracking** — Drift monitoring and model prediction accuracy verification
 
 ---
 
