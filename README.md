@@ -1,7 +1,7 @@
 # AISMM — Universal Multi-Platform AI Social Media Management
 
-![Phase](https://img.shields.io/badge/phase-11%20Predictive%20Growth%20Complete-brightgreen)
-![Tests](https://img.shields.io/badge/tests-103%2F103%20passing%20(100%25)-brightgreen)
+![Phase](https://img.shields.io/badge/phase-12%20Universal%20Analytics%20Complete-brightgreen)
+![Tests](https://img.shields.io/badge/tests-112%2F112%20passing%20(100%25)-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![Framework](https://img.shields.io/badge/framework-FastAPI%20%7C%20SQLAlchemy%20%7C%20Alembic-blue)
 
@@ -45,40 +45,45 @@ AISMM is a **platform-agnostic, AI-powered social media management platform** bu
 | **8** | **Intelligent Scheduling Engine** | ✅ Verified | ML Temporal Ensemble, Auto-Scheduler, Queue Dispatch |
 | **9** | **Post-Posting Intelligence** | ✅ Verified | Comment Sync, Temporal Sentiment Trajectory, Spike Alerts |
 | **10** | **Auto-Reply Engine** | ✅ Verified | TF-IDF Intent Classifier, Human-in-the-Loop Routing |
-| **11** | **Predictive Growth Engine** | ✅ **100% Verified** | **103/103 Tests Passing** (Platform-Specific Random Forest Regressors, 7/30/90-Day Projections) |
-| **12** | **Universal Analytics Dashboard** | 🔄 **Next** | Multi-platform metrics aggregation, platform comparison, content/time/sentiment analytics |
+| **11** | **Predictive Growth Engine** | ✅ Verified | Platform-Specific Random Forest Regressors, 7/30/90-Day Projections |
+| **12** | **Universal Analytics Dashboard** | ✅ **100% Verified** | **112/112 Tests Passing** (Cross-Platform Aggregations, Benchmarking, Temporal Heatmaps, Growth Drift) |
+| **13** | **AI Strategy Engine** | 🔄 **Next** | Unified cross-model strategic recommendation synthesis |
 
 ---
 
-### Phase 11 Predictive Growth Deliverables
+### Phase 12 Universal Analytics Dashboard Deliverables
 
-| Component | Module | Description | Research Baseline |
+| Component | Module | Description | Research Alignment |
 |-----------|--------|-------------|-------------------|
-| **Platform Growth Models** | `backend/app/ai/growth/engine.py` | Calibrated `RandomForestRegressor` per platform predicting follower & reach velocity over 7, 30, and 90 days | **Instagram 89.2%, Facebook 87.5%, Twitter 85.8% $R^2$** |
-| **Growth Feature Pipeline** | `backend/app/ai/growth/features.py` | 10-feature vector: current followers, posting frequency, engagement rate, 7d/30d velocity, media ratios, sentiment | Standardized representation |
-| **Growth Service & DB Persistence** | `backend/app/services/growth_service.py` | Multi-horizon projections with `ModelPrediction` database record persistence and model status reporting | Complete workflow |
-| **Predictive Growth REST API** | `backend/app/api/v1/growth.py` | `/api/v1/growth/predict`, `/accounts/{id}/projections`, `/models/status` | FastAPI v1 endpoints |
+| **Overview Dashboard** | `backend/app/services/analytics_service.py` | Multi-platform summary aggregating total followers, reach, impressions, interactions, engagement rate, and audience sentiment | Centralized Multi-Platform Dashboard |
+| **Platform Benchmarking** | `backend/app/services/analytics_service.py` | Normalized comparative analytics across active networks with strongest reach/engagement identification | Normalized cross-platform metric model |
+| **Content Performance & ROI** | `backend/app/services/analytics_service.py` | Top and bottom post rankings, format ROI (carousel vs video vs image), and top-performing hashtag analysis | Actionable content intelligence |
+| **Temporal Engagement Heatmap** | `backend/app/services/analytics_service.py` | 7x24 hour-by-day engagement matrix with weekday vs weekend performance lift calculations | Research baseline timing analysis |
+| **Sentiment Health Summary** | `backend/app/services/analytics_service.py` | Positive/negative distribution ratios and audience mood health status (`excellent`, `healthy`, `concerning`, `critical`) | Dual-Phase Sentiment tracking |
+| **Growth Drift Tracking** | `backend/app/services/analytics_service.py` | Historical actual vs predicted follower comparison evaluating MAPE and model calibration status | ML performance monitoring |
+| **Analytics REST API** | `backend/app/api/v1/analytics.py` | Modular endpoints mounted at `/api/v1/analytics/`: `/dashboard`, `/comparison`, `/content`, `/temporal`, `/sentiment-trends`, `/growth-accuracy` | FastAPI v1 endpoints |
 
 ---
 
-## 🧪 Test Results: 103/103 Passing (100%)
+## 🧪 Test Results: 112/112 Passing (100%)
 
 ```
-backend/tests/test_growth_engine.py ......                               [  6%]
-backend/tests/test_auto_reply.py ..........                              [ 16%]
-backend/tests/test_post_intelligence.py ......                           [ 22%]
-backend/tests/test_scheduling_engine.py .......                          [ 29%]
-backend/tests/test_ai_content_engine.py ............                     [ 41%]
-backend/tests/test_api_v1.py .....                                       [ 46%]
-backend/tests/test_content_management.py ....                            [ 50%]
-backend/tests/test_e2e_instagram.py .                                    [ 51%]
-backend/tests/test_facebook_adapter.py ..........                        [ 61%]
-backend/tests/test_foundation.py ...........                             [ 72%]
-backend/tests/test_instagram_adapter.py .........................        [ 96%]
-backend/tests/test_normalization.py ..                                   [ 98%]
+backend/tests/test_analytics_dashboard.py .........                      [  8%]
+backend/tests/test_growth_engine.py ......                               [ 13%]
+backend/tests/test_auto_reply.py ..........                              [ 22%]
+backend/tests/test_post_intelligence.py ......                           [ 27%]
+backend/tests/test_scheduling_engine.py .......                          [ 33%]
+backend/tests/test_ai_content_engine.py ............                     [ 44%]
+backend/tests/test_api_v1.py .....                                       [ 48%]
+backend/tests/test_content_management.py ....                            [ 52%]
+backend/tests/test_e2e_instagram.py .                                    [ 53%]
+backend/tests/test_facebook_adapter.py ..........                        [ 62%]
+backend/tests/test_foundation.py ...........                             [ 71%]
+backend/tests/test_instagram_adapter.py .........................        [ 94%]
+backend/tests/test_normalization.py ..                                   [ 96%]
 backend/tests/test_services.py ....                                      [100%]
 
-======================= 103 passed in 13.28s =======================
+======================= 112 passed in 13.18s =======================
 ```
 
 ---
@@ -99,7 +104,7 @@ pip install -r requirements.txt
 # Run migrations
 alembic upgrade head
 
-# Run full test suite (103 tests)
+# Run full test suite (112 tests)
 pytest -v
 
 # Start FastAPI server
@@ -108,24 +113,29 @@ uvicorn backend.app.main:app --reload
 
 ---
 
-## 📈 Predictive Growth Engine Usage
+## 📊 Analytics Dashboard Usage
 
 ```python
-from backend.app.ai.growth import GrowthEngine
+from uuid import UUID
+from backend.app.services.analytics_service import AnalyticsService
+from backend.app.db.session import get_db_context
 
-engine = GrowthEngine()
+async with get_db_context() as session:
+    service = AnalyticsService(session)
+    user_id = UUID("...")
 
-# Predict follower growth trajectory across 7, 30, and 90 day horizons
-result = engine.predict_growth(
-    platform="instagram",
-    current_followers=10000,
-    posting_frequency_weekly=4.0,
-    avg_engagement_rate=4.8,
-)
+    # 1. Fetch dashboard overview
+    overview = await service.get_dashboard_overview(user_id, days=30)
+    print(f"Total Followers: {overview.total_followers} across {overview.total_connected_platforms} platforms")
+    print(f"Overall Engagement Rate: {overview.overall_engagement_rate}%")
 
-print(f"Platform: {result.platform.upper()} (Model R2: {result.baseline_r2})")
-for horizon, proj in result.projections.items():
-    print(f"[{horizon.upper()}] Predicted: {proj.predicted_followers} (+{proj.net_growth_followers} followers, +{proj.growth_rate_percent}%) — Est. Reach: {proj.predicted_reach}")
+    # 2. Compare platform performance
+    comparison = await service.get_platform_comparison(user_id, days=30)
+    print(f"Strongest Platform by Reach: {comparison.strongest_platform_by_reach.upper()}")
+
+    # 3. Content format ROI
+    content = await service.get_content_performance(user_id, days=30)
+    print(f"Top performing format: {content.by_content_type[0].content_type} (Avg Rate: {content.by_content_type[0].avg_engagement_rate}%)")
 ```
 
 ---
@@ -156,6 +166,7 @@ AISMM/
 │   │   │   └── v1/
 │   │   │       ├── accounts.py
 │   │   │       ├── ai.py        # AI Content Engine Endpoints
+│   │   │       ├── analytics.py # Universal Analytics Endpoints
 │   │   │       ├── auth.py
 │   │   │       ├── comments.py
 │   │   │       ├── content.py   # Multi-Platform Composer & Previews
@@ -184,7 +195,8 @@ AISMM/
 │   │   ├── logging/             # Structured JSON logger
 │   │   ├── services/            # Business logic service layer
 │   │   │   ├── account_service.py
-│   │   │   ├── growth_service.py# Predictive Growth Service
+│   │   │   ├── analytics_service.py # Universal Analytics Service
+│   │   │   ├── growth_service.py
 │   │   │   ├── intelligence_service.py
 │   │   │   ├── metrics_service.py
 │   │   │   ├── post_service.py
@@ -193,7 +205,7 @@ AISMM/
 │   │   │   ├── scheduling_service.py
 │   │   │   └── user_service.py
 │   │   └── main.py              # FastAPI application entry point
-│   └── tests/                   # 103 unit, integration & E2E tests
+│   └── tests/                   # 112 unit, integration & E2E tests
 ├── docs/
 │   └── architecture/            # Architecture specifications (29 ADRs)
 └── frontend/                    # React dashboard (Phase 4+)
@@ -201,12 +213,11 @@ AISMM/
 
 ---
 
-## 🎯 Next Phase: Phase 12 — Universal Analytics Dashboard
+## 🎯 Next Phase: Phase 13 — AI Strategy Engine
 
-1. **Overview Dashboard Aggregations** — Cross-platform total reach, impressions, engagement, and follower counts
-2. **Platform Comparison Analytics** — Normalized performance comparisons without incompatible metric collisions
-3. **Content & Temporal Analytics** — Best/worst posts, content type ROI, weekday vs weekend performance
-4. **Actual vs Predicted Growth Tracking** — Drift monitoring and model prediction accuracy verification
+1. **Multi-Model Synthesis** — Consuming sentiment, scheduling, growth, caption, hashtag, and comment intelligence
+2. **Actionable Strategic Recommendations** — What to post, where to post, when to post, and expected ROI
+3. **Automated Continuous Learning Loop** — Closing the feedback loop between predictions, actual outcomes, and recommendation weights
 
 ---
 

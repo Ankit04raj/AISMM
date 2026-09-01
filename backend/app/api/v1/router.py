@@ -15,6 +15,7 @@ from backend.app.api.v1.scheduling import router as scheduling_router
 from backend.app.api.v1.intelligence import router as intelligence_router
 from backend.app.api.v1.reply import router as reply_router
 from backend.app.api.v1.growth import router as growth_router
+from backend.app.api.v1.analytics import router as analytics_router
 
 api_v1_router = APIRouter(prefix="/api/v1")
 
@@ -26,6 +27,7 @@ api_v1_router.include_router(ai_router)
 api_v1_router.include_router(scheduling_router)
 api_v1_router.include_router(reply_router)
 api_v1_router.include_router(growth_router)
+api_v1_router.include_router(analytics_router)
 api_v1_router.include_router(intelligence_router)
 api_v1_router.include_router(metrics_router)
 api_v1_router.include_router(comments_router)
