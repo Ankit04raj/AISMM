@@ -4563,13 +4563,13 @@
   Last Updated: 2026-09-01
 
   
-  Current Phase: PHASE 8 — INTELLIGENT SCHEDULING ENGINE COMPLETE
+  Current Phase: PHASE 9 — POST-POSTING INTELLIGENCE COMPLETE
   
   
-  Current Step: Phase 8 Intelligent Scheduling Engine (Temporal/Contextual Feature Extraction, RF + GradientBoosting ML Ensemble, Auto-Scheduling with DB Persistence, Due Schedule Background Execution) 100% completed, tested (81/81 tests passing), and verified. Ready for Phase 9 (Post-Posting Intelligence).
+  Current Step: Phase 9 Post-Posting Intelligence (Multi-Platform Comment Sync, Temporal Sentiment Trajectory Tracking, Spike & Inflow Alerts Engine) 100% completed, tested (87/87 tests passing), and verified. Ready for Phase 10 (Auto-Reply Engine).
   
   
-  Overall Status: PHASE 8 COMPLETE & VERIFIED — READY FOR PHASE 9
+  Overall Status: PHASE 9 COMPLETE & VERIFIED — READY FOR PHASE 10
   
   
   Completed:
@@ -4581,18 +4581,17 @@
   - Phase 5: Second Platform: Facebook Adapter implementation & architectural validation (zero core rewrites)
   - Phase 6: Content Management: Multi-platform composer, platform customization, preview engine (`PreviewService`), multi-platform publishing (`create_multi_platform_post`), and publication retry
   - Phase 7: AI Content Engine: Dual-phase sentiment (`SentimentEngine`), caption quality analyzer (`CaptionEngine`), Top-K hashtag recommender (`HashtagEngine`), unified `AIContentEngine`, and REST API endpoints (`/api/v1/ai/`)
-  - Phase 8: Intelligent Scheduling Engine:
-    * 16-feature vector extraction (`SchedulingFeatureExtractor`) with cyclical sin/cos hour & day-of-week encoding
-    * Machine learning ensemble (`SchedulingEngine`) combining Random Forest and GradientBoosting with soft/hard voting (88.08% baseline accuracy)
-    * Platform-aware peak engagement windows (Instagram evening, Facebook evening, LinkedIn morning, Twitter lunch & evening)
-    * User constraints handling (start/end hours, allowed weekdays, target dates)
-    * `SchedulingService` for constraint-aware recommendations, auto-scheduling with database persistence, and background due schedule execution
-    * REST API endpoints (`/api/v1/scheduling/recommend-times`, `/api/v1/scheduling/auto-schedule`, `/api/v1/scheduling/trigger-due`)
-  - 81/81 unit, integration, and E2E tests passing (100%)
+  - Phase 8: Intelligent Scheduling Engine: 16-feature vector extraction with cyclical sin/cos temporal encoding, RF + GradientBoosting ML ensemble (88.08% baseline), peak window matching, auto-scheduler with DB persistence, and background due post execution
+  - Phase 9: Post-Posting Intelligence:
+    * Multi-platform comment synchronization worker (`IntelligenceService.sync_comments_for_post`) with real-time sentiment scoring and DB deduplication
+    * Temporal sentiment trajectory analyzer (`get_temporal_sentiment_trajectory`) binning audience sentiment into lifetime windows (`0-1h`, `1-6h`, `6-24h`, `24-72h`, `>72h`) with trend detection (`improving`, `declining`, `stable`)
+    * Real-time automated alert engine (`get_post_alerts`) detecting negative sentiment surges (>30%), viral comment spikes, and unanswered customer inquiries
+    * Intelligence REST API router (`backend/app/api/v1/intelligence.py`) mounted at `/api/v1/intelligence/`
+  - 87/87 unit, integration, and E2E tests passing (100%)
   
   
   In Progress:
-  - Transitioning to Phase 9 — Post-Posting Intelligence (Comment synchronization, temporal sentiment analysis, engagement updates)
+  - Transitioning to Phase 10 — Auto-Reply Engine (TF-IDF + Logistic Regression comment classification & approval workflow)
   
   
   Blocked:
@@ -4600,26 +4599,22 @@
   
   
   Known Issues:
-  - None; all 81 tests passing cleanly
+  - None; all 87 tests passing cleanly
   
   
   Files Recently Changed:
-  - backend/app/ai/scheduling/features.py
-  - backend/app/ai/scheduling/engine.py
-  - backend/app/ai/scheduling/__init__.py
-  - backend/app/core/schemas/scheduling.py
-  - backend/app/services/scheduling_service.py
-  - backend/app/api/v1/scheduling.py
+  - backend/app/core/schemas/intelligence.py
+  - backend/app/services/intelligence_service.py
+  - backend/app/api/v1/intelligence.py
   - backend/app/api/v1/router.py
-  - backend/app/db/session.py
-  - backend/tests/test_scheduling_engine.py
+  - backend/tests/test_post_intelligence.py
   - REQUIREMENT_MATRIX.md
   - README.md
   - SESSION_HISTORY.md
   
   
   Tests:
-  - 81 passed (100%)
+  - 87 passed (100%)
   
   
   Platform Status:
@@ -4633,8 +4628,8 @@
   
   ML Status:
   - Scheduling: VERIFIED (RF + GB Ensemble with cyclical temporal encoding, 88.08% baseline)
-  - Sentiment: VERIFIED (Dual-phase VADER + emoji boost)
-  - Auto Reply: Adapter reply contracts ready (Phase 10)
+  - Sentiment: VERIFIED (Dual-phase VADER + emoji boost + post-posting temporal tracking)
+  - Auto Reply: Adapter reply contracts ready (Phase 10 next)
   - Growth: MLModel schema & metrics ready (Phase 11)
   - Caption: VERIFIED (Quality index 0-100 & platform adaptation)
   - Hashtag: VERIFIED (Top-K=5 recommendation & category extraction)
@@ -4646,17 +4641,18 @@
   
   
   Architecture Decisions:
-  - Scheduling Engine is platform-independent; consumes cyclical temporal features and normalized content
-  - Peak posting time predictions dynamically adapt per platform's historical audience behavior
-  - Auto-scheduler unifies AI peak time selection with database scheduling entity
+  - Post-posting intelligence evaluates live audience reaction over normalized comment entities
+  - Temporal sentiment bins trace trajectory trends without coupling to specific platform APIs
+  - Automated alert thresholds proactively flag critical audience sentiment changes
   
   
   NEXT ACTION:
-  Begin Phase 9 — Post-Posting Intelligence: Implement comment synchronization worker, temporal sentiment trajectory analyzer across post lifetime, and automated engagement update triggers.
+  Begin Phase 10 — Auto-Reply Engine: Implement TF-IDF + Multinomial Logistic Regression comment intent classifier (88.00% research baseline), template & hybrid reply generator, and human-in-the-loop approval workflow.
   
   
   GITHUB:
   - Current Branch: main
+  - Push Status: SYNCHRONIZED
   - Push Status: SYNCHRONIZED  
    
     

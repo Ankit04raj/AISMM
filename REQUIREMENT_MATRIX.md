@@ -1,7 +1,7 @@
 # AISMM REQUIREMENT MATRIX
 **Created:** 2026-08-25  
 **Last Updated:** 2026-09-01  
-**Overall Status:** PHASE 8 COMPLETE — READY FOR PHASE 9
+**Overall Status:** PHASE 9 COMPLETE — READY FOR PHASE 10
 
 ---
 
@@ -28,9 +28,10 @@
 | **Phase 5** | **Second Platform (Validation)** | ✅ **VERIFIED** | Facebook Page Adapter, zero core rewrites |
 | **Phase 6** | **Content Management** | ✅ **VERIFIED** | Multi-platform composer, platform customization, preview engine |
 | **Phase 7** | **AI Content Engine** | ✅ **VERIFIED** | Sentiment (dual-phase VADER), Caption analyzer/optimizer, Hashtag Top-K recommender |
-| **Phase 8** | **Intelligent Scheduling Engine** | ✅ **VERIFIED** | Temporal/contextual feature extraction, RF + GradientBoosting ensemble with hard/soft voting (88.08% baseline), best posting times, auto-scheduler, 81 tests passing |
-| **Phase 9** | **Post-Posting Intelligence** | 🔄 **NEXT** | Comment synchronization, temporal sentiment tracking, engagement updates |
-| **Phases 10-17**| **Auto-Reply, Growth, Strategy & Hardening** | 🟦 **NOT STARTED** | Per roadmap |
+| **Phase 8** | **Intelligent Scheduling Engine** | ✅ **VERIFIED** | Temporal/contextual feature extraction, RF + GradientBoosting ensemble with hard/soft voting |
+| **Phase 9** | **Post-Posting Intelligence** | ✅ **VERIFIED** | Comment synchronization, temporal sentiment trajectory tracking, viral & negative sentiment alerts, 87 tests passing |
+| **Phase 10** | **Auto-Reply Engine** | 🔄 **NEXT** | TF-IDF + Logistic Regression comment classification & human-in-the-loop auto-reply |
+| **Phases 11-17**| **Growth Prediction, Universal Analytics, Strategy & Hardening** | 🟦 **NOT STARTED** | Per roadmap |
 
 ---
 
@@ -38,9 +39,9 @@
 
 | # | Requirement | Research Baseline | Target Implementation | Status | Notes |
 |---|-------------|-------------------|----------------------|--------|-------|
-| **1** | **Centralized Multi-Platform Dashboard** | Unified view for Instagram, Facebook, Twitter | Platform-agnostic dashboard with dynamic UI per capabilities | 🟢 **TESTED** | Phase 6 Multi-Platform Composer & Previews |
+| **1** | **Centralized Multi-Platform Dashboard** | Unified view for Instagram, Facebook, Twitter | Platform-agnostic dashboard with dynamic UI per capabilities | 🟢 **TESTED** | Phase 6 Composer & Previews |
 | **2** | **Intelligent Time Scheduling** | Random Forest + XGBoost + Hard Voting (88.08%) | Platform-aware scheduling engine with ML ensemble | 🟢 **TESTED** | `backend/app/ai/scheduling/` |
-| **3** | **Dual-Phase Sentiment Analysis** | VADER + k-NN (89.00%, k=5, 0.019s) | PrePostAnalyzer + PostPostAnalyzer with configurable thresholds | 🟢 **TESTED** | `backend/app/ai/sentiment/` |
+| **3** | **Dual-Phase Sentiment Analysis** | VADER + k-NN (89.00%, k=5, 0.019s) | PrePostAnalyzer + PostPostAnalyzer with temporal tracking | 🟢 **TESTED** | `backend/app/ai/sentiment/`, `IntelligenceService` |
 | **4** | **Predictive Growth Modeling** | Random Forest Regressor (IG: 89.2%, FB: 87.5%, TW: 85.8% R²) | Platform-specific growth models with model registry | 🟨 PARTIAL | MLModel schema ready (Phase 11) |
 | **5** | **Auto-Reply** | TF-IDF + Multiclass Logistic Regression (88.00%) | ReplyEngine abstraction (TFIDF/LLM/Hybrid) with human-in-loop | 🟨 PARTIAL | Webhook reply execution verified (Phase 10) |
 | **6** | **Caption & Hashtag Optimization** | Top-K=5 (92.70%) | CaptionEngine (quality scoring) + HashtagEngine (Top-K) | 🟢 **TESTED** | `backend/app/ai/caption/`, `backend/app/ai/hashtag/` |
@@ -66,6 +67,7 @@
 
 ## Test Suite Summary
 
+- `backend/tests/test_post_intelligence.py` — 6 passed (Comment sync, Temporal sentiment trajectory, Spike alerts)
 - `backend/tests/test_scheduling_engine.py` — 7 passed (Feature extraction, ML ensemble, Constraints, Auto-scheduling)
 - `backend/tests/test_ai_content_engine.py` — 12 passed (Sentiment, Caption quality, Hashtag Top-K, AI API endpoints)
 - `backend/tests/test_api_v1.py` — 5 passed (FastAPI v1 routes)
@@ -76,4 +78,4 @@
 - `backend/tests/test_instagram_adapter.py` — 25 passed (Instagram Adapter, Auth, Config, Publisher, Insights, Webhook, Endpoints, Uploader)
 - `backend/tests/test_normalization.py` — 2 passed (Content Normalization, Metric Normalization)
 - `backend/tests/test_services.py` — 4 passed (PlatformRegistry, Content Normalizer wiring, PostService)
-- **Total: 81/81 tests passing (100%)**
+- **Total: 87/87 tests passing (100%)**
