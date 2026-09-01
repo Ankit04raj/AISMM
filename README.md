@@ -1,7 +1,7 @@
 # AISMM — Universal Multi-Platform AI Social Media Management
 
-![Phase](https://img.shields.io/badge/phase-9%20Post%20Intelligence%20Complete-brightgreen)
-![Tests](https://img.shields.io/badge/tests-87%2F87%20passing%20(100%25)-brightgreen)
+![Phase](https://img.shields.io/badge/phase-10%20Auto%20Reply%20Complete-brightgreen)
+![Tests](https://img.shields.io/badge/tests-97%2F97%20passing%20(100%25)-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![Framework](https://img.shields.io/badge/framework-FastAPI%20%7C%20SQLAlchemy%20%7C%20Alembic-blue)
 
@@ -43,38 +43,40 @@ AISMM is a **platform-agnostic, AI-powered social media management platform** bu
 | **6** | **Content Management** | ✅ Verified | Multi-platform composer, platform customization, preview engine |
 | **7** | **AI Content Engine** | ✅ Verified | Dual-Phase Sentiment, Caption Quality Analyzer, Top-K Hashtags |
 | **8** | **Intelligent Scheduling Engine** | ✅ Verified | ML Temporal Ensemble, Auto-Scheduler, Queue Dispatch |
-| **9** | **Post-Posting Intelligence** | ✅ **100% Verified** | **87/87 Tests Passing** (Comment Sync, Temporal Sentiment Trajectory, Spike & Inflow Alerts) |
-| **10** | **Auto-Reply Engine** | 🔄 **Next** | TF-IDF + Logistic Regression comment classification & approval workflow |
+| **9** | **Post-Posting Intelligence** | ✅ Verified | Comment Sync, Temporal Sentiment Trajectory, Spike Alerts |
+| **10** | **Auto-Reply Engine** | ✅ **100% Verified** | **97/97 Tests Passing** (TF-IDF Intent Classifier, Human-in-the-Loop Routing, Auto-Execution) |
+| **11** | **Predictive Growth Engine** | 🔄 **Next** | Platform-specific growth regression models ($R^2$, RMSE) |
 
 ---
 
-### Phase 9 Post-Posting Intelligence Deliverables
+### Phase 10 Auto-Reply Deliverables
 
 | Component | Module | Description | Research Alignment |
 |-----------|--------|-------------|-------------------|
-| **Multi-Platform Comment Sync** | `backend/app/services/intelligence_service.py` | Fetches live comments from all connected platforms, runs real-time sentiment scoring, and persists to DB | Unified feedback loop |
-| **Temporal Sentiment Trajectory** | `backend/app/services/intelligence_service.py` | Bins audience reaction into temporal windows (`0-1h`, `1-6h`, `6-24h`, `24-72h`, `>72h`) and evaluates trajectory trends (`improving`, `declining`, `stable`) | Dual-Phase Sentiment temporal extension |
-| **Spike & Viral Alerts Engine** | `backend/app/services/intelligence_service.py` | Monitors for negative sentiment surges (>30%), viral comment spikes, and unanswered customer inquiries | Real-time notifications |
-| **Intelligence REST API** | `backend/app/api/v1/intelligence.py` | `/api/v1/intelligence/posts/{id}/sync-comments`, `/sentiment-trajectory`, `/alerts`, `/report` | FastAPI v1 endpoints |
+| **Comment Intent Classifier** | `backend/app/ai/reply/engine.py` | TF-IDF (1,2-grams) + Multinomial Logistic Regression identifying pricing inquiries, support issues, compliments, general questions, and spam | **88.00% accuracy baseline** |
+| **Human-in-the-Loop Policy** | `backend/app/ai/reply/engine.py` | Automatic execution (`confidence >= 0.90`), Approval Required (`0.70-0.90`), Manual Routing (`<0.70` or support issues), and Spam Hiding | Full safety guardrails |
+| **Reply Service & Execution** | `backend/app/services/reply_service.py` | Real-time comment ingestion, routing policy evaluation, automated response sending, and human approval execution | Complete workflow |
+| **Auto-Reply REST API** | `backend/app/api/v1/reply.py` | `/api/v1/reply/classify`, `/suggest`, `/process-comment`, `/approve` | FastAPI v1 endpoints |
 
 ---
 
-## 🧪 Test Results: 87/87 Passing (100%)
+## 🧪 Test Results: 97/97 Passing (100%)
 
 ```
-backend/tests/test_post_intelligence.py ......                           [  7%]
-backend/tests/test_scheduling_engine.py .......                          [ 15%]
-backend/tests/test_ai_content_engine.py ............                     [ 29%]
-backend/tests/test_api_v1.py .....                                       [ 34%]
-backend/tests/test_content_management.py ....                            [ 39%]
-backend/tests/test_e2e_instagram.py .                                    [ 40%]
-backend/tests/test_facebook_adapter.py ..........                        [ 52%]
-backend/tests/test_foundation.py ...........                             [ 64%]
+backend/tests/test_auto_reply.py ..........                              [ 10%]
+backend/tests/test_post_intelligence.py ......                           [ 16%]
+backend/tests/test_scheduling_engine.py .......                          [ 23%]
+backend/tests/test_ai_content_engine.py ............                     [ 36%]
+backend/tests/test_api_v1.py .....                                       [ 41%]
+backend/tests/test_content_management.py ....                            [ 45%]
+backend/tests/test_e2e_instagram.py .                                    [ 46%]
+backend/tests/test_facebook_adapter.py ..........                        [ 56%]
+backend/tests/test_foundation.py ...........                             [ 68%]
 backend/tests/test_instagram_adapter.py .........................        [ 93%]
 backend/tests/test_normalization.py ..                                   [ 95%]
 backend/tests/test_services.py ....                                      [100%]
 
-======================= 87 passed in 10.59s =======================
+======================= 97 passed in 11.12s =======================
 ```
 
 ---
@@ -95,7 +97,7 @@ pip install -r requirements.txt
 # Run migrations
 alembic upgrade head
 
-# Run full test suite (87 tests)
+# Run full test suite (97 tests)
 pytest -v
 
 # Start FastAPI server
@@ -104,32 +106,21 @@ uvicorn backend.app.main:app --reload
 
 ---
 
-## 📊 Post Intelligence Usage
+## 💬 Auto-Reply Engine Usage
 
 ```python
-from uuid import UUID
-from backend.app.services.intelligence_service import IntelligenceService
-from backend.app.db.session import get_db_context
+from backend.app.ai.reply import TFIDFReplyEngine, ReplyAction
 
-async with get_db_context() as session:
-    service = IntelligenceService(session)
-    post_id = UUID("...")
-    user_id = UUID("...")
+engine = TFIDFReplyEngine()
 
-    # 1. Synchronize live comments from all connected platforms and run sentiment
-    sync_result = await service.sync_comments_for_post(post_id, user_id)
-    print(f"Synced {sync_result.total_synced} comments across platforms.")
+# 1. Classify incoming comment
+classification = engine.classify_comment("What are your subscription rates for pro accounts?")
+print(f"Detected Intent: {classification.intent.value} (Confidence: {classification.confidence})")
 
-    # 2. Track temporal sentiment evolution across the post's lifetime
-    trajectory = await service.get_temporal_sentiment_trajectory(post_id, user_id)
-    print(f"Overall Sentiment: {trajectory.overall_sentiment_label} (Trend: {trajectory.trajectory_trend})")
-    for pt in trajectory.time_series:
-        print(f"[{pt.time_window}] {pt.comment_count} comments — Score: {pt.avg_sentiment_score}")
-
-    # 3. Check for viral spikes or negative sentiment waves
-    alerts = await service.get_post_alerts(post_id, user_id)
-    for alert in alerts.active_alerts:
-        print(f"ALERT [{alert.severity.upper()}]: {alert.message}")
+# 2. Generate response with Human-in-the-Loop policy
+suggestion = engine.generate_reply("Love the new update, great work team! ❤️")
+print(f"Action: {suggestion.routing_action.value}")  # "automatic"
+print(f"Suggested Reply: {suggestion.suggested_reply}")
 ```
 
 ---
@@ -153,7 +144,8 @@ AISMM/
 │   │   │   ├── sentiment/       # Dual-Phase Sentiment Engine (VADER)
 │   │   │   ├── caption/         # Caption Quality & Adaptation Engine
 │   │   │   ├── hashtag/         # Top-K Hashtag Recommendation Engine
-│   │   │   └── scheduling/      # Intelligent Scheduling Engine (RF + GB)
+│   │   │   ├── scheduling/      # Intelligent Scheduling Engine (RF + GB)
+│   │   │   └── reply/           # Auto-Reply Engine (TF-IDF + Logistic Regression)
 │   │   ├── api/                 # Modular API v1 routers
 │   │   │   └── v1/
 │   │   │       ├── accounts.py
@@ -165,6 +157,7 @@ AISMM/
 │   │   │       ├── metrics.py
 │   │   │       ├── platforms.py
 │   │   │       ├── posts.py
+│   │   │       ├── reply.py     # Auto-Reply Endpoints
 │   │   │       ├── router.py
 │   │   │       ├── scheduling.py# Intelligent Scheduling Endpoints
 │   │   │       └── webhooks.py
@@ -184,14 +177,15 @@ AISMM/
 │   │   ├── logging/             # Structured JSON logger
 │   │   ├── services/            # Business logic service layer
 │   │   │   ├── account_service.py
-│   │   │   ├── intelligence_service.py # Post Intelligence Service
+│   │   │   ├── intelligence_service.py
 │   │   │   ├── metrics_service.py
 │   │   │   ├── post_service.py
 │   │   │   ├── preview_service.py
+│   │   │   ├── reply_service.py # Auto-Reply Service
 │   │   │   ├── scheduling_service.py
 │   │   │   └── user_service.py
 │   │   └── main.py              # FastAPI application entry point
-│   └── tests/                   # 87 unit, integration & E2E tests
+│   └── tests/                   # 97 unit, integration & E2E tests
 ├── docs/
 │   └── architecture/            # Architecture specifications (29 ADRs)
 └── frontend/                    # React dashboard (Phase 4+)
@@ -199,12 +193,12 @@ AISMM/
 
 ---
 
-## 🎯 Next Phase: Phase 10 — Auto-Reply Engine
+## 🎯 Next Phase: Phase 11 — Predictive Growth Engine
 
-1. **Comment Intent Classification** — TF-IDF + Multinomial Logistic Regression baseline (88.00% accuracy)
-2. **Reply Engine Abstraction** — Template matching, TF-IDF classifier, and LLM hybrid generation
-3. **Human-in-the-Loop Approval Workflow** — Confidence thresholds (`>=0.90` automatic, `0.70-0.90` approval required, `<0.70` manual)
-4. **Automated Reply Execution** via platform adapters
+1. **Platform-Specific Growth Regression Models** — Random Forest Regressor predicting follower & reach trajectory over 7, 30, and 90 days ($R^2$ baseline: Instagram 89.2%, Facebook 87.5%)
+2. **Growth Feature Pipeline** — Historical follower velocity, post frequency, engagement rate, content distribution
+3. **Model Evaluation & Drift Monitoring** — Tracking actual vs predicted growth with RMSE metrics
+4. **Growth REST API** — Projections, historical comparisons, and growth alert triggers
 
 ---
 

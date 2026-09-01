@@ -4563,13 +4563,13 @@
   Last Updated: 2026-09-01
 
   
-  Current Phase: PHASE 9 — POST-POSTING INTELLIGENCE COMPLETE
+  Current Phase: PHASE 10 — AUTO-REPLY ENGINE COMPLETE
   
   
-  Current Step: Phase 9 Post-Posting Intelligence (Multi-Platform Comment Sync, Temporal Sentiment Trajectory Tracking, Spike & Inflow Alerts Engine) 100% completed, tested (87/87 tests passing), and verified. Ready for Phase 10 (Auto-Reply Engine).
+  Current Step: Phase 10 Auto-Reply Engine (TF-IDF + Multinomial Logistic Regression Comment Intent Classifier, Human-in-the-Loop Policy, Automated Execution, Approval Workflows) 100% completed, tested (97/97 tests passing), and verified. Ready for Phase 11 (Predictive Growth Engine).
   
   
-  Overall Status: PHASE 9 COMPLETE & VERIFIED — READY FOR PHASE 10
+  Overall Status: PHASE 10 COMPLETE & VERIFIED — READY FOR PHASE 11
   
   
   Completed:
@@ -4582,16 +4582,18 @@
   - Phase 6: Content Management: Multi-platform composer, platform customization, preview engine (`PreviewService`), multi-platform publishing (`create_multi_platform_post`), and publication retry
   - Phase 7: AI Content Engine: Dual-phase sentiment (`SentimentEngine`), caption quality analyzer (`CaptionEngine`), Top-K hashtag recommender (`HashtagEngine`), unified `AIContentEngine`, and REST API endpoints (`/api/v1/ai/`)
   - Phase 8: Intelligent Scheduling Engine: 16-feature vector extraction with cyclical sin/cos temporal encoding, RF + GradientBoosting ML ensemble (88.08% baseline), peak window matching, auto-scheduler with DB persistence, and background due post execution
-  - Phase 9: Post-Posting Intelligence:
-    * Multi-platform comment synchronization worker (`IntelligenceService.sync_comments_for_post`) with real-time sentiment scoring and DB deduplication
-    * Temporal sentiment trajectory analyzer (`get_temporal_sentiment_trajectory`) binning audience sentiment into lifetime windows (`0-1h`, `1-6h`, `6-24h`, `24-72h`, `>72h`) with trend detection (`improving`, `declining`, `stable`)
-    * Real-time automated alert engine (`get_post_alerts`) detecting negative sentiment surges (>30%), viral comment spikes, and unanswered customer inquiries
-    * Intelligence REST API router (`backend/app/api/v1/intelligence.py`) mounted at `/api/v1/intelligence/`
-  - 87/87 unit, integration, and E2E tests passing (100%)
+  - Phase 9: Post-Posting Intelligence: Multi-platform comment synchronization worker, temporal sentiment trajectory analyzer (`0-1h`, `1-6h`, `6-24h`, `24-72h`, `>72h`), and automated spike & inquiry alerts
+  - Phase 10: Auto-Reply Engine:
+    * TF-IDF (1,2-grams) + Multinomial Logistic Regression comment intent classifier (`TFIDFReplyEngine`, 88.00% baseline)
+    * Intent categories: pricing inquiry, support issue, compliment/praise, general inquiry, spam/troll, neutral
+    * Human-in-the-Loop policy engine (`ReplyAction` routing: `AUTOMATIC >=0.90`, `APPROVAL_REQUIRED 0.70-0.90`, `MANUAL <0.70`, `IGNORE_SPAM`)
+    * `ReplyService` for classification, response suggestions, automated execution, and human approval workflow
+    * REST API endpoints (`/api/v1/reply/classify`, `/suggest`, `/process-comment`, `/approve`)
+  - 97/97 unit, integration, and E2E tests passing (100%)
   
   
   In Progress:
-  - Transitioning to Phase 10 — Auto-Reply Engine (TF-IDF + Logistic Regression comment classification & approval workflow)
+  - Transitioning to Phase 11 — Predictive Growth Engine (Random Forest Regressor platform-specific growth modeling, R2 and RMSE metrics)
   
   
   Blocked:
@@ -4599,22 +4601,24 @@
   
   
   Known Issues:
-  - None; all 87 tests passing cleanly
+  - None; all 97 tests passing cleanly
   
   
   Files Recently Changed:
-  - backend/app/core/schemas/intelligence.py
-  - backend/app/services/intelligence_service.py
-  - backend/app/api/v1/intelligence.py
+  - backend/app/ai/reply/engine.py
+  - backend/app/ai/reply/__init__.py
+  - backend/app/core/schemas/reply.py
+  - backend/app/services/reply_service.py
+  - backend/app/api/v1/reply.py
   - backend/app/api/v1/router.py
-  - backend/tests/test_post_intelligence.py
+  - backend/tests/test_auto_reply.py
   - REQUIREMENT_MATRIX.md
   - README.md
   - SESSION_HISTORY.md
   
   
   Tests:
-  - 87 passed (100%)
+  - 97 passed (100%)
   
   
   Platform Status:
@@ -4629,8 +4633,8 @@
   ML Status:
   - Scheduling: VERIFIED (RF + GB Ensemble with cyclical temporal encoding, 88.08% baseline)
   - Sentiment: VERIFIED (Dual-phase VADER + emoji boost + post-posting temporal tracking)
-  - Auto Reply: Adapter reply contracts ready (Phase 10 next)
-  - Growth: MLModel schema & metrics ready (Phase 11)
+  - Auto Reply: VERIFIED (TF-IDF + Logistic Regression, 88.00% baseline, human-in-the-loop)
+  - Growth: MLModel schema & metrics ready (Phase 11 next)
   - Caption: VERIFIED (Quality index 0-100 & platform adaptation)
   - Hashtag: VERIFIED (Top-K=5 recommendation & category extraction)
   
@@ -4641,13 +4645,13 @@
   
   
   Architecture Decisions:
-  - Post-posting intelligence evaluates live audience reaction over normalized comment entities
-  - Temporal sentiment bins trace trajectory trends without coupling to specific platform APIs
-  - Automated alert thresholds proactively flag critical audience sentiment changes
+  - Auto-reply classifies comments into normalized intents before choosing response templates
+  - Human-in-the-loop safety guardrails route sensitive issues and lower confidence thresholds to human review
+  - Spam comments are isolated or hidden automatically without engaging the reply generator
   
   
   NEXT ACTION:
-  Begin Phase 10 — Auto-Reply Engine: Implement TF-IDF + Multinomial Logistic Regression comment intent classifier (88.00% research baseline), template & hybrid reply generator, and human-in-the-loop approval workflow.
+  Begin Phase 11 — Predictive Growth Engine: Implement platform-specific Random Forest growth regression models (predicting follower/reach velocity over 7/30/90 days, tracking R2 & RMSE per platform), model evaluation, and growth API endpoints.
   
   
   GITHUB:
