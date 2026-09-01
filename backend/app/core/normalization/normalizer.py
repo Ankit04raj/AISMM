@@ -314,8 +314,9 @@ class ContentNormalizer:
 
         # Check text/caption length
         text = content.caption or content.text or ""
-        if "caption" in limits and len(text) > limits["caption"]:
-            warnings.append(f"Caption exceeds {platform} limit of {limits['caption']} characters")
+        max_chars = limits.get("caption") or limits.get("text")
+        if max_chars and len(text) > max_chars:
+            warnings.append(f"Text exceeds {platform} limit of {max_chars} characters")
 
         # Check hashtags
         if "hashtags" in limits and len(content.hashtags) > limits["hashtags"]:

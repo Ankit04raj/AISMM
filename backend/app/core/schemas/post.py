@@ -1,8 +1,8 @@
 """Post-related Pydantic schemas for API contracts."""
 
 from typing import List, Optional, Dict, Any
-from datetime import datetime
-from pydantic import BaseModel, Field, validator
+from datetime import datetime, timezone
+from pydantic import BaseModel, Field, field_validator
 
 
 class MediaItem(BaseModel):
@@ -25,7 +25,7 @@ class CreatePostRequest(BaseModel):
         default="post",
         description="Content type (post, reel, story, carousel)"
     )
-    text: Optional[str] = Field(None, max_length=2200, description="Post text content")
+    text: Optional[str] = Field(None, max_length=65000, description="Post text content")
     caption: Optional[str] = Field(None, max_length=2200, description="Post caption")
     media: List[MediaItem] = Field(default=[], description="Media items")
     hashtags: Optional[List[str]] = Field(default=[], description="Hashtags")
@@ -35,26 +35,45 @@ class CreatePostRequest(BaseModel):
     publish_now: bool = Field(default=True, description="Publish immediately")
     options: Optional[Dict[str, Any]] = Field(default={}, description="Platform-specific options")
 
-    @validator("content_type")
-    def validate_content_type(cls, v):
-        valid_types = ["post", "reel", "story", "carousel"]
-        if v not in valid_types:
+    @field_validator("content_type")
+    @classmethod
+    def validate_content_type(cls, v: str) -> str:
+        valid_types = ["post", "reel", "story", "carousel", "image", "video", "status"]
+        if v.lower() not in valid_types:
             raise ValueError(f"content_type must be one of: {valid_types}")
-        return v
+        return v.lower()
 
-    @validator("media")
-    def validate_media_for_type(cls, v, values):
-        content_type = values.get("content_type", "post")
-        if content_type == "carousel" and len(v) < 2:
-            raise ValueError("Carousel requires at least 2 media items")
-        if content_type == "carousel" and len(v) > 10:
-            raise ValueError("Carousel cannot exceed 10 media items")
-        return v
+
+class PlatformCustomization(BaseModel):
+    """Platform-specific override for a post."""
+    caption: Optional[str] = None
+    text: Optional[str] = None
+    hashtags: Optional[List[str]] = None
+    mentions: Optional[List[str]] = None
+    media: Optional[List[MediaItem]] = None
+    options: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
+
+class MultiPlatformPostRequest(BaseModel):
+    """Request schema for composing and publishing across multiple platforms."""
+    platforms: List[str] = Field(..., min_length=1, description="Target platforms")
+    content_type: str = Field(default="post", description="Content type")
+    text: Optional[str] = Field(None, description="Base text content")
+    caption: Optional[str] = Field(None, description="Base caption")
+    media: List[MediaItem] = Field(default_factory=list, description="Base media items")
+    hashtags: List[str] = Field(default_factory=list, description="Base hashtags")
+    mentions: List[str] = Field(default_factory=list, description="Base mentions")
+    customizations: Dict[str, PlatformCustomization] = Field(
+        default_factory=dict,
+        description="Platform-specific overrides"
+    )
+    scheduled_at: Optional[datetime] = None
+    publish_now: bool = True
 
 
 class PostResponse(BaseModel):
     """Response schema for post creation."""
-    id: str = Field(..., description="Platform post ID")
+    id: str = Field(..., description="Platform post ID or Internal ID")
     platform: str = Field(..., description="Platform name")
     permalink: Optional[str] = Field(None, description="Post permalink")
     media_type: Optional[str] = Field(None, description="Media type")
@@ -62,6 +81,51 @@ class PostResponse(BaseModel):
     scheduled_at: Optional[datetime] = Field(None, description="Scheduled timestamp")
     status: str = Field(default="published", description="Post status")
     platform_data: Optional[Dict[str, Any]] = Field(default={}, description="Raw platform data")
+
+
+class MultiPlatformPostResponse(BaseModel):
+    """Response schema for multi-platform post creation."""
+    post_id: str
+    overall_status: str
+    results: Dict[str, PostResponse]
+    created_at: datetime
+
+
+class ContentPreviewRequest(BaseModel):
+    """Request schema for previewing content on target platforms."""
+    platforms: List[str] = Field(..., min_length=1)
+    content_type: str = "post"
+    text: Optional[str] = None
+    caption: Optional[str] = None
+    media: List[MediaItem] = Field(default_factory=list)
+    hashtags: List[str] = Field(default_factory=list)
+    mentions: List[str] = Field(default_factory=list)
+    customizations: Dict[str, PlatformCustomization] = Field(default_factory=dict)
+
+
+class ContentPreviewResponse(BaseModel):
+    """Native preview data for platforms."""
+    previews: Dict[str, Dict[str, Any]]
+    warnings: Dict[str, List[str]]
+
+
+class ContentValidationRequest(BaseModel):
+    """Request schema to validate content against platform rules."""
+    platforms: List[str] = Field(..., min_length=1)
+    content_type: str = "post"
+    text: Optional[str] = None
+    caption: Optional[str] = None
+    media: List[MediaItem] = Field(default_factory=list)
+    hashtags: List[str] = Field(default_factory=list)
+    mentions: List[str] = Field(default_factory=list)
+    customizations: Dict[str, PlatformCustomization] = Field(default_factory=dict)
+
+
+class ContentValidationResponse(BaseModel):
+    """Validation response with platform warnings and errors."""
+    valid: bool
+    platform_warnings: Dict[str, List[str]]
+    platform_errors: Dict[str, List[str]]
 
 
 class PostListResponse(BaseModel):
@@ -91,13 +155,6 @@ class SchedulePostRequest(BaseModel):
     post_id: str = Field(..., description="Post container ID to schedule")
     scheduled_at: datetime = Field(..., description="Scheduled publish time")
     timezone: str = Field(default="UTC", description="Timezone for scheduling")
-
-    @validator("scheduled_at")
-    def validate_scheduled_at(cls, v):
-        from datetime import datetime as dt
-        if v <= dt.utcnow():
-            raise ValueError("Scheduled time must be in the future")
-        return v
 
 
 class PostMetrics(BaseModel):
