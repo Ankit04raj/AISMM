@@ -1,7 +1,7 @@
 # AISMM — Universal Multi-Platform AI Social Media Management
 
-![Phase](https://img.shields.io/badge/phase-3%20Core%20Foundation%20Complete-brightgreen)
-![Tests](https://img.shields.io/badge/tests-42%2F42%20passing%20(100%25)-brightgreen)
+![Phase](https://img.shields.io/badge/phase-4%20First%20Platform%20Complete-brightgreen)
+![Tests](https://img.shields.io/badge/tests-48%2F48%20passing%20(100%25)-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![Framework](https://img.shields.io/badge/framework-FastAPI%20%7C%20SQLAlchemy%20%7C%20Alembic-blue)
 
@@ -34,40 +34,41 @@ AISMM is a **platform-agnostic, AI-powered social media management platform** bu
 
 | Phase | Description | Status | Test Coverage |
 |-------|-------------|--------|---------------|
-| **0** | **Project Discovery & Audit** | ✅ Verified | Baseline established |
-| **1** | **Requirement Matrix** | ✅ Verified | All 17 phases mapped |
+| **0** | **Project Discovery & Audit** | ✅ Verified | Baseline repository audit complete |
+| **1** | **Requirement Matrix** | ✅ Verified | All 17 phases mapped to research requirements |
 | **2** | **Architecture Design** | ✅ Verified | 3 specification documents, 29 ADRs |
-| **3** | **Core Foundation** | ✅ **100% Verified** | **42/42 Tests Passing** |
-| **4** | **First Platform (Instagram)** | 🔄 **Next** | Full Instagram Graph API E2E |
-| **5** | **Second Platform (Validation)** | ⏳ Planned | Architecture validation |
-
-### Phase 3 Deliverables Summary
-
-| Component | File / Location | Description |
-|-----------|-----------------|-------------|
-| **Normalization** | `backend/app/core/normalization/` | UniversalContent + MetricNormalizer with cross-platform mapping |
-| **Base Adapter Contract** | `backend/app/core/platform_adapters/base.py` | Abstract contract with 25 capabilities and universal payload types |
-| **Platform Registry** | `backend/app/core/platform_adapters/registry.py` | Dynamic discovery, instantiation, and verification |
-| **Error Hierarchy** | `backend/app/core/errors/` | Unified `AISMMError` root + 16 specialized domain/platform error classes |
-| **Database & Models** | `backend/app/db/models.py`, `backend/app/core/models/` | 11 core SQLAlchemy models covering users, accounts, posts, media, publications, metrics, schedules, ML models |
-| **Migrations** | `backend/alembic/` | Alembic configuration + initial migration (`1c2e5404a0b3`) |
-| **Security & Auth** | `backend/app/core/security.py` | JWT access/refresh tokens, bcrypt password hashing, secure API key generation |
-| **Structured Logging** | `backend/app/logging/` | Structured JSON and standard log formatters with contextual metadata |
-| **Service Layer** | `backend/app/services/` | `UserService`, `PostService`, `AccountService`, `MetricsService` |
-| **FastAPI Application** | `backend/app/main.py` | Application lifespan, CORS, exception handlers, RESTful v1 endpoints |
-| **Instagram Adapter** | `backend/app/core/platform_adapters/instagram/` | Full Graph API implementation (OAuth, 2-phase publish, insights, webhooks) |
+| **3** | **Core Foundation** | ✅ Verified | Normalization, Base Adapter, Registry, Config, Security, Logging, Errors, DB Models, Alembic |
+| **4** | **First Platform (Instagram)** | ✅ **100% Verified** | **48/48 Tests Passing** (API v1, OAuth, E2E Lifecycle) |
+| **5** | **Second Platform (Validation)** | 🔄 **Next** | Architecture validation with Facebook/X |
 
 ---
 
-## 🧪 Test Results: 42/42 Passing (100%)
+### Phase 4 Deliverables Summary
+
+| Component | File / Location | Description |
+|-----------|-----------------|-------------|
+| **Modular API v1** | `backend/app/api/v1/` | RESTful endpoints: `auth`, `accounts`, `posts`, `metrics`, `comments`, `webhooks`, `platforms` |
+| **OAuth Flow & Lifecycle** | `InstagramAuth` & `auth.py` | PKCE state generation, token exchange, long-lived 60-day expansion, profile resolution, token revocation |
+| **Account Management** | `AccountService` & `accounts.py` | Connection storage, profile sync, token refresh, and disconnection |
+| **Publishing & Scheduling** | `PostService` & `posts.py` | 2-phase container creation and publishing for images, carousels, reels, and stories |
+| **Real-time Webhooks** | `InstagramWebhookHandler` & `webhooks.py` | Meta challenge verification (`hub.challenge`), HMAC-SHA256 signature validation, and event dispatch |
+| **Comment Management** | `InstagramAdapter` & `comments.py` | Fetching, replying, hiding, and deleting comments on published posts |
+| **Analytics & Insights** | `MetricsService` & `metrics.py` | Account insights, post insights, top posts ranking, and engagement trend reporting |
+| **E2E Test Suite** | `backend/tests/test_e2e_instagram.py` | Full lifecycle verification: Connect Account → Publish → Schedule → Analytics → Webhook → Comment Reply |
+
+---
+
+## 🧪 Test Results: 48/48 Passing (100%)
 
 ```
-backend/tests/test_foundation.py ...........                             [ 26%]
-backend/tests/test_instagram_adapter.py .........................        [ 85%]
-backend/tests/test_normalization.py ..                                   [ 90%]
+backend/tests/test_api_v1.py .....                                       [ 10%]
+backend/tests/test_e2e_instagram.py .                                    [ 12%]
+backend/tests/test_foundation.py ...........                             [ 35%]
+backend/tests/test_instagram_adapter.py .........................        [ 87%]
+backend/tests/test_normalization.py ..                                   [ 91%]
 backend/tests/test_services.py ....                                      [100%]
 
-======================= 42 passed in 0.93s =======================
+======================= 48 passed in 1.25s =======================
 ```
 
 ---
@@ -88,7 +89,7 @@ pip install -r requirements.txt
 # Run migrations
 alembic upgrade head
 
-# Run tests
+# Run full test suite (48 tests)
 pytest -v
 
 # Start FastAPI server
@@ -116,7 +117,7 @@ content = UniversalContent(
     media=[UniversalMedia(type=MediaType.IMAGE, url="https://example.com/image.jpg")]
 )
 
-# Publish post
+# Publish post (2-phase container upload & publish)
 result = await adapter.publish_post(content)
 
 # Fetch normalized analytics
@@ -141,6 +142,16 @@ AISMM/
 │   ├── requirements.txt
 │   ├── pytest.ini
 │   ├── app/
+│   │   ├── api/                 # Modular API v1 routers
+│   │   │   └── v1/
+│   │   │       ├── accounts.py
+│   │   │       ├── auth.py
+│   │   │       ├── comments.py
+│   │   │       ├── metrics.py
+│   │   │       ├── platforms.py
+│   │   │       ├── posts.py
+│   │   │       ├── router.py
+│   │   │       └── webhooks.py
 │   │   ├── config/              # Application settings (Pydantic Settings)
 │   │   ├── core/
 │   │   │   ├── errors/          # AISMM error hierarchy
@@ -158,7 +169,7 @@ AISMM/
 │   │   ├── logging/             # Structured JSON logger
 │   │   ├── services/            # Business logic service layer
 │   │   └── main.py              # FastAPI application entry point
-│   └── tests/                   # 42 unit & integration tests
+│   └── tests/                   # 48 unit, integration & E2E tests
 ├── docs/
 │   └── architecture/            # Architecture specifications (29 ADRs)
 └── frontend/                    # React dashboard (Phase 4+)
@@ -166,13 +177,12 @@ AISMM/
 
 ---
 
-## 🎯 Next Phase: Phase 4 — First Platform (Instagram E2E)
+## 🎯 Next Phase: Phase 5 — Second Platform (Facebook / X Validation)
 
-1. **OAuth Flow Integration** — Live OAuth connection & token lifecycle management
-2. **API Routes Connection** — End-to-end testing of FastAPI routes with live database session
-3. **Automated Publishing & Scheduling** — Cron/Celery background scheduler execution
-4. **Real-time Webhook Receiver** — Live webhook event processing and persistence
-5. **Frontend Foundation** — Dynamic capability-driven dashboard UI
+The purpose of Phase 5 is **architectural validation**:
+1. Implement the **Facebook / X Adapter** using the exact same `BasePlatformAdapter` contract.
+2. Confirm that adding a second platform requires **zero changes** to core AISMM business logic, database models, or API routers.
+3. Validate dynamic UI capability negotiation for platforms with different feature matrices.
 
 ---
 
