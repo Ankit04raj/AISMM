@@ -2,7 +2,7 @@
 
 from typing import List, Optional, Dict, Any
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
@@ -34,8 +34,7 @@ class AccountService:
         request: ConnectAccountRequest,
     ) -> SocialAccountResponse:
         """Connect a social account via OAuth."""
-        # Validate platform
-        if request.platform not in PlatformRegistry.list_platforms():
+        if not PlatformRegistry.is_registered(request.platform):
             raise ValidationError(f"Unsupported platform: {request.platform}")
 
         adapter = PlatformRegistry.get_adapter(request.platform)
@@ -57,29 +56,32 @@ class AccountService:
                 and_(
                     SocialAccount.user_id == user_id,
                     SocialAccount.platform == request.platform,
-                    SocialAccount.platform_user_id == profile["id"],
+                    SocialAccount.platform_user_id == str(profile["id"]),
                 )
             )
         )
         if existing.scalar_one_or_none():
             raise ValidationError("Account already connected")
 
+        expires_in = token_response.get("expires_in")
+        expiry_dt = None
+        if expires_in:
+            expiry_dt = datetime.fromtimestamp(expires_in + int(datetime.now(timezone.utc).timestamp()), tz=timezone.utc).replace(tzinfo=None)
+
         # Create social account
         account = SocialAccount(
             user_id=user_id,
             platform=request.platform,
-            platform_user_id=profile["id"],
+            platform_user_id=str(profile["id"]),
             username=profile.get("username"),
             display_name=profile.get("name") or profile.get("display_name"),
             profile_image_url=profile.get("profile_picture_url"),
             account_type=profile.get("account_type"),
-            access_token=token_response["access_token"],
+            access_token=token_response.get("access_token"),
             refresh_token=token_response.get("refresh_token"),
-            token_expires_at=datetime.utcfromtimestamp(
-                token_response.get("expires_in", 0) + int(datetime.utcnow().timestamp())
-            ) if token_response.get("expires_in") else None,
-            permissions=token_response.get("scope", "").split(","),
-            metadata=profile,
+            token_expires_at=expiry_dt,
+            permissions=token_response.get("scope", "").split(",") if isinstance(token_response.get("scope"), str) else [],
+            account_metadata=profile,
         )
         self.db.add(account)
         await self.db.commit()
@@ -133,12 +135,12 @@ class AccountService:
         if not account:
             return None
 
-        if request.display_name:
+        if request.display_name is not None:
             account.display_name = request.display_name
         if request.is_active is not None:
             account.is_active = request.is_active
-        if request.metadata:
-            account.metadata = {**(account.metadata or {}), **request.metadata}
+        if request.metadata is not None:
+            account.account_metadata = {**(account.account_metadata or {}), **request.metadata}
 
         await self.db.commit()
         await self.db.refresh(account)
@@ -150,13 +152,12 @@ class AccountService:
         if not account:
             raise NotFoundError("Account not found")
 
-        # Revoke tokens on platform if possible
         adapter = PlatformRegistry.get_adapter(account.platform)
-        if adapter and account.access_token:
+        if adapter and hasattr(adapter, "auth") and account.access_token:
             try:
                 await adapter.auth.revoke_token(account.access_token)
             except Exception:
-                pass  # Best effort
+                pass
 
         platform = account.platform
         account_id_str = str(account.id)
@@ -177,7 +178,7 @@ class AccountService:
             return False
 
         adapter = PlatformRegistry.get_adapter(account.platform)
-        if not adapter:
+        if not adapter or not hasattr(adapter, "auth"):
             return False
 
         try:
@@ -186,9 +187,9 @@ class AccountService:
             if "refresh_token" in new_tokens:
                 account.refresh_token = new_tokens["refresh_token"]
             if new_tokens.get("expires_in"):
-                account.token_expires_at = datetime.utcfromtimestamp(
-                    new_tokens["expires_in"] + int(datetime.utcnow().timestamp())
-                )
+                account.token_expires_at = datetime.fromtimestamp(
+                    new_tokens["expires_in"] + int(datetime.now(timezone.utc).timestamp()), tz=timezone.utc
+                ).replace(tzinfo=None)
             await self.db.commit()
             return True
         except Exception:
@@ -209,45 +210,21 @@ class AccountService:
             return None
 
         try:
-            insights = await adapter.fetch_account_insights(account.access_token)
+            insights = await adapter.fetch_account_insights()
+            norm = insights.get("normalized", {}) if isinstance(insights, dict) else {}
             return AccountInsights(
                 platform=account.platform,
                 account_id=account.platform_user_id,
-                followers_count=insights.get("followers_count"),
-                following_count=insights.get("following_count"),
-                media_count=insights.get("media_count"),
-                impressions=insights.get("impressions"),
-                reach=insights.get("reach"),
-                profile_views=insights.get("profile_views"),
-                website_clicks=insights.get("website_clicks"),
-                email_contacts=insights.get("email_contacts"),
-                phone_call_clicks=insights.get("phone_call_clicks"),
-                fetched_at=datetime.utcnow(),
-            )
-        except Exception:
-            return None
-
-    async def get_follower_demographics(
-        self,
-        account_id: UUID,
-        user_id: UUID,
-    ) -> Optional[FollowerDemographics]:
-        """Get follower demographics for an account."""
-        account = await self.get_account(account_id, user_id)
-        if not account or not account.is_active:
-            return None
-
-        adapter = PlatformRegistry.get_adapter(account.platform)
-        if not adapter:
-            return None
-
-        try:
-            demographics = await adapter.fetch_follower_demographics(account.access_token)
-            return FollowerDemographics(
-                age_gender=demographics.get("age_gender"),
-                top_countries=demographics.get("top_countries"),
-                top_cities=demographics.get("top_cities"),
-                locales=demographics.get("locales"),
+                followers_count=norm.get("followers_count"),
+                following_count=norm.get("following_count"),
+                media_count=norm.get("media_count"),
+                impressions=norm.get("impressions"),
+                reach=norm.get("reach"),
+                profile_views=norm.get("profile_views"),
+                website_clicks=norm.get("clicks"),
+                email_contacts=norm.get("email_contacts"),
+                phone_call_clicks=norm.get("phone_call_clicks"),
+                fetched_at=datetime.now(timezone.utc),
             )
         except Exception:
             return None
@@ -267,11 +244,11 @@ class AccountService:
             return self._to_profile(account)
 
         try:
-            profile = await adapter.auth.get_user_profile(account.access_token)
+            profile = await adapter.get_profile()
             return AccountProfile(
                 id=str(account.id),
                 platform=account.platform,
-                username=profile.get("username", account.username),
+                username=profile.get("username", account.username or ""),
                 display_name=profile.get("name") or profile.get("display_name", account.display_name),
                 biography=profile.get("biography"),
                 website=profile.get("website"),
@@ -292,16 +269,16 @@ class AccountService:
             user_id=str(account.user_id),
             platform=account.platform,
             platform_user_id=account.platform_user_id,
-            username=account.username,
+            username=account.username or "",
             display_name=account.display_name,
             profile_image_url=account.profile_image_url,
             account_type=account.account_type,
-            is_active=account.is_active,
-            connected_at=account.connected_at,
+            is_active=account.is_active if account.is_active is not None else True,
+            connected_at=account.connected_at or datetime.now(timezone.utc),
             last_synced_at=account.last_synced_at,
             token_expires_at=account.token_expires_at,
-            permissions=account.permissions,
-            metadata=account.metadata or {},
+            permissions=account.permissions or [],
+            metadata=account.account_metadata or {},
         )
 
     def _to_profile(self, account: SocialAccount) -> AccountProfile:
@@ -309,7 +286,7 @@ class AccountService:
         return AccountProfile(
             id=str(account.id),
             platform=account.platform,
-            username=account.username,
+            username=account.username or "",
             display_name=account.display_name,
             profile_image_url=account.profile_image_url,
             account_type=account.account_type,

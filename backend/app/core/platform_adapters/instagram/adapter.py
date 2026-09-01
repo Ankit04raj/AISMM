@@ -68,6 +68,14 @@ class InstagramAdapter(BasePlatformAdapter):
         self.ig_user_id = config.get("ig_user_id")
         self._token_expires_at: Optional[datetime] = None
         self._http_client: Optional[httpx.AsyncClient] = None
+        from .auth import InstagramAuth, InstagramAuthConfig
+        self.auth = InstagramAuth(
+            InstagramAuthConfig(
+                client_id=self.client_id or "",
+                client_secret=self.client_secret or "",
+                redirect_uri=self.redirect_uri or "",
+            )
+        )
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client with auth headers."""
@@ -389,15 +397,17 @@ class InstagramAdapter(BasePlatformAdapter):
             location_id=getattr(content, "location", None) or getattr(content, "location_id", None),
             scheduled_at=scheduled_at,
         )
-        options = dict(content.platform_specific or {})
+        options = dict(getattr(content, "platform_specific", None) or getattr(content, "platform_data", None) or {})
         options["scheduled_at"] = scheduled_at
         result = await self._schedule_post_internal(universal_content, options)
+        platform_data = dict(result.get("platform_data") or {})
+        platform_data.setdefault("container_id", result.get("container_id") or result.get("post_id"))
         return PostResult(
             platform_post_id=result.get("post_id", ""),
             url=result.get("permalink"),
             status=result.get("status", "scheduled"),
             published_at=result.get("published_at"),
-            platform_data=result.get("platform_data", {}),
+            platform_data=platform_data,
         )
 
     async def get_post(self, post_id: str) -> Dict[str, Any]:

@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from backend.app.core.platform_adapters.instagram.adapter import InstagramAdapter
 from backend.app.core.normalization import ContentType
@@ -149,7 +149,7 @@ class TestInstagramAuth:
     def test_token_expiry_calculation(self, auth):
         expiry = auth.get_token_expiry(3600)
         assert isinstance(expiry, datetime)
-        assert expiry > datetime.utcnow()
+        assert expiry > datetime.now(timezone.utc)
 
 
 class TestInstagramConfig:
