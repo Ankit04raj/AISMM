@@ -17,9 +17,11 @@ from ..errors import (
 
 # Import and register platform adapters
 from .instagram import InstagramAdapter
+from .facebook import FacebookAdapter
 
-# Register Instagram adapter
+# Register adapters
 PlatformRegistry.register("instagram", InstagramAdapter)
+PlatformRegistry.register("facebook", FacebookAdapter)
 
 __all__ = [
     # Base classes
@@ -39,4 +41,5 @@ __all__ = [
     "PlatformUnavailableError",
     # Adapters
     "InstagramAdapter",
+    "FacebookAdapter",
 ]
