@@ -1,7 +1,7 @@
 # AISMM — Universal Multi-Platform AI Social Media Management
 
-![Phase](https://img.shields.io/badge/phase-7%20AI%20Content%20Engine%20Complete-brightgreen)
-![Tests](https://img.shields.io/badge/tests-74%2F74%20passing%20(100%25)-brightgreen)
+![Phase](https://img.shields.io/badge/phase-8%20Intelligent%20Scheduling%20Complete-brightgreen)
+![Tests](https://img.shields.io/badge/tests-81%2F81%20passing%20(100%25)-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![Framework](https://img.shields.io/badge/framework-FastAPI%20%7C%20SQLAlchemy%20%7C%20Alembic-blue)
 
@@ -35,43 +35,45 @@ AISMM is a **platform-agnostic, AI-powered social media management platform** bu
 | Phase | Description | Status | Test Coverage |
 |-------|-------------|--------|---------------|
 | **0** | **Project Discovery & Audit** | ✅ Verified | Baseline repository audit complete |
-| **1** | **Requirement Mapping** | ✅ Verified | All 17 phases mapped to research requirements |
+| **1** | **Requirement Matrix** | ✅ Verified | All 17 phases mapped to research requirements |
 | **2** | **Architecture Design** | ✅ Verified | 3 specification documents, 29 ADRs |
 | **3** | **Core Foundation** | ✅ Verified | Normalization, Base Adapter, Registry, Config, Security, Logging, Errors, DB Models, Alembic |
 | **4** | **First Platform (Instagram)** | ✅ Verified | Full Instagram Graph API E2E, API v1 modular routers |
 | **5** | **Second Platform (Validation)** | ✅ Verified | Facebook Page Adapter, zero core rewrites |
 | **6** | **Content Management** | ✅ Verified | Multi-platform composer, platform customization, preview engine |
-| **7** | **AI Content Engine** | ✅ **100% Verified** | **74/74 Tests Passing** (Dual-Phase Sentiment, Caption Quality, Hashtag Top-K) |
-| **8** | **Intelligent Scheduling Engine** | 🔄 **Next** | ML posting time prediction (RF + XGBoost + Hard Voting) |
+| **7** | **AI Content Engine** | ✅ Verified | Dual-Phase Sentiment, Caption Quality Analyzer, Top-K Hashtags |
+| **8** | **Intelligent Scheduling Engine** | ✅ **100% Verified** | **81/81 Tests Passing** (ML Temporal Ensemble, Auto-Scheduler, Queue Dispatch) |
+| **9** | **Post-Posting Intelligence** | 🔄 **Next** | Comment synchronization, temporal sentiment tracking, engagement updates |
 
 ---
 
-### Phase 7 AI Content Deliverables
+### Phase 8 Intelligent Scheduling Deliverables
 
 | Component | Module | Description | Research Baseline |
 |-----------|--------|-------------|-------------------|
-| **Dual-Phase Sentiment Engine** | `backend/app/ai/sentiment/` | Pre-posting content scoring + Post-posting audience comment aggregation | VADER + refinement (89.00% accuracy) |
-| **Caption Quality Engine** | `backend/app/ai/caption/` | 0-100 quality scoring, readability, CTA detection, platform-tailored adaptation | Multi-feature quality index |
-| **Hashtag Recommendation** | `backend/app/ai/hashtag/` | Category keyword matching, frequency scoring, Top-K generation | Top-K=5 (92.70% baseline) |
-| **Master AI Content Engine** | `backend/app/ai/content_engine.py` | Unified optimization orchestrator across all platforms | Platform-agnostic input |
-| **AI REST API** | `backend/app/api/v1/ai.py` | Dedicated `/api/v1/ai/` endpoints for sentiment, caption, hashtag, and all-in-one optimization | FastAPI endpoints |
+| **Temporal & Contextual Features** | `backend/app/ai/scheduling/features.py` | 16-feature vector: cyclical sin/cos hour and day-of-week encoding, caption length, hashtag count, media types | Feature Store representation |
+| **Machine Learning Ensemble** | `backend/app/ai/scheduling/engine.py` | Random Forest + GradientBoosting with soft/hard voting for engagement probability scoring | 88.08% prediction baseline |
+| **Platform-Aware Peak Windows** | `backend/app/ai/scheduling/engine.py` | Instagram (evening 7-9 PM), Facebook (8 PM), LinkedIn (morning 9-11 AM), Twitter (12 PM & 6 PM) | Platform-specific learning |
+| **Scheduling Service & DB** | `backend/app/services/scheduling_service.py` | Constraint-aware time recommendations, auto-scheduling with DB persistence, due queue background dispatch | Complete workflow |
+| **Scheduling REST API** | `backend/app/api/v1/scheduling.py` | `/recommend-times`, `/auto-schedule`, `/trigger-due` | FastAPI v1 endpoints |
 
 ---
 
-## 🧪 Test Results: 74/74 Passing (100%)
+## 🧪 Test Results: 81/81 Passing (100%)
 
 ```
-backend/tests/test_ai_content_engine.py ............                     [ 16%]
-backend/tests/test_api_v1.py .....                                       [ 22%]
-backend/tests/test_content_management.py ....                            [ 28%]
-backend/tests/test_e2e_instagram.py .                                    [ 29%]
-backend/tests/test_facebook_adapter.py ..........                        [ 43%]
-backend/tests/test_foundation.py ...........                             [ 58%]
-backend/tests/test_instagram_adapter.py .........................        [ 91%]
-backend/tests/test_normalization.py ..                                   [ 94%]
+backend/tests/test_scheduling_engine.py .......                          [ 10%]
+backend/tests/test_ai_content_engine.py ............                     [ 25%]
+backend/tests/test_api_v1.py .....                                       [ 31%]
+backend/tests/test_content_management.py ....                            [ 36%]
+backend/tests/test_e2e_instagram.py .                                    [ 37%]
+backend/tests/test_facebook_adapter.py ..........                        [ 49%]
+backend/tests/test_foundation.py ...........                             [ 63%]
+backend/tests/test_instagram_adapter.py .........................        [ 94%]
+backend/tests/test_normalization.py ..                                   [ 96%]
 backend/tests/test_services.py ....                                      [100%]
 
-======================= 74 passed in 1.94s =======================
+======================= 81 passed in 10.88s =======================
 ```
 
 ---
@@ -92,7 +94,7 @@ pip install -r requirements.txt
 # Run migrations
 alembic upgrade head
 
-# Run full test suite (74 tests)
+# Run full test suite (81 tests)
 pytest -v
 
 # Start FastAPI server
@@ -101,33 +103,30 @@ uvicorn backend.app.main:app --reload
 
 ---
 
-## 🤖 AI Content Engine Usage
+## 📅 Intelligent Scheduling Usage
 
 ```python
-from backend.app.ai.content_engine import AIContentEngine
+from backend.app.ai.scheduling import SchedulingEngine, TimeConstraints
 
-ai = AIContentEngine()
+engine = SchedulingEngine()
 
-# Optimize content across multiple platforms simultaneously
-result = ai.optimize(
-    text="Supercharge your startup growth with our new AI tools! 🚀 Check out the link in bio. What is your biggest challenge?",
-    platforms=["instagram", "facebook", "twitter", "linkedin"],
-    top_k_hashtags=5
+# Predict optimal posting times with user constraints (e.g. tomorrow evening)
+constraints = TimeConstraints(
+    start_hour=18,  # 6 PM
+    end_hour=21,    # 9 PM
+    allowed_days=[2, 3, 4]  # Wed, Thu, Fri
 )
 
-# 1. Dual-phase sentiment score
-print(f"Sentiment: {result.sentiment.label} (Score: {result.sentiment.score})")
+recommendation = engine.recommend_best_times(
+    platform="instagram",
+    text="Product drop tomorrow evening! 🔥 Link in bio #launch #tech",
+    constraints=constraints,
+    top_k=3
+)
 
-# 2. Caption quality score & actionable suggestions
-print(f"Caption Quality Score: {result.caption_analysis.score}/100 ({result.caption_analysis.grade})")
-print(f"Suggestions: {result.caption_analysis.suggestions}")
-
-# 3. Top-K recommended hashtags
-print(f"Recommended Hashtags: {result.hashtags.top_k}")
-
-# 4. Platform-adapted variants
-for platform, variant in result.platform_variants.items():
-    print(f"[{platform.upper()}] {variant.text} {variant.recommended_hashtags}")
+print(f"Optimal Posting Time: {recommendation.optimal_time}")
+for slot in recommendation.recommendations:
+    print(f"[{slot.day_name} {slot.hour_label}] Score: {slot.predicted_engagement_score}% — {slot.reason}")
 ```
 
 ---
@@ -150,7 +149,8 @@ AISMM/
 │   │   │   ├── content_engine.py# Master AI Content Engine
 │   │   │   ├── sentiment/       # Dual-Phase Sentiment Engine (VADER)
 │   │   │   ├── caption/         # Caption Quality & Adaptation Engine
-│   │   │   └── hashtag/         # Top-K Hashtag Recommendation Engine
+│   │   │   ├── hashtag/         # Top-K Hashtag Recommendation Engine
+│   │   │   └── scheduling/      # Intelligent Scheduling Engine (RF + GB)
 │   │   ├── api/                 # Modular API v1 routers
 │   │   │   └── v1/
 │   │   │       ├── accounts.py
@@ -162,6 +162,7 @@ AISMM/
 │   │   │       ├── platforms.py
 │   │   │       ├── posts.py
 │   │   │       ├── router.py
+│   │   │       ├── scheduling.py# Intelligent Scheduling Endpoints
 │   │   │       └── webhooks.py
 │   │   ├── config/              # Application settings (Pydantic Settings)
 │   │   ├── core/
@@ -173,13 +174,19 @@ AISMM/
 │   │   │   │   ├── capabilities.py
 │   │   │   │   ├── instagram/   # Instagram Graph API Adapter
 │   │   │   │   └── facebook/    # Facebook Graph API Adapter
-│   │   │   ├── schemas/         # Pydantic API schemas (post, account, auth, ai)
+│   │   │   ├── schemas/         # Pydantic API schemas
 │   │   │   └── security.py      # JWT & bcrypt security utilities
 │   │   ├── db/                  # Database session & models
 │   │   ├── logging/             # Structured JSON logger
 │   │   ├── services/            # Business logic service layer
+│   │   │   ├── account_service.py
+│   │   │   ├── metrics_service.py
+│   │   │   ├── post_service.py
+│   │   │   ├── preview_service.py
+│   │   │   ├── scheduling_service.py
+│   │   │   └── user_service.py
 │   │   └── main.py              # FastAPI application entry point
-│   └── tests/                   # 74 unit, integration & E2E tests
+│   └── tests/                   # 81 unit, integration & E2E tests
 ├── docs/
 │   └── architecture/            # Architecture specifications (29 ADRs)
 └── frontend/                    # React dashboard (Phase 4+)
@@ -187,12 +194,11 @@ AISMM/
 
 ---
 
-## 🎯 Next Phase: Phase 8 — Intelligent Scheduling Engine
+## 🎯 Next Phase: Phase 9 — Post-Posting Intelligence
 
-1. **Temporal & Contextual Feature Engineering** — Day-of-week, hour-of-day, caption length, hashtag count, historical engagement
-2. **Machine Learning Model Training Pipeline** — Random Forest + XGBoost with Hard Voting baseline (88.08% accuracy)
-3. **Best Posting Time Recommendation Engine** — Multi-platform optimal time prediction with user constraints
-4. **Automated Schedule Trigger & Notification Dispatch**
+1. **Comment Synchronization Worker** — Scheduled background polling & webhook synchronization
+2. **Post-Posting Audience Sentiment Aggregation** — Temporal tracking of audience sentiment evolution over time
+3. **Engagement Score Updates** — Auto-updating post metrics and alerts for viral or high-negative engagement spikes
 
 ---
 

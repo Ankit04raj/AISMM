@@ -11,6 +11,7 @@ from backend.app.api.v1.webhooks import router as webhooks_router
 from backend.app.api.v1.platforms import router as platforms_router
 from backend.app.api.v1.content import router as content_router
 from backend.app.api.v1.ai import router as ai_router
+from backend.app.api.v1.scheduling import router as scheduling_router
 
 api_v1_router = APIRouter(prefix="/api/v1")
 
@@ -19,6 +20,7 @@ api_v1_router.include_router(accounts_router)
 api_v1_router.include_router(posts_router)
 api_v1_router.include_router(content_router)
 api_v1_router.include_router(ai_router)
+api_v1_router.include_router(scheduling_router)
 api_v1_router.include_router(metrics_router)
 api_v1_router.include_router(comments_router)
 api_v1_router.include_router(webhooks_router)

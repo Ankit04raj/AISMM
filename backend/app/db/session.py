@@ -31,13 +31,19 @@ def init_db() -> None:
     if database_url.startswith("postgresql://"):
         database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
+    echo = getattr(settings, "DATABASE_ECHO", getattr(settings, "DB_ECHO", False))
+    pool_size = getattr(settings, "DATABASE_POOL_SIZE", getattr(settings, "DB_POOL_SIZE", 10))
+    max_overflow = getattr(settings, "DATABASE_MAX_OVERFLOW", getattr(settings, "DB_MAX_OVERFLOW", 20))
+    pool_timeout = getattr(settings, "DATABASE_POOL_TIMEOUT", getattr(settings, "DB_POOL_TIMEOUT", 30))
+    pool_recycle = getattr(settings, "DATABASE_POOL_RECYCLE", getattr(settings, "DB_POOL_RECYCLE", 1800))
+
     engine = create_async_engine(
         database_url,
-        echo=settings.DB_ECHO,
-        pool_size=settings.DB_POOL_SIZE,
-        max_overflow=settings.DB_MAX_OVERFLOW,
-        pool_timeout=settings.DB_POOL_TIMEOUT,
-        pool_recycle=settings.DB_POOL_RECYCLE,
+        echo=echo,
+        pool_size=pool_size,
+        max_overflow=max_overflow,
+        pool_timeout=pool_timeout,
+        pool_recycle=pool_recycle,
         pool_pre_ping=True,
     )
 
