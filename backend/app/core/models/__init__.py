@@ -1,35 +1,33 @@
-"""Core models package."""
+"""Core database models - re-exported from db.models for unified access."""
 
-from .base import Base, TimestampMixin, UUIDMixin
-from .user import User, UserRole, UserStatus
-from .platform import PlatformConfig, PlatformAccount, PlatformType, AccountStatus
-from .content import ContentItem, ContentStatus, ContentType, ContentPlatform
-from .workflow import Workflow, WorkflowStep, WorkflowStatus, WorkflowType, StepStatus, StepType
-from .ml_model import MLModel, ModelPrediction, ModelStatus, ModelType
+from backend.app.db.models import (
+    User,
+    SocialAccount,
+    Post,
+    PostMedia,
+    PostPublication,
+    Comment,
+    Metric,
+    Schedule,
+    MLModel,
+    ModelPrediction,
+    SentimentAnalysis,
+    ContentTypeEnum,
+    PostStatusEnum,
+)
 
 __all__ = [
-    "Base",
-    "TimestampMixin",
-    "UUIDMixin",
     "User",
-    "UserRole",
-    "UserStatus",
-    "PlatformConfig",
-    "PlatformAccount",
-    "PlatformType",
-    "AccountStatus",
-    "ContentItem",
-    "ContentStatus",
-    "ContentType",
-    "ContentPlatform",
-    "Workflow",
-    "WorkflowStep",
-    "WorkflowStatus",
-    "WorkflowType",
-    "StepStatus",
-    "StepType",
+    "SocialAccount",
+    "Post",
+    "PostMedia",
+    "PostPublication",
+    "Comment",
+    "Metric",
+    "Schedule",
     "MLModel",
     "ModelPrediction",
-    "ModelStatus",
-    "ModelType",
+    "SentimentAnalysis",
+    "ContentTypeEnum",
+    "PostStatusEnum",
 ]

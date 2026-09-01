@@ -28,6 +28,9 @@ from backend.app.core.schemas.account import (
     SocialAccountResponse,
     SocialAccountListResponse,
     AccountInsights,
+    UpdateAccountRequest,
+    DisconnectAccountResponse,
+    AccountProfile,
 )
 from backend.app.core.schemas.auth import (
     OAuthInitRequest,

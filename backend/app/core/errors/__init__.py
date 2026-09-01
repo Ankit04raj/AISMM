@@ -1,33 +1,43 @@
-"""Platform error hierarchy."""
+"""Platform and application error hierarchy."""
 
 from .platform_errors import (
+    AISMMError,
     PlatformError,
     AuthenticationError,
+    AuthorizationError,
     TokenExpiredError,
     RateLimitError,
     ValidationError,
     PublishingError,
     MediaUploadError,
+    SchedulingError,
     AnalyticsError,
     UnsupportedCapabilityError,
     PlatformUnavailableError,
     NotFoundError,
     WebhookError,
     InsufficientPermissionsError,
+    ConfigurationError,
+    DatabaseError,
 )
 
 __all__ = [
+    "AISMMError",
     "PlatformError",
     "AuthenticationError",
+    "AuthorizationError",
     "TokenExpiredError",
     "RateLimitError",
     "ValidationError",
     "PublishingError",
     "MediaUploadError",
+    "SchedulingError",
     "AnalyticsError",
     "UnsupportedCapabilityError",
     "PlatformUnavailableError",
     "NotFoundError",
     "WebhookError",
     "InsufficientPermissionsError",
+    "ConfigurationError",
+    "DatabaseError",
 ]
