@@ -4,6 +4,7 @@ from .content import (
     UniversalContent,
     UniversalMedia,
     ContentType,
+    MediaType,
     NormalizedContent,
 )
 from .normalizer import ContentNormalizer
@@ -13,6 +14,7 @@ __all__ = [
     "UniversalContent",
     "UniversalMedia",
     "ContentType",
+    "MediaType",
     "NormalizedContent",
     "ContentNormalizer",
     "MetricNormalizer",

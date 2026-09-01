@@ -8,9 +8,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
 
-from backend.app.db.models import Post, PostPublication, PostMedia, User, SocialAccount
+from backend.app.db.models import (
+    Post,
+    PostPublication,
+    PostMedia,
+    User,
+    SocialAccount,
+    ContentTypeEnum,
+    PostStatusEnum,
+)
 from backend.app.core.platform_adapters import PlatformRegistry
-from backend.app.core.normalization import ContentNormalizer, UniversalContent
+from backend.app.core.normalization import ContentNormalizer, UniversalContent, ContentType, MediaType, UniversalMedia
 from backend.app.core.schemas.post import CreatePostRequest, PostResponse, PostMetrics
 from backend.app.core.errors import NotFoundError, ValidationError, PlatformError
 
@@ -24,63 +32,68 @@ class PostService:
     async def create_post(
         self,
         user_id: UUID,
-        request: CreatePostRequest
+        request: CreatePostRequest,
     ) -> PostResponse:
         """Create and optionally publish a post."""
-        # Validate platform
-        if request.platform not in PlatformRegistry.list_platforms():
+        if not PlatformRegistry.is_registered(request.platform):
             raise ValidationError(f"Unsupported platform: {request.platform}")
 
-        # Get or create adapter
         adapter = PlatformRegistry.get_adapter(request.platform)
         if not adapter:
             raise PlatformError(f"Adapter not available for {request.platform}")
 
-        # Normalize content
+        content_type_map = {
+            "post": ContentType.POST,
+            "reel": ContentType.REEL,
+            "story": ContentType.STORY,
+            "carousel": ContentType.CAROUSEL,
+        }
+        ct = content_type_map.get(request.content_type.lower(), ContentType.POST)
+
+        media_items = [
+            ContentNormalizer.normalize_media(m.model_dump() if hasattr(m, "model_dump") else m.dict())
+            for m in (request.media or [])
+        ]
+
         universal_content = UniversalContent(
-            content_type=request.content_type,
+            content_type=ct,
             text=request.text,
             caption=request.caption,
             hashtags=request.hashtags or [],
             mentions=request.mentions or [],
-            media=[
-                ContentNormalizer.normalize_media(m.dict())
-                for m in request.media
-            ],
+            media=media_items,
+            location_id=request.location_id,
+            scheduled_at=request.scheduled_at,
         )
 
-        # Publish or schedule
         if request.scheduled_at and not request.publish_now:
-            result = await adapter.schedule_post(
-                content=universal_content,
-                media_items=universal_content.media,
-                scheduled_at=request.scheduled_at,
-                media_type=universal_content.content_type,
-            )
+            result = await adapter.schedule_post(universal_content, request.scheduled_at)
         else:
-            result = await adapter.publish_post(
-                content=universal_content,
-                options=request.options or {}
-            )
+            result = await adapter.publish_post(universal_content)
 
-        # Save to database
+        db_content_type = getattr(ContentTypeEnum, ct.name, ContentTypeEnum.POST)
+        is_published = result.status == "published"
+        db_status = PostStatusEnum.PUBLISHED if is_published else PostStatusEnum.SCHEDULED
+
         post = Post(
             user_id=user_id,
-            content_type=request.content_type,
+            content_type=db_content_type,
             text=request.text,
             caption=request.caption,
-            hashtags=request.hashtags,
-            mentions=request.mentions,
-            status="published" if result.get("post_id") else "scheduled",
+            hashtags=request.hashtags or [],
+            mentions=request.mentions or [],
+            status=db_status,
+            scheduled_at=request.scheduled_at,
+            published_at=result.published_at if is_published else None,
+            platform_data=result.platform_data or {},
         )
         self.db.add(post)
         await self.db.flush()
 
-        # Save media
-        for media in request.media:
+        for media in media_items:
             post_media = PostMedia(
                 post_id=post.id,
-                media_type=media.type,
+                media_type=media.type.value if hasattr(media.type, "value") else str(media.type),
                 url=media.url,
                 thumbnail_url=media.thumbnail_url,
                 duration_seconds=media.duration_seconds,
@@ -89,36 +102,42 @@ class PostService:
                 title=media.title,
                 caption=media.caption,
                 alt_text=media.alt_text,
+                file_size_bytes=media.file_size_bytes,
+                mime_type=media.mime_type,
             )
             self.db.add(post_media)
 
-        # Save publication record
+        container_id = (result.platform_data or {}).get("container_id")
         publication = PostPublication(
             post_id=post.id,
             platform=request.platform,
-            platform_post_id=result.get("post_id"),
-            platform_container_id=result.get("container_id"),
-            permalink=result.get("permalink"),
-            media_type=result.get("media_type"),
+            platform_post_id=result.platform_post_id or None,
+            platform_container_id=container_id,
+            permalink=result.url,
+            media_type=(result.platform_data or {}).get("media_type", ct.value),
             scheduled_at=request.scheduled_at,
-            published_at=result.get("published_at"),
-            platform_data=result.get("platform_data", {}),
-            status="published" if result.get("post_id") else "scheduled",
+            published_at=result.published_at if is_published else None,
+            platform_data=result.platform_data or {},
+            status=result.status,
         )
         self.db.add(publication)
 
         await self.db.commit()
         await self.db.refresh(post)
 
+        published_dt = None
+        if result.published_at:
+            published_dt = datetime.fromisoformat(result.published_at) if isinstance(result.published_at, str) else result.published_at
+
         return PostResponse(
-            id=result.get("post_id", str(post.id)),
+            id=result.platform_post_id or str(post.id),
             platform=request.platform,
-            permalink=result.get("permalink"),
-            media_type=result.get("media_type"),
-            published_at=result.get("published_at"),
+            permalink=result.url,
+            media_type=(result.platform_data or {}).get("media_type", ct.value),
+            published_at=published_dt,
             scheduled_at=request.scheduled_at,
             status=publication.status,
-            platform_data=result.get("platform_data", {}),
+            platform_data=result.platform_data or {},
         )
 
     async def get_post(self, post_id: UUID, user_id: UUID) -> Optional[Post]:
@@ -128,6 +147,8 @@ class PostService:
             .options(
                 selectinload(Post.media),
                 selectinload(Post.publications),
+                selectinload(Post.comments),
+                selectinload(Post.metrics),
             )
             .where(and_(Post.id == post_id, Post.user_id == user_id))
         )
@@ -136,35 +157,37 @@ class PostService:
     async def get_posts(
         self,
         user_id: UUID,
-        page: int = 1,
-        page_size: int = 20,
         status: Optional[str] = None,
         platform: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20,
     ) -> Dict[str, Any]:
-        """Get paginated posts for a user."""
-        query = select(Post).where(Post.user_id == user_id)
+        """Get paginated posts."""
+        query = (
+            select(Post)
+            .options(
+                selectinload(Post.media),
+                selectinload(Post.publications),
+            )
+            .where(Post.user_id == user_id)
+        )
 
         if status:
-            query = query.where(Post.status == status)
+            status_enum = getattr(PostStatusEnum, status.upper(), None)
+            if status_enum:
+                query = query.where(Post.status == status_enum)
 
         if platform:
             query = query.join(PostPublication).where(PostPublication.platform == platform)
 
-        # Count total
         count_query = select(func.count()).select_from(query.subquery())
         total_result = await self.db.execute(count_query)
-        total = total_result.scalar()
+        total = total_result.scalar() or 0
 
-        # Apply pagination
         query = query.order_by(Post.created_at.desc())
         query = query.offset((page - 1) * page_size).limit(page_size)
 
-        result = await self.db.execute(
-            query.options(
-                selectinload(Post.media),
-                selectinload(Post.publications),
-            )
-        )
+        result = await self.db.execute(query)
         posts = result.scalars().all()
 
         return {
@@ -175,129 +198,20 @@ class PostService:
             "has_next": (page * page_size) < total,
         }
 
-    async def update_post(
-        self,
-        post_id: UUID,
-        user_id: UUID,
-        caption: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None,
-    ) -> Optional[Post]:
-        """Update a post (caption only for published posts)."""
-        post = await self.get_post(post_id, user_id)
-        if not post:
-            return None
-
-        if post.status == "published":
-            # Update on platform
-            for publication in post.publications:
-                adapter = PlatformRegistry.get_adapter(publication.platform)
-                if adapter:
-                    await adapter.update_post(
-                        post_id=publication.platform_post_id,
-                        caption=caption,
-                        options=options,
-                    )
-
-        post.caption = caption or post.caption
-        await self.db.commit()
-        await self.db.refresh(post)
-        return post
-
     async def delete_post(self, post_id: UUID, user_id: UUID) -> bool:
-        """Delete a post and its publications."""
+        """Delete a post from DB and platform."""
         post = await self.get_post(post_id, user_id)
         if not post:
             return False
 
-        # Delete from platforms
-        for publication in post.publications:
-            adapter = PlatformRegistry.get_adapter(publication.platform)
-            if adapter and publication.platform_post_id:
-                await adapter.delete_post(publication.platform_post_id)
-
-        await self.db.delete(post)
-        await self.db.commit()
-        return True
-
-    async def get_post_metrics(self, post_id: UUID, user_id: UUID) -> Optional[PostMetrics]:
-        """Get metrics for a post."""
-        post = await self.get_post(post_id, user_id)
-        if not post:
-            return None
-
-        # Get metrics from each platform
-        all_metrics = {}
         for publication in post.publications:
             adapter = PlatformRegistry.get_adapter(publication.platform)
             if adapter and publication.platform_post_id:
                 try:
-                    metrics = await adapter.fetch_insights(publication.platform_post_id)
-                    all_metrics[publication.platform] = metrics
+                    await adapter.delete_post(publication.platform_post_id)
                 except Exception:
                     pass
 
-        if not all_metrics:
-            return None
-
-        # Combine metrics (simple sum for now)
-        combined = {}
-        for platform_metrics in all_metrics.values():
-            for key, value in platform_metrics.items():
-                if isinstance(value, (int, float)):
-                    combined[key] = combined.get(key, 0) + value
-
-        return PostMetrics(
-            post_id=str(post_id),
-            platform=", ".join(all_metrics.keys()),
-            impressions=combined.get("impressions"),
-            reach=combined.get("reach"),
-            likes=combined.get("likes"),
-            comments=combined.get("comments"),
-            shares=combined.get("shares"),
-            saves=combined.get("saves"),
-            video_views=combined.get("video_views"),
-            engagement_rate=self._calculate_engagement_rate(combined),
-            fetched_at=datetime.utcnow(),
-        )
-
-    def _calculate_engagement_rate(self, metrics: Dict[str, Any]) -> Optional[float]:
-        """Calculate engagement rate from metrics."""
-        impressions = metrics.get("impressions", 0)
-        if impressions == 0:
-            return None
-
-        engagements = sum(
-            metrics.get(k, 0)
-            for k in ["likes", "comments", "shares", "saves"]
-        )
-        return round((engagements / impressions) * 100, 2)
-
-    async def get_scheduled_posts(self, user_id: UUID) -> List[Post]:
-        """Get all scheduled posts for a user."""
-        result = await self.db.execute(
-            select(Post)
-            .options(selectinload(Post.publications))
-            .where(
-                and_(
-                    Post.user_id == user_id,
-                    Post.status == "scheduled",
-                )
-            )
-            .order_by(Post.created_at)
-        )
-        return result.scalars().all()
-
-    async def cancel_scheduled_post(self, post_id: UUID, user_id: UUID) -> bool:
-        """Cancel a scheduled post."""
-        post = await self.get_post(post_id, user_id)
-        if not post or post.status != "scheduled":
-            return False
-
-        for publication in post.publications:
-            adapter = PlatformRegistry.get_adapter(publication.platform)
-            if adapter and publication.platform_container_id:
-                await adapter.cancel_scheduled_post(publication.platform_container_id)
-
-        post.status = "cancelled"
+        await self.db.delete(post)
         await self.db.commit()
         return True
