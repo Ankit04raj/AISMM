@@ -18,10 +18,17 @@ from ..errors import (
 # Import and register platform adapters
 from .instagram import InstagramAdapter
 from .facebook import FacebookAdapter
+from .x import XAdapter
+from .linkedin import LinkedInAdapter
+from .youtube import YouTubeAdapter
 
 # Register adapters
 PlatformRegistry.register("instagram", InstagramAdapter)
 PlatformRegistry.register("facebook", FacebookAdapter)
+PlatformRegistry.register("x", XAdapter)
+PlatformRegistry.register("twitter", XAdapter)  # Alias for Twitter
+PlatformRegistry.register("linkedin", LinkedInAdapter)
+PlatformRegistry.register("youtube", YouTubeAdapter)
 
 __all__ = [
     # Base classes
@@ -42,4 +49,7 @@ __all__ = [
     # Adapters
     "InstagramAdapter",
     "FacebookAdapter",
+    "XAdapter",
+    "LinkedInAdapter",
+    "YouTubeAdapter",
 ]
