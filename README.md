@@ -1,7 +1,7 @@
 # AISMM — Universal Multi-Platform AI Social Media Management
 
-![Phase](https://img.shields.io/badge/phase-15%20Model%20Improvement%20Complete-brightgreen)
-![Tests](https://img.shields.io/badge/tests-170%2F170%20passing%20(100%25)-brightgreen)
+![Phase](https://img.shields.io/badge/phase-16%20Production%20Hardening%20Complete-brightgreen)
+![Tests](https://img.shields.io/badge/tests-184%2F184%20passing%20(100%25)-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![Framework](https://img.shields.io/badge/framework-FastAPI%20%7C%20SQLAlchemy%20%7C%20Alembic-blue)
 
@@ -49,7 +49,21 @@ AISMM is a **platform-agnostic, AI-powered social media management platform** bu
 | **12** | **Universal Analytics Dashboard** | ✅ Verified | Cross-Platform Aggregations, Benchmarking, Temporal Heatmaps, Growth Drift |
 | **13** | **AI Strategy Engine** | ✅ Verified | Multi-Model Synthesis, Strategic Recommendations, Platform Profiles |
 | **14** | **Multi-Platform Expansion** | ✅ Verified | X / Twitter API v2, LinkedIn REST & UGC, YouTube Data v3 & Analytics |
-| **15** | **Model Improvement & Evaluation** | ✅ **100% Verified** | **170/170 Tests Passing** (Continuous Model Evaluation, Feature Importance, Class Imbalance, Drift Tracking, Model Registry) |
+| **15** | **Model Improvement & Evaluation** | ✅ Verified | Continuous Model Evaluation, Feature Importance, Class Imbalance, Drift Tracking, Model Registry |
+| **16** | **Production Hardening** | ✅ **100% Verified** | **184/184 Tests Passing** (AES-256 Vault Encryption, Sliding Window Rate Limiting, Circuit Breaker & Exponential Backoff, Audit Logging, Health Probes) |
+
+---
+
+### Phase 16 Production Hardening Deliverables
+
+| Component | Module | Description | Security & Reliability Standard |
+|-----------|--------|-------------|---------------------------------|
+| **Secret Vault Encryption** | `backend/app/core/vault.py` | AES-256 authenticated encryption (`SecretVault`) for OAuth access/refresh tokens, client secrets, and platform credentials | PBKDF2-HMAC-SHA256 at rest |
+| **Sliding Window Rate Limiter** | `backend/app/core/rate_limit.py` | Microsecond sliding-window in-memory and endpoint dependency (`rate_limit_guard`) with 429 throttling and dynamic retry headers | Token bucket & window protection |
+| **Circuit Breaker & Retries** | `backend/app/core/resilience.py` | `CircuitBreaker` (CLOSED/OPEN/HALF_OPEN) and `async_retry_with_backoff` with exponential backoff and randomized full jitter | Cascade failure prevention |
+| **Compliance Audit Logger** | `backend/app/core/audit.py` | Structured JSON audit logging (`AuditLogger`) capturing security, authentication, publishing, and promotion events | SIEM / Compliance standard |
+| **Health Probes & Telemetry** | `backend/app/api/v1/health.py` | `/api/v1/health/liveness`, `/api/v1/health/readiness`, and `/api/v1/health/telemetry` endpoints | Kubernetes probe compatibility |
+| **Observability Middleware** | `backend/app/main.py` | `X-Correlation-ID` request tracking and `X-Process-Time-Ms` response headers | Microservice observability |
 
 ---
 
@@ -101,30 +115,31 @@ AISMM is a **platform-agnostic, AI-powered social media management platform** bu
 
 ---
 
-## 🧪 Test Results: 170/170 Passing (100%)
+## 🧪 Test Results: 184/184 Passing (100%)
 
 ```
-backend/tests/test_model_improvement.py ..................               [ 10%]
-backend/tests/test_x_adapter.py ..........                               [ 16%]
-backend/tests/test_linkedin_adapter.py ..........                        [ 23%]
-backend/tests/test_youtube_adapter.py .........                          [ 28%]
-backend/tests/test_ai_strategy_engine.py ...........                     [ 35%]
-backend/tests/test_analytics_dashboard.py .........                      [ 41%]
-backend/tests/test_growth_engine.py ......                               [ 45%]
-backend/tests/test_auto_reply.py ..........                              [ 51%]
-backend/tests/test_post_intelligence.py ......                           [ 55%]
+backend/tests/test_production_hardening.py ..............                [  7%]
+backend/tests/test_model_improvement.py ..................               [ 17%]
+backend/tests/test_x_adapter.py ..........                               [ 22%]
+backend/tests/test_linkedin_adapter.py ..........                        [ 28%]
+backend/tests/test_youtube_adapter.py .........                          [ 33%]
+backend/tests/test_ai_strategy_engine.py ...........                     [ 39%]
+backend/tests/test_analytics_dashboard.py .........                      [ 44%]
+backend/tests/test_growth_engine.py ......                               [ 47%]
+backend/tests/test_auto_reply.py ..........                              [ 52%]
+backend/tests/test_post_intelligence.py ......                           [ 56%]
 backend/tests/test_scheduling_engine.py .......                          [ 60%]
-backend/tests/test_ai_content_engine.py ............                     [ 67%]
-backend/tests/test_api_v1.py .....                                       [ 70%]
-backend/tests/test_content_management.py ....                            [ 73%]
-backend/tests/test_e2e_instagram.py .                                    [ 74%]
-backend/tests/test_facebook_adapter.py ..........                        [ 80%]
-backend/tests/test_foundation.py ...........                             [ 87%]
-backend/tests/test_instagram_adapter.py .........................        [ 98%]
-backend/tests/test_normalization.py ..                                   [ 99%]
+backend/tests/test_ai_content_engine.py ............                     [ 66%]
+backend/tests/test_api_v1.py .....                                       [ 69%]
+backend/tests/test_content_management.py ....                            [ 71%]
+backend/tests/test_e2e_instagram.py .                                    [ 72%]
+backend/tests/test_facebook_adapter.py ..........                        [ 77%]
+backend/tests/test_foundation.py ...........                             [ 83%]
+backend/tests/test_instagram_adapter.py .........................        [ 97%]
+backend/tests/test_normalization.py ..                                   [ 98%]
 backend/tests/test_services.py ....                                      [100%]
 
-======================= 170 passed in 63.66s =======================
+======================= 184 passed in 66.03s =======================
 ```
 
 ---
@@ -222,6 +237,7 @@ AISMM/
 │   │   │       └── webhooks.py
 │   │   ├── config/              # Application settings (Pydantic Settings)
 │   │   ├── core/
+│   │   │   ├── audit.py         # Structured audit logging
 │   │   │   ├── errors/          # AISMM error hierarchy
 │   │   │   ├── normalization/   # Universal content & metric normalizers
 │   │   │   ├── platform_adapters/
@@ -233,8 +249,11 @@ AISMM/
 │   │   │   │   ├── x/           # X (Twitter) API v2 Adapter
 │   │   │   │   ├── linkedin/    # LinkedIn REST & UGC Adapter
 │   │   │   │   └── youtube/     # YouTube Data API v3 Adapter
+│   │   │   ├── rate_limit.py    # Sliding window rate limiter
+│   │   │   ├── resilience.py    # Circuit breaker & retry backoff
 │   │   │   ├── schemas/         # Pydantic API schemas
-│   │   │   └── security.py      # JWT & bcrypt security utilities
+│   │   │   ├── security.py      # JWT & bcrypt security utilities
+│   │   │   └── vault.py         # AES-256 Secret encryption vault
 │   │   ├── db/                  # Database session & models
 │   │   ├── logging/             # Structured JSON logger
 │   │   ├── services/            # Business logic service layer
@@ -251,7 +270,7 @@ AISMM/
 │   │   │   ├── strategy_service.py
 │   │   │   └── user_service.py
 │   │   └── main.py              # FastAPI application entry point
-│   └── tests/                   # 170 unit, integration & E2E tests
+│   └── tests/                   # 184 unit, integration & E2E tests
 ├── docs/
 │   └── architecture/            # Architecture specifications (29 ADRs)
 └── frontend/                    # React dashboard (Phase 4+)
@@ -259,12 +278,10 @@ AISMM/
 
 ---
 
-## 🎯 Next Phase: Phase 16 — Production Hardening
+## 🎯 Next Phase: Phase 17 — Final Verification
 
-1. **API Security & Auth Hardening** — Refresh token rotation, secret management, request rate limit enforcement
-2. **Resilience & Fault Tolerance** — Exponential backoff retry policies, fallback degradation
-3. **Database Health & Backups** — Connection pooling optimization, query indices, audit logs
-4. **Health Checks & Observability** — Readiness/liveness probes, structured metrics logging
+1. **End-to-End System Lifecycle Verification** — Testing complete journey: Account Connection -> Content Creation -> AI Optimization -> Scheduling -> Publishing -> Post Intelligence -> Auto-Reply -> Analytics -> Strategy Synthesis across all 5 platforms
+2. **Production Deployment Readiness** — Verification of all 184 test suites, OpenAPI specification conformance, and zero-defect sign-off
 
 ---
 

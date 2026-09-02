@@ -3,6 +3,9 @@
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+import time
+import uuid
+
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -16,6 +19,7 @@ from backend.app.core.errors import (
     ValidationError,
     AuthenticationError,
     PlatformError,
+    RateLimitError,
 )
 from backend.app.core.platform_adapters import PlatformRegistry
 from backend.app.api.v1.router import api_v1_router
@@ -55,7 +59,29 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Observability & Correlation ID Middleware
+    @app.middleware("http")
+    async def add_process_time_and_correlation_header(request: Request, call_next):
+        correlation_id = request.headers.get("X-Correlation-ID", str(uuid.uuid4()))
+        start_time = time.perf_counter()
+        response = await call_next(request)
+        process_time_ms = round((time.perf_counter() - start_time) * 1000, 2)
+        response.headers["X-Process-Time-Ms"] = str(process_time_ms)
+        response.headers["X-Correlation-ID"] = correlation_id
+        return response
+
     # Exception handlers
+    @app.exception_handler(RateLimitError)
+    async def rate_limit_error_handler(request: Request, exc: RateLimitError):
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content={
+                "error": "RATE_LIMIT_EXCEEDED",
+                "message": exc.message or "Too many requests. Please slow down.",
+                "details": exc.details,
+            },
+            headers={"Retry-After": str(exc.details.get("retry_after", 60)) if exc.details else "60"},
+        )
     @app.exception_handler(AISMMError)
     async def aismm_error_handler(request: Request, exc: AISMMError):
         return JSONResponse(
