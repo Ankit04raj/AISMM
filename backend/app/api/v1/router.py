@@ -17,6 +17,7 @@ from backend.app.api.v1.reply import router as reply_router
 from backend.app.api.v1.growth import router as growth_router
 from backend.app.api.v1.analytics import router as analytics_router
 from backend.app.api.v1.strategy import router as strategy_router
+from backend.app.api.v1.models import router as models_router
 
 api_v1_router = APIRouter(prefix="/api/v1")
 
@@ -30,6 +31,7 @@ api_v1_router.include_router(reply_router)
 api_v1_router.include_router(growth_router)
 api_v1_router.include_router(analytics_router)
 api_v1_router.include_router(strategy_router)
+api_v1_router.include_router(models_router)
 api_v1_router.include_router(intelligence_router)
 api_v1_router.include_router(metrics_router)
 api_v1_router.include_router(comments_router)

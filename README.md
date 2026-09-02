@@ -1,7 +1,7 @@
 # AISMM — Universal Multi-Platform AI Social Media Management
 
-![Phase](https://img.shields.io/badge/phase-14%20Platform%20Expansion%20Complete-brightgreen)
-![Tests](https://img.shields.io/badge/tests-152%2F152%20passing%20(100%25)-brightgreen)
+![Phase](https://img.shields.io/badge/phase-15%20Model%20Improvement%20Complete-brightgreen)
+![Tests](https://img.shields.io/badge/tests-170%2F170%20passing%20(100%25)-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![Framework](https://img.shields.io/badge/framework-FastAPI%20%7C%20SQLAlchemy%20%7C%20Alembic-blue)
 
@@ -48,7 +48,21 @@ AISMM is a **platform-agnostic, AI-powered social media management platform** bu
 | **11** | **Predictive Growth Engine** | ✅ Verified | Platform-Specific Random Forest Regressors, 7/30/90-Day Projections |
 | **12** | **Universal Analytics Dashboard** | ✅ Verified | Cross-Platform Aggregations, Benchmarking, Temporal Heatmaps, Growth Drift |
 | **13** | **AI Strategy Engine** | ✅ Verified | Multi-Model Synthesis, Strategic Recommendations, Platform Profiles |
-| **14** | **Multi-Platform Expansion** | ✅ **100% Verified** | **152/152 Tests Passing** (X / Twitter API v2, LinkedIn REST & UGC, YouTube Data v3 & Analytics) |
+| **14** | **Multi-Platform Expansion** | ✅ Verified | X / Twitter API v2, LinkedIn REST & UGC, YouTube Data v3 & Analytics |
+| **15** | **Model Improvement & Evaluation** | ✅ **100% Verified** | **170/170 Tests Passing** (Continuous Model Evaluation, Feature Importance, Class Imbalance, Drift Tracking, Model Registry) |
+
+---
+
+### Phase 15 Model Improvement & Evaluation Deliverables
+
+| Component | Module | Description | Research Baseline / Standard |
+|-----------|--------|-------------|------------------------------|
+| **Model Evaluator** | `backend/app/ai/evaluation/evaluator.py` | Full diagnostic evaluation across all engines (Scheduling 88.42%, Sentiment 89.40%, Auto-Reply 88.50%, Growth 89.2% $R^2$, Hashtag 93.10%) | CLAUDE.md Section 51 Baselines |
+| **Feature Importance Diagnostics** | `backend/app/ai/evaluation/evaluator.py` | Ranked feature importance analysis for Random Forest & heuristic models | Model explainability |
+| **Class Imbalance Analyzer** | `backend/app/ai/evaluation/evaluator.py` | Detects minority intent categories (spam, neutral) and calculates optimal class balance weights | Robust classification |
+| **Model Drift Detection** | `backend/app/ai/evaluation/evaluator.py` | Detects metric decay against baseline thresholds with automated retraining recommendations | Continuous calibration |
+| **Model Registry & Staging** | `backend/app/ai/registry/model_registry.py` | Catalog tracking stages (`development`, `staging`, `production`, `deprecated`), versions, hyperparameters, and promotion | CLAUDE.md Section 48 Registry |
+| **Model Evaluation REST API** | `backend/app/api/v1/models.py` | Endpoints mounted at `/api/v1/models/`: `/registry`, `/evaluate-all`, `/{name}/evaluation`, `/{name}/feature-importance`, `/{name}/drift`, `/{name}/promote` | FastAPI v1 endpoints |
 
 ---
 
@@ -87,29 +101,30 @@ AISMM is a **platform-agnostic, AI-powered social media management platform** bu
 
 ---
 
-## 🧪 Test Results: 152/152 Passing (100%)
+## 🧪 Test Results: 170/170 Passing (100%)
 
 ```
-backend/tests/test_x_adapter.py ..........                               [  7%]
-backend/tests/test_linkedin_adapter.py ..........                        [ 13%]
-backend/tests/test_youtube_adapter.py .........                          [ 19%]
-backend/tests/test_ai_strategy_engine.py ...........                     [ 26%]
-backend/tests/test_analytics_dashboard.py .........                      [ 32%]
-backend/tests/test_growth_engine.py ......                               [ 36%]
-backend/tests/test_auto_reply.py ..........                              [ 43%]
-backend/tests/test_post_intelligence.py ......                           [ 47%]
-backend/tests/test_scheduling_engine.py .......                          [ 52%]
-backend/tests/test_ai_content_engine.py ............                     [ 60%]
-backend/tests/test_api_v1.py .....                                       [ 63%]
-backend/tests/test_content_management.py ....                            [ 66%]
-backend/tests/test_e2e_instagram.py .                                    [ 67%]
-backend/tests/test_facebook_adapter.py ..........                        [ 73%]
-backend/tests/test_foundation.py ...........                             [ 80%]
-backend/tests/test_instagram_adapter.py .........................        [ 97%]
-backend/tests/test_normalization.py ..                                   [ 98%]
+backend/tests/test_model_improvement.py ..................               [ 10%]
+backend/tests/test_x_adapter.py ..........                               [ 16%]
+backend/tests/test_linkedin_adapter.py ..........                        [ 23%]
+backend/tests/test_youtube_adapter.py .........                          [ 28%]
+backend/tests/test_ai_strategy_engine.py ...........                     [ 35%]
+backend/tests/test_analytics_dashboard.py .........                      [ 41%]
+backend/tests/test_growth_engine.py ......                               [ 45%]
+backend/tests/test_auto_reply.py ..........                              [ 51%]
+backend/tests/test_post_intelligence.py ......                           [ 55%]
+backend/tests/test_scheduling_engine.py .......                          [ 60%]
+backend/tests/test_ai_content_engine.py ............                     [ 67%]
+backend/tests/test_api_v1.py .....                                       [ 70%]
+backend/tests/test_content_management.py ....                            [ 73%]
+backend/tests/test_e2e_instagram.py .                                    [ 74%]
+backend/tests/test_facebook_adapter.py ..........                        [ 80%]
+backend/tests/test_foundation.py ...........                             [ 87%]
+backend/tests/test_instagram_adapter.py .........................        [ 98%]
+backend/tests/test_normalization.py ..                                   [ 99%]
 backend/tests/test_services.py ....                                      [100%]
 
-======================= 152 passed in 38.71s =======================
+======================= 170 passed in 63.66s =======================
 ```
 
 ---
@@ -228,6 +243,7 @@ AISMM/
 │   │   │   ├── growth_service.py
 │   │   │   ├── intelligence_service.py
 │   │   │   ├── metrics_service.py
+│   │   │   ├── model_service.py     # Model Evaluation & Registry Service
 │   │   │   ├── post_service.py
 │   │   │   ├── preview_service.py
 │   │   │   ├── reply_service.py
@@ -235,7 +251,7 @@ AISMM/
 │   │   │   ├── strategy_service.py
 │   │   │   └── user_service.py
 │   │   └── main.py              # FastAPI application entry point
-│   └── tests/                   # 152 unit, integration & E2E tests
+│   └── tests/                   # 170 unit, integration & E2E tests
 ├── docs/
 │   └── architecture/            # Architecture specifications (29 ADRs)
 └── frontend/                    # React dashboard (Phase 4+)
@@ -243,11 +259,12 @@ AISMM/
 
 ---
 
-## 🎯 Next Phase: Phase 15 — Model Improvement
+## 🎯 Next Phase: Phase 16 — Production Hardening
 
-1. **Continuous Metric Evaluation** — Class imbalance, feature importance, latency, and drift tracking
-2. **Hyperparameter Tuning** — Grid search on Random Forest and Gradient Boosting ensembles
-3. **Advanced Embeddings & Classification** — Embedding-based hashtag expansion and semantic sentiment refinement
+1. **API Security & Auth Hardening** — Refresh token rotation, secret management, request rate limit enforcement
+2. **Resilience & Fault Tolerance** — Exponential backoff retry policies, fallback degradation
+3. **Database Health & Backups** — Connection pooling optimization, query indices, audit logs
+4. **Health Checks & Observability** — Readiness/liveness probes, structured metrics logging
 
 ---
 
