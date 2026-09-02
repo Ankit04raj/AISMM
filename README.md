@@ -163,13 +163,13 @@ backend/tests/test_services.py ....                                      [100%]
 
 ## 🚀 Quick Start
 
+### 1. Backend (FastAPI + AI Engines)
 ```bash
 # Clone repository
 git clone https://github.com/Ankit04raj/AISMM.git
 cd AISMM
 
 # Setup backend environment
-cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -177,11 +177,19 @@ pip install -r requirements.txt
 # Run migrations
 alembic upgrade head
 
-# Run full test suite (123 tests)
+# Run full test suite (194 tests)
 pytest -v
 
-# Start FastAPI server
+# Start FastAPI backend server (http://localhost:8000)
 uvicorn backend.app.main:app --reload
+```
+
+### 2. Frontend Studio & Landing Page (Vite + React + Tailwind)
+```bash
+cd frontend
+npm install
+npm run dev
+# Open http://localhost:5173
 ```
 
 ---
