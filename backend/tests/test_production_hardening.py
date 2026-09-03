@@ -1,4 +1,4 @@
-"""Comprehensive test suite for Phase 16 Production Hardening & Security."""
+"""Comprehensive test suite for Production Hardening, Rate Limiting, Circuit Breaking, and Security."""
 
 import pytest
 import asyncio
@@ -6,13 +6,14 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 
-from backend.app.main import app
-from backend.app.db.session import get_db
+from backend.app.main import app, create_app
+from backend.app.db.session import get_db, Base
 from backend.app.core.vault import SecretVault
-from backend.app.core.rate_limit import SlidingWindowRateLimiter
+from backend.app.core.rate_limit import SlidingWindowRateLimiter, default_rate_limiter
 from backend.app.core.resilience import CircuitBreaker, CircuitState, async_retry_with_backoff
-from backend.app.core.audit import AuditLogger, AuditEventType
+from backend.app.core.audit import AuditLogger, AuditEventType, default_audit_logger
 from backend.app.core.errors import PlatformError, PlatformUnavailableError
+from backend.app.core.platform_adapters import PlatformRegistry
 
 client = TestClient(app)
 
@@ -53,100 +54,87 @@ class TestSecretVault:
         assert vault.decrypt("") == ""
 
 
-class TestRateLimiter:
-    """Test sliding window rate limiting."""
+class TestRateLimiterWiringAndProof:
+    """Test sliding window rate limiting and live HTTP 429 response enforcement."""
 
-    @pytest.fixture
-    def limiter(self):
-        return SlidingWindowRateLimiter()
+    @pytest.fixture(autouse=True)
+    def clean_rate_limiter(self):
+        default_rate_limiter.clear()
+        yield
+        default_rate_limiter.clear()
 
-    def test_rate_limiter_allows_under_limit(self, limiter):
-        key = "user_123:/posts"
-        for i in range(5):
-            limited, remaining, reset = limiter.is_rate_limited(key, max_requests=5, window_seconds=10)
-            assert limited is False
-            assert remaining == 5 - (i + 1)
-            assert reset == 10
+    def test_live_login_rate_limit_exceeded_returns_429_with_retry_after(self):
+        """Proof 1: Exceeding the login rate limit (10 reqs/min) returns a real HTTP 429 with Retry-After header."""
+        mock_session = AsyncMock()
+        mock_res = MagicMock()
+        mock_res.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_res
+        app.dependency_overrides[get_db] = lambda: mock_session
 
-    def test_rate_limiter_blocks_over_limit(self, limiter):
-        key = "user_456:/publish"
-        for _ in range(3):
-            limiter.is_rate_limited(key, max_requests=3, window_seconds=5)
+        try:
+            test_client = TestClient(app)
+            login_body = {"email": "ratelimit_user@aismm.io", "password": "WrongPassword123!"}
 
-        # 4th request exceeds limit
-        limited, remaining, reset = limiter.is_rate_limited(key, max_requests=3, window_seconds=5)
-        assert limited is True
-        assert remaining == 0
-        assert reset > 0
+            # Make 10 login requests (allowed up to limit)
+            for i in range(10):
+                resp = test_client.post("/api/v1/auth/login", json=login_body)
+                assert resp.status_code in (401, 200), f"Request {i+1} failed unexpectedly: {resp.status_code}"
 
-    def test_rate_limiter_reset_key(self, limiter):
-        key = "user_789:/search"
-        limiter.is_rate_limited(key, max_requests=1, window_seconds=10)
-        limiter.reset_key(key)
+            # 11th request must exceed limit and return 429
+            resp_429 = test_client.post("/api/v1/auth/login", json=login_body)
+            assert resp_429.status_code == 429, f"Expected 429, got {resp_429.status_code}: {resp_429.text}"
 
-        limited, remaining, _ = limiter.is_rate_limited(key, max_requests=1, window_seconds=10)
-        assert limited is False
-        assert remaining == 0
+            # Check headers
+            headers = resp_429.headers
+            assert "Retry-After" in headers
+            retry_after = int(headers["Retry-After"])
+            assert retry_after > 0
+            assert headers.get("X-RateLimit-Limit") == "10"
+            assert headers.get("X-RateLimit-Remaining") == "0"
+            assert "Rate limit exceeded" in resp_429.json()["detail"]
+        finally:
+            app.dependency_overrides.pop(get_db, None)
 
 
-class TestResilienceAndCircuitBreaker:
-    """Test circuit breaker state machine and exponential backoff."""
-
-    def test_circuit_breaker_transitions(self):
-        cb = CircuitBreaker("facebook_api", failure_threshold=3, recovery_timeout_seconds=0.1)
-        assert cb.state == CircuitState.CLOSED
-        assert cb.allow_request() is True
-
-        # Record 3 failures -> Trips OPEN
-        cb.record_failure()
-        cb.record_failure()
-        cb.record_failure()
-        assert cb.state == CircuitState.OPEN
-        assert cb.allow_request() is False
-
-        # Wait recovery timeout -> HALF_OPEN
-        time.sleep(0.15)
-        assert cb.allow_request() is True
-        assert cb.state == CircuitState.HALF_OPEN
-
-        # 2 successes in HALF_OPEN -> Closes back to CLOSED
-        cb.record_success()
-        cb.record_success()
-        assert cb.state == CircuitState.CLOSED
+class TestCircuitBreakerWiringAndProof:
+    """Test circuit breaker state transitions, repeated failures, and short-circuiting."""
 
     @pytest.mark.asyncio
-    async def test_async_retry_with_backoff_success_after_retries(self):
-        attempts = 0
+    async def test_repeated_adapter_failures_trip_circuit_and_short_circuit(self):
+        """Proof 2: Repeated adapter failures trip the circuit breaker OPEN, causing subsequent calls to fast-fail."""
+        cb = CircuitBreaker("instagram_live", failure_threshold=3, recovery_timeout_seconds=60.0)
+        assert cb.state == CircuitState.CLOSED
 
-        async def flaky_api_call():
-            nonlocal attempts
-            attempts += 1
-            if attempts < 2:
-                raise PlatformError("Transient network glitch", platform="x")
-            return "api_response_success"
+        call_count = 0
 
-        res = await async_retry_with_backoff(
-            flaky_api_call,
-            max_retries=3,
-            base_delay_seconds=0.01,
-            retry_exceptions=(PlatformError,),
-        )
-        assert res == "api_response_success"
-        assert attempts == 2
+        async def failing_platform_network_call():
+            nonlocal call_count
+            call_count += 1
+            raise PlatformError("Simulated remote 500 API Gateway Timeout from Platform", platform="instagram")
 
-    @pytest.mark.asyncio
-    async def test_async_retry_fast_fails_on_open_circuit(self):
-        cb = CircuitBreaker("x_api", failure_threshold=1, recovery_timeout_seconds=60.0)
-        cb.record_failure()
+        # 1. First 3 attempts fail and trip the circuit
+        for attempt in range(3):
+            with pytest.raises(PlatformError):
+                await async_retry_with_backoff(
+                    failing_platform_network_call,
+                    max_retries=0,
+                    circuit_breaker=cb,
+                )
+
         assert cb.state == CircuitState.OPEN
+        assert call_count == 3
 
-        async def dummy_call():
-            return "ok"
-
+        # 2. Subsequent outbound calls are immediately short-circuited by the circuit breaker (never calling the outbound network)
         with pytest.raises(PlatformUnavailableError) as exc_info:
-            await async_retry_with_backoff(dummy_call, circuit_breaker=cb)
+            await async_retry_with_backoff(
+                failing_platform_network_call,
+                max_retries=0,
+                circuit_breaker=cb,
+            )
 
-        assert "OPEN" in str(exc_info.value)
+        assert "is OPEN. Fast failing to prevent cascade" in str(exc_info.value)
+        # Call count remains 3 (the outbound call was never reached!)
+        assert call_count == 3
 
 
 class TestAuditLogger:

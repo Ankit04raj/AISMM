@@ -3,12 +3,19 @@
 from fastapi import APIRouter, HTTPException, Depends
 from backend.app.core.platform_adapters import PlatformRegistry
 from backend.app.core.schemas.post import ReplyToCommentRequest, CommentResponse
+from backend.app.db.models import User
+from backend.app.api.deps import get_current_user
 
 router = APIRouter(prefix="/comments", tags=["Comments"])
 
 
 @router.get("/posts/{platform}/{post_id}")
-async def list_comments(platform: str, post_id: str, limit: int = 50):
+async def list_comments(
+    platform: str,
+    post_id: str,
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+):
     """List comments on a platform post."""
     if not PlatformRegistry.is_registered(platform):
         raise HTTPException(status_code=400, detail=f"Unsupported platform: {platform}")
@@ -37,7 +44,12 @@ async def list_comments(platform: str, post_id: str, limit: int = 50):
 
 
 @router.post("/{platform}/{comment_id}/reply")
-async def reply_to_comment(platform: str, comment_id: str, request: ReplyToCommentRequest):
+async def reply_to_comment(
+    platform: str,
+    comment_id: str,
+    request: ReplyToCommentRequest,
+    current_user: User = Depends(get_current_user),
+):
     """Reply to a comment."""
     if not PlatformRegistry.is_registered(platform):
         raise HTTPException(status_code=400, detail=f"Unsupported platform: {platform}")
@@ -56,7 +68,11 @@ async def reply_to_comment(platform: str, comment_id: str, request: ReplyToComme
 
 
 @router.delete("/{platform}/{comment_id}")
-async def delete_comment(platform: str, comment_id: str):
+async def delete_comment(
+    platform: str,
+    comment_id: str,
+    current_user: User = Depends(get_current_user),
+):
     """Delete a comment."""
     if not PlatformRegistry.is_registered(platform):
         raise HTTPException(status_code=400, detail=f"Unsupported platform: {platform}")
@@ -70,7 +86,11 @@ async def delete_comment(platform: str, comment_id: str):
 
 
 @router.post("/{platform}/{comment_id}/hide")
-async def hide_comment(platform: str, comment_id: str):
+async def hide_comment(
+    platform: str,
+    comment_id: str,
+    current_user: User = Depends(get_current_user),
+):
     """Hide a comment."""
     if not PlatformRegistry.is_registered(platform):
         raise HTTPException(status_code=400, detail=f"Unsupported platform: {platform}")

@@ -1,7 +1,9 @@
 """AI Content Engine API router."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from backend.app.db.models import User
+from backend.app.api.deps import get_current_user
 from backend.app.ai.content_engine import AIContentEngine
 from backend.app.ai.sentiment import SentimentEngine
 from backend.app.ai.caption import CaptionEngine
@@ -29,7 +31,10 @@ ai_engine = AIContentEngine()
 
 
 @router.post("/sentiment/analyze", response_model=SentimentAnalyzeResponse)
-async def analyze_pre_posting_sentiment(request: SentimentAnalyzeRequest):
+async def analyze_pre_posting_sentiment(
+    request: SentimentAnalyzeRequest,
+    current_user: User = Depends(get_current_user),
+):
     """Analyze sentiment of drafted text before publication (Phase 1)."""
     res = ai_engine.sentiment.analyze_pre_posting(request.text)
     return SentimentAnalyzeResponse(
@@ -44,7 +49,10 @@ async def analyze_pre_posting_sentiment(request: SentimentAnalyzeRequest):
 
 
 @router.post("/sentiment/comments", response_model=SentimentAnalyzeResponse)
-async def analyze_post_comments_sentiment(request: PostSentimentRequest):
+async def analyze_post_comments_sentiment(
+    request: PostSentimentRequest,
+    current_user: User = Depends(get_current_user),
+):
     """Analyze and aggregate audience sentiment across post comments (Phase 2)."""
     res = ai_engine.sentiment.analyze_post_posting(request.comments)
     return SentimentAnalyzeResponse(
@@ -59,7 +67,10 @@ async def analyze_post_comments_sentiment(request: PostSentimentRequest):
 
 
 @router.post("/caption/analyze", response_model=CaptionAnalyzeResponse)
-async def analyze_caption_quality(request: CaptionAnalyzeRequest):
+async def analyze_caption_quality(
+    request: CaptionAnalyzeRequest,
+    current_user: User = Depends(get_current_user),
+):
     """Evaluate caption quality score, readability, CTA, hooks, and suggestions."""
     res = ai_engine.caption.analyze(request.text, platform=request.platform)
     f = res.features
@@ -83,7 +94,10 @@ async def analyze_caption_quality(request: CaptionAnalyzeRequest):
 
 
 @router.post("/caption/optimize", response_model=CaptionOptimizeResponse)
-async def optimize_caption_for_platform(request: CaptionOptimizeRequest):
+async def optimize_caption_for_platform(
+    request: CaptionOptimizeRequest,
+    current_user: User = Depends(get_current_user),
+):
     """Generate platform-adapted caption variant."""
     optimized = ai_engine.caption.optimize_for_platform(
         request.text,
@@ -99,7 +113,10 @@ async def optimize_caption_for_platform(request: CaptionOptimizeRequest):
 
 
 @router.post("/hashtags/recommend", response_model=HashtagRecommendResponse)
-async def recommend_hashtags(request: HashtagRecommendRequest):
+async def recommend_hashtags(
+    request: HashtagRecommendRequest,
+    current_user: User = Depends(get_current_user),
+):
     """Generate Top-K hashtag recommendations based on content keywords."""
     res = ai_engine.hashtag.recommend_hashtags(
         request.text,
@@ -123,7 +140,10 @@ async def recommend_hashtags(request: HashtagRecommendRequest):
 
 
 @router.post("/content/optimize-all", response_model=ContentOptimizeAllResponse)
-async def optimize_content_all(request: ContentOptimizeAllRequest):
+async def optimize_content_all(
+    request: ContentOptimizeAllRequest,
+    current_user: User = Depends(get_current_user),
+):
     """Execute unified multi-model AI content optimization across all platforms."""
     res = ai_engine.optimize(
         request.text,

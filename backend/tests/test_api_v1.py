@@ -12,9 +12,16 @@ from fastapi.testclient import TestClient
 
 from backend.app.main import app
 from backend.app.core.platform_adapters import PlatformRegistry
-from backend.app.db.session import get_db
+from backend.app.core.security import create_access_token
 
 client = TestClient(app)
+
+
+@pytest.fixture(scope="module")
+def auth_headers():
+    """Return authenticated Bearer headers with a signed test JWT."""
+    token = create_access_token(subject=str(uuid4()))
+    return {"Authorization": f"Bearer {token}"}
 
 
 def test_root_and_health_endpoints():
@@ -31,19 +38,19 @@ def test_root_and_health_endpoints():
     assert "instagram" in health_data["platforms"]
 
 
-def test_platforms_endpoints():
+def test_platforms_endpoints(auth_headers):
     """Test /api/v1/platforms and capabilities."""
-    resp = client.get("/api/v1/platforms")
+    resp = client.get("/api/v1/platforms", headers=auth_headers)
     assert resp.status_code == 200
     assert "instagram" in resp.json()["platforms"]
 
-    resp_caps = client.get("/api/v1/platforms/instagram/capabilities")
+    resp_caps = client.get("/api/v1/platforms/instagram/capabilities", headers=auth_headers)
     assert resp_caps.status_code == 200
     caps = resp_caps.json()["capabilities"]
     assert "post_image" in caps
     assert "get_insights" in caps
 
-    resp_unknown = client.get("/api/v1/platforms/non_existent/capabilities")
+    resp_unknown = client.get("/api/v1/platforms/non_existent/capabilities", headers=auth_headers)
     assert resp_unknown.status_code == 404
 
 
@@ -125,7 +132,7 @@ def test_webhook_challenge_and_signature_verification():
     assert resp_event.json()["status"] == "processed"
 
 
-def test_comments_endpoints():
+def test_comments_endpoints(auth_headers):
     """Test comments listing, reply, delete, and hide endpoints with mock adapter."""
     adapter = PlatformRegistry.get_adapter("instagram")
     with patch.object(adapter, "get_comments", new_callable=AsyncMock) as mock_get_comments, \
@@ -143,7 +150,7 @@ def test_comments_endpoints():
         mock_comm.platform_data = {}
         mock_get_comments.return_value = [mock_comm]
 
-        resp = client.get("/api/v1/comments/posts/instagram/post_123")
+        resp = client.get("/api/v1/comments/posts/instagram/post_123", headers=auth_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert len(data["comments"]) == 1
@@ -160,18 +167,19 @@ def test_comments_endpoints():
         resp_reply = client.post(
             "/api/v1/comments/instagram/c_101/reply",
             json={"text": "Thank you!"},
+            headers=auth_headers,
         )
         assert resp_reply.status_code == 200
         assert resp_reply.json()["id"] == "reply_202"
 
         # Delete
         mock_delete.return_value = True
-        resp_del = client.delete("/api/v1/comments/instagram/c_101")
+        resp_del = client.delete("/api/v1/comments/instagram/c_101", headers=auth_headers)
         assert resp_del.status_code == 200
         assert resp_del.json()["deleted"] is True
 
         # Hide
         mock_hide.return_value = True
-        resp_hide = client.post("/api/v1/comments/instagram/c_101/hide")
+        resp_hide = client.post("/api/v1/comments/instagram/c_101/hide", headers=auth_headers)
         assert resp_hide.status_code == 200
         assert resp_hide.json()["hidden"] is True

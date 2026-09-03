@@ -6,6 +6,8 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.session import get_db
+from backend.app.db.models import User
+from backend.app.api.deps import get_current_user
 from backend.app.services.post_service import PostService
 from backend.app.core.schemas.post import (
     CreatePostRequest,
@@ -15,17 +17,16 @@ from backend.app.core.schemas.post import (
 
 router = APIRouter(prefix="/posts", tags=["Posts"])
 
-DEFAULT_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
-
 
 @router.post("", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
 async def create_post(
     request: CreatePostRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create and publish/schedule a post."""
+    """Create and publish/schedule a post for the authenticated user."""
     service = PostService(db)
-    return await service.create_post(DEFAULT_USER_ID, request)
+    return await service.create_post(current_user.id, request)
 
 
 @router.get("", response_model=PostListResponse)
@@ -34,12 +35,13 @@ async def list_posts(
     page_size: int = 20,
     platform: Optional[str] = None,
     status_filter: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List posts with pagination."""
+    """List posts with pagination for the authenticated user."""
     service = PostService(db)
     result = await service.get_posts(
-        user_id=DEFAULT_USER_ID,
+        user_id=current_user.id,
         status=status_filter,
         platform=platform,
         page=page,
@@ -74,11 +76,12 @@ async def list_posts(
 @router.get("/{post_id}", response_model=PostResponse)
 async def get_post(
     post_id: str,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get a single post by ID."""
+    """Get a single post by ID owned by the authenticated user."""
     service = PostService(db)
-    post = await service.get_post(UUID(post_id), DEFAULT_USER_ID)
+    post = await service.get_post(UUID(post_id), current_user.id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
@@ -98,11 +101,12 @@ async def get_post(
 @router.delete("/{post_id}")
 async def delete_post(
     post_id: str,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete a post."""
+    """Delete a post owned by the authenticated user."""
     service = PostService(db)
-    deleted = await service.delete_post(UUID(post_id), DEFAULT_USER_ID)
+    deleted = await service.delete_post(UUID(post_id), current_user.id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Post not found")
     return {"deleted": True, "id": post_id}

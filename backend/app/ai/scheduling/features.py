@@ -51,6 +51,25 @@ class SchedulingFeatures:
 class SchedulingFeatureExtractor:
     """Extracts ML-ready features from timestamps and content payloads."""
 
+    FEATURE_NAMES = [
+        "hour",
+        "day_of_week",
+        "is_weekend",
+        "sin_hour",
+        "cos_hour",
+        "sin_dow",
+        "cos_dow",
+        "caption_length",
+        "word_count",
+        "hashtag_count",
+        "mention_count",
+        "has_media",
+        "media_type_code",
+        "platform_code",
+        "follower_count",
+        "historical_avg_engagement",
+    ]
+
     PLATFORM_MAP = {
         "instagram": 0,
         "facebook": 1,

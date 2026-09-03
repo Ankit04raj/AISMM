@@ -4,6 +4,8 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.session import get_db
+from backend.app.db.models import User
+from backend.app.api.deps import get_current_user
 from backend.app.services.reply_service import ReplyService
 from backend.app.core.schemas.reply import (
     CommentClassifyRequest,
@@ -22,6 +24,7 @@ router = APIRouter(prefix="/reply", tags=["Auto-Reply Engine"])
 @router.post("/classify", response_model=CommentClassifyResponse)
 async def classify_comment_intent(
     request: CommentClassifyRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Classify comment into intent categories using TF-IDF + Logistic Regression."""
@@ -32,6 +35,7 @@ async def classify_comment_intent(
 @router.post("/suggest", response_model=ReplySuggestResponse)
 async def suggest_comment_reply(
     request: ReplySuggestRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Generate reply suggestion and determine policy routing (automatic, approval, manual, spam)."""
@@ -46,6 +50,7 @@ async def suggest_comment_reply(
 @router.post("/process-comment", response_model=ProcessCommentResponse)
 async def process_incoming_comment(
     request: ProcessCommentRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Process incoming comment event through auto-reply policy and optional execution."""
@@ -63,6 +68,7 @@ async def process_incoming_comment(
 @router.post("/approve", response_model=ApproveReplyResponse)
 async def approve_and_send_reply(
     request: ApproveReplyRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Approve or edit a pending auto-reply suggestion and send to the social network."""

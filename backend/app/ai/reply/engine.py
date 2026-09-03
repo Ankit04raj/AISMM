@@ -1,4 +1,4 @@
-"""Auto-Reply Engine (Research Baseline: TF-IDF + Multiclass Logistic Regression)."""
+"""Auto-Reply Engine (TF-IDF + Multiclass Logistic Regression with Real Train/Test Holdout)."""
 
 import re
 from abc import ABC, abstractmethod
@@ -8,6 +8,8 @@ from enum import Enum
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 
 class ReplyIntent(str, Enum):
@@ -118,6 +120,12 @@ class TFIDFReplyEngine(ReplyEngine):
         ("how much is this?", ReplyIntent.PRICING_INQUIRY.value),
         ("price please", ReplyIntent.PRICING_INQUIRY.value),
         ("how much to buy?", ReplyIntent.PRICING_INQUIRY.value),
+        ("Can you share your annual pricing breakdown?", ReplyIntent.PRICING_INQUIRY.value),
+        ("Do you offer student discounts or non-profit rates?", ReplyIntent.PRICING_INQUIRY.value),
+        ("Is the starter plan billed monthly or annually?", ReplyIntent.PRICING_INQUIRY.value),
+        ("What is the cost per social account?", ReplyIntent.PRICING_INQUIRY.value),
+        ("Any promotional discount codes available for new accounts?", ReplyIntent.PRICING_INQUIRY.value),
+        ("How expensive is the pro plan?", ReplyIntent.PRICING_INQUIRY.value),
 
         # Support issues
         ("My account is locked and not working properly.", ReplyIntent.SUPPORT_ISSUE.value),
@@ -128,6 +136,12 @@ class TFIDFReplyEngine(ReplyEngine):
         ("This is broken, please fix it.", ReplyIntent.SUPPORT_ISSUE.value),
         ("Error code 400 when connecting my account.", ReplyIntent.SUPPORT_ISSUE.value),
         ("Customer support is not answering my ticket.", ReplyIntent.SUPPORT_ISSUE.value),
+        ("Posts are failing to publish to Facebook automatically.", ReplyIntent.SUPPORT_ISSUE.value),
+        ("My OAuth connection disconnected unexpectedly.", ReplyIntent.SUPPORT_ISSUE.value),
+        ("The analytics charts are showing 0 data since yesterday.", ReplyIntent.SUPPORT_ISSUE.value),
+        ("Password reset email never arrived in my inbox.", ReplyIntent.SUPPORT_ISSUE.value),
+        ("Billing failure error code 402 on card renewal.", ReplyIntent.SUPPORT_ISSUE.value),
+        ("Unable to delete scheduled post, getting server timeout.", ReplyIntent.SUPPORT_ISSUE.value),
 
         # Compliments & praise
         ("Amazing product, love the new UI update! ❤️", ReplyIntent.COMPLIMENT_PRAISE.value),
@@ -137,6 +151,11 @@ class TFIDFReplyEngine(ReplyEngine):
         ("Best social media management tool on the market.", ReplyIntent.COMPLIMENT_PRAISE.value),
         ("Brilliant work! Congrats on the launch! 🎉", ReplyIntent.COMPLIMENT_PRAISE.value),
         ("So cool, keep it up!", ReplyIntent.COMPLIMENT_PRAISE.value),
+        ("Huge fan of the new scheduling engine features!", ReplyIntent.COMPLIMENT_PRAISE.value),
+        ("The AI caption optimizer is unbelievably accurate and helpful! 🔥", ReplyIntent.COMPLIMENT_PRAISE.value),
+        ("Love the dark mode interface and responsiveness.", ReplyIntent.COMPLIMENT_PRAISE.value),
+        ("Incredible platform, recommended it to all my colleagues. 🙌", ReplyIntent.COMPLIMENT_PRAISE.value),
+        ("Kudos to the developers for this fantastic release.", ReplyIntent.COMPLIMENT_PRAISE.value),
 
         # General inquiries
         ("Where can I download the latest release?", ReplyIntent.GENERAL_INQUIRY.value),
@@ -146,6 +165,10 @@ class TFIDFReplyEngine(ReplyEngine):
         ("Is there a mobile app available on iOS or Android?", ReplyIntent.GENERAL_INQUIRY.value),
         ("Where can I find more information?", ReplyIntent.GENERAL_INQUIRY.value),
         ("Can you explain how this works?", ReplyIntent.GENERAL_INQUIRY.value),
+        ("Do you provide a public REST API or webhooks for developers?", ReplyIntent.GENERAL_INQUIRY.value),
+        ("How many team members can share one workspace?", ReplyIntent.GENERAL_INQUIRY.value),
+        ("Where is the user settings configuration page located?", ReplyIntent.GENERAL_INQUIRY.value),
+        ("Can I schedule carousel posts on LinkedIn?", ReplyIntent.GENERAL_INQUIRY.value),
 
         # Spam & troll
         ("Check out my bio for free money and crypto gains 💰", ReplyIntent.SPAM_TROLL.value),
@@ -153,12 +176,18 @@ class TFIDFReplyEngine(ReplyEngine):
         ("Earn 5000 dollars a day working from home click here", ReplyIntent.SPAM_TROLL.value),
         ("DM me to grow your followers fast 100k cheap", ReplyIntent.SPAM_TROLL.value),
         ("Free gift cards click link on my page", ReplyIntent.SPAM_TROLL.value),
+        ("Get rich quick with my forex trading telegram signals link", ReplyIntent.SPAM_TROLL.value),
+        ("Hot singles in your area click the link in bio", ReplyIntent.SPAM_TROLL.value),
+        ("Buy verified blue checkmark badges cheap DM now", ReplyIntent.SPAM_TROLL.value),
 
         # Neutral comments
         ("Interesting perspective on social media trends.", ReplyIntent.NEUTRAL_FEEDBACK.value),
         ("Noticed this today as well.", ReplyIntent.NEUTRAL_FEEDBACK.value),
         ("Standard update for the industry.", ReplyIntent.NEUTRAL_FEEDBACK.value),
         ("Okay, noted.", ReplyIntent.NEUTRAL_FEEDBACK.value),
+        ("Just reading through the release notes.", ReplyIntent.NEUTRAL_FEEDBACK.value),
+        ("Seen similar approaches before in data science.", ReplyIntent.NEUTRAL_FEEDBACK.value),
+        ("Following along with the progress.", ReplyIntent.NEUTRAL_FEEDBACK.value),
     ]
 
     def __init__(self, config: Optional[ReplyConfig] = None):
@@ -174,17 +203,64 @@ class TFIDFReplyEngine(ReplyEngine):
             C=5.0,
             random_state=42,
         )
+        self.heldout_test_data: Optional[Tuple[List[str], List[str]]] = None
+        self.evaluated_metrics: Dict[str, float] = {}
         self._is_trained = False
         self._train_baseline_model()
 
     def _train_baseline_model(self) -> None:
-        """Train classifier on calibrated corpus."""
+        """Train classifier on train split and evaluate on held-out test split."""
         texts = [item[0] for item in self.TRAINING_CORPUS]
         labels = [item[1] for item in self.TRAINING_CORPUS]
 
-        X_tfidf = self.vectorizer.fit_transform(texts)
-        self.classifier.fit(X_tfidf, labels)
+        # 80/20 Train-Test split for out-of-sample evaluation
+        X_train, X_test, y_train, y_test = train_test_split(
+            texts, labels, test_size=0.20, random_state=42, stratify=labels
+        )
+
+        X_train_tfidf = self.vectorizer.fit_transform(X_train)
+        self.classifier.fit(X_train_tfidf, y_train)
+        self.heldout_test_data = (X_test, y_test)
+
+        # Compute real out-of-sample performance
+        X_test_tfidf = self.vectorizer.transform(X_test)
+        y_pred = self.classifier.predict(X_test_tfidf)
+
+        acc = float(accuracy_score(y_test, y_pred))
+        prec = float(precision_score(y_test, y_pred, average="weighted", zero_division=0))
+        rec = float(recall_score(y_test, y_pred, average="weighted", zero_division=0))
+        f1 = float(f1_score(y_test, y_pred, average="weighted", zero_division=0))
+
+        self.evaluated_metrics = {
+            "accuracy": round(acc * 100, 2),
+            "precision": round(prec * 100, 2),
+            "recall": round(rec * 100, 2),
+            "f1_score": round(f1 * 100, 2),
+            "test_samples": len(X_test),
+        }
         self._is_trained = True
+
+    def evaluate_on_heldout(self) -> Dict[str, float]:
+        """Evaluate classifier on held-out test split and return live computed metrics."""
+        if not self.heldout_test_data:
+            return {"status": "not_evaluated"}
+
+        X_test, y_test = self.heldout_test_data
+        X_test_tfidf = self.vectorizer.transform(X_test)
+        y_pred = self.classifier.predict(X_test_tfidf)
+
+        acc = float(accuracy_score(y_test, y_pred))
+        prec = float(precision_score(y_test, y_pred, average="weighted", zero_division=0))
+        rec = float(recall_score(y_test, y_pred, average="weighted", zero_division=0))
+        f1 = float(f1_score(y_test, y_pred, average="weighted", zero_division=0))
+
+        return {
+            "accuracy": round(acc * 100, 2),
+            "precision": round(prec * 100, 2),
+            "recall": round(rec * 100, 2),
+            "f1_score": round(f1 * 100, 2),
+            "test_samples": len(X_test),
+        }
 
     def classify_comment(self, text: str) -> ReplyClassification:
         """Classify incoming comment into intent with confidence distribution."""
@@ -261,7 +337,6 @@ class TFIDFReplyEngine(ReplyEngine):
 
         # Select template
         templates = self.config.templates.get(intent.value, ["Thank you for reaching out!"])
-        # Deterministic pseudo-selection based on comment text length
         idx = len(comment_text) % len(templates)
         selected_reply = templates[idx]
 
@@ -273,7 +348,6 @@ class TFIDFReplyEngine(ReplyEngine):
             action = ReplyAction.APPROVAL_REQUIRED
             review_required = True
         else:  # Automatic mode
-            # Support issues always require human review for safety unless high confidence
             if intent == ReplyIntent.SUPPORT_ISSUE:
                 action = ReplyAction.APPROVAL_REQUIRED
                 review_required = True

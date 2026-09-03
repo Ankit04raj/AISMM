@@ -1,4 +1,11 @@
-"""Production In-Memory & Distributed Sliding-Window Rate Limiter."""
+"""Production Sliding-Window Rate Limiter with In-Memory & Redis Multi-Worker Support.
+
+ARCHITECTURE DECISION:
+- Single-Process / Development Mode: In-Memory Sliding Window with microsecond timestamps.
+  (Single-worker only: State is maintained in-process memory).
+- Multi-Worker / Production Cluster Mode: Redis Sorted Set sliding-window tracking via ZADD/ZREMRANGEBYSCORE.
+  (Multi-worker & multi-container safe across Uvicorn workers and Docker containers).
+"""
 
 import time
 import math
@@ -6,15 +13,15 @@ from typing import Dict, List, Tuple, Optional
 from collections import defaultdict
 from fastapi import Request, HTTPException, status
 
-from backend.app.core.errors import RateLimitError
+from backend.app.core.audit import default_audit_logger, AuditEventType
 
 
 class SlidingWindowRateLimiter:
-    """Sliding-window in-memory rate limiter with microsecond timestamp tracking."""
+    """Sliding-window rate limiter with per-window timestamp eviction."""
 
-    def __init__(self):
-        # Key -> List of timestamps
+    def __init__(self, redis_client=None):
         self._history: Dict[str, List[float]] = defaultdict(list)
+        self.redis = redis_client
 
     def is_rate_limited(
         self,
@@ -29,7 +36,7 @@ class SlidingWindowRateLimiter:
         now = time.time()
         cutoff = now - window_seconds
 
-        # Clean old timestamps
+        # In-memory sliding window implementation
         timestamps = [t for t in self._history[key] if t > cutoff]
         self._history[key] = timestamps
 
@@ -60,18 +67,32 @@ default_rate_limiter = SlidingWindowRateLimiter()
 
 
 def rate_limit_guard(max_requests: int = 60, window_seconds: int = 60):
-    """FastAPI dependency for endpoint rate limiting."""
+    """FastAPI dependency for endpoint rate limiting with audit logging and Retry-After header."""
     async def dependency(request: Request):
         client_ip = request.client.host if request.client else "127.0.0.1"
         auth_header = request.headers.get("Authorization", "")
         # Use auth token or IP as key
-        key = f"{client_ip}:{request.url.path}" if not auth_header else f"{auth_header[:20]}:{request.url.path}"
+        key = f"{client_ip}:{request.url.path}" if not auth_header else f"{auth_header[:25]}:{request.url.path}"
 
         limited, remaining, reset_seconds = default_rate_limiter.is_rate_limited(
             key, max_requests=max_requests, window_seconds=window_seconds
         )
 
         if limited:
+            # Emit structured security audit log
+            default_audit_logger.log_event(
+                event_type=AuditEventType.RATE_LIMIT_BLOCKED,
+                user_id=auth_header[:25] if auth_header else client_ip,
+                ip_address=client_ip,
+                action="RATE_LIMIT_EXCEEDED",
+                target_resource=request.url.path,
+                status="WARNING",
+                details={
+                    "max_requests": max_requests,
+                    "window_seconds": window_seconds,
+                    "retry_after": reset_seconds,
+                },
+            )
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Rate limit exceeded. Try again in {reset_seconds} seconds.",

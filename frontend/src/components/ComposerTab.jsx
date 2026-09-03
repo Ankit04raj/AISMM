@@ -1,106 +1,155 @@
-import React, { useState } from 'react';
-import {
-  Sparkles,
-  Share2,
-  Image as ImageIcon,
-  Video,
-  Send,
-  Calendar,
-  Layers,
-  Smile,
-  Hash,
-  CheckCircle2,
-  AlertCircle,
-  Eye,
-  RefreshCw,
-  Zap
-} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Sparkles, Send, Calendar, Eye, AlertTriangle, RefreshCw, CheckCircle2, Image, Video, Layers, Hash } from 'lucide-react';
 import { api } from '../api/client';
 
-export default function ComposerTab() {
-  const [caption, setCaption] = useState(
-    "Excited to unveil our new AI Social Media Management architecture! 🚀 Built with modular platform adapters, ML scheduling, and dual-phase sentiment analysis. What feature are you most curious about? Link in bio! #AISMM #AI #Tech"
-  );
-  const [selectedPlatforms, setSelectedPlatforms] = useState(["instagram", "facebook", "x", "linkedin"]);
-  const [previewPlatform, setPreviewPlatform] = useState("instagram");
-  const [mediaType, setMediaType] = useState("image");
-  const [isOptimizing, setIsOptimizing] = useState(false);
-  const [qualityScore, setQualityScore] = useState(86.8);
-  const [sentimentResult, setSentimentResult] = useState({ label: "Very Positive", score: "+0.72", confidence: "89.4%" });
-  const [recommendedHashtags, setRecommendedHashtags] = useState(["#ai", "#artificialintelligence", "#automation", "#machinelearning", "#tech"]);
-  const [publishStatus, setPublishStatus] = useState(null);
+const availablePlatforms = [
+  { id: 'instagram', name: 'Instagram', maxChars: 2200, color: 'from-pink-500 to-purple-600' },
+  { id: 'facebook', name: 'Facebook', maxChars: 63206, color: 'from-blue-600 to-indigo-600' },
+  { id: 'twitter', name: 'X (Twitter)', maxChars: 280, color: 'from-slate-700 to-black' },
+  { id: 'linkedin', name: 'LinkedIn', maxChars: 3000, color: 'from-blue-700 to-cyan-700' },
+  { id: 'youtube', name: 'YouTube', maxChars: 5000, color: 'from-red-600 to-rose-700' },
+];
 
-  const togglePlatform = (id) => {
-    if (selectedPlatforms.includes(id)) {
-      setSelectedPlatforms(selectedPlatforms.filter(p => p !== id));
-    } else {
-      setSelectedPlatforms([...selectedPlatforms, id]);
+export default function ComposerTab() {
+  const [caption, setCaption] = useState('Excited to unveil our new AI Social Media Management platform! 🚀 Built with modular platform adapters, ML scheduling, and dual-phase sentiment analysis. Link in bio! #AISMM #AI #Tech');
+  const [selectedPlatforms, setSelectedPlatforms] = useState(['instagram', 'facebook', 'twitter', 'linkedin']);
+  const [previewPlatform, setPreviewPlatform] = useState('instagram');
+  const [mediaType, setMediaType] = useState('image');
+  const [mediaUrls, setMediaUrls] = useState([
+    { type: 'image', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80' }
+  ]);
+  const [analysis, setAnalysis] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [error, setError] = useState(null);
+  const [status, setStatus] = useState(null);
+
+  const togglePlatform = (pId) => {
+    setSelectedPlatforms((current) =>
+      current.includes(pId)
+        ? (current.length > 1 ? current.filter((item) => item !== pId) : current)
+        : [...current, pId]
+    );
+  };
+
+  useEffect(() => {
+    if (!caption.trim() || !selectedPlatforms.length) {
+      setAnalysis(null);
+      setPreview(null);
+      return undefined;
+    }
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [aiData, previewData] = await Promise.all([
+          api.optimizeContentAll({ text: caption, platforms: selectedPlatforms, top_k_hashtags: 5 }),
+          api.previewContent({ platforms: selectedPlatforms, content_type: mediaType === 'image' ? 'post' : mediaType, caption, text: caption }),
+        ]);
+        setAnalysis(aiData);
+        setPreview(previewData);
+      } catch (err) {
+        setError(`Unable to reach AISMM backend: ${err.message}`);
+      } finally {
+        setLoading(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [caption, selectedPlatforms, mediaType]);
+
+  const handleAIOptimize = async () => {
+    if (!caption.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.optimizeContentAll({ text: caption, platforms: selectedPlatforms, top_k_hashtags: 5 });
+      setAnalysis(data);
+      const targetPlatform = previewPlatform || selectedPlatforms[0];
+      const variant = data.platform_variants?.[targetPlatform]?.text;
+      if (variant) {
+        setCaption(variant);
+      }
+    } catch (err) {
+      setError(`Unable to reach AISMM backend: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleAIOptimize = async () => {
-    setIsOptimizing(true);
-    setTimeout(() => {
-      setQualityScore(92.4);
-      setSentimentResult({ label: "Very Positive", score: "+0.84", confidence: "94.2%" });
-      setRecommendedHashtags(["#aismm", "#automation", "#digitalgrowth", "#futureoftech", "#ai"]);
-      setIsOptimizing(false);
-    }, 500);
+  const handlePublish = async () => {
+    if (!caption.trim() || !selectedPlatforms.length) return;
+    setPublishing(true);
+    setError(null);
+    setStatus(null);
+    try {
+      const data = await api.publishMultiPlatform({
+        platforms: selectedPlatforms,
+        content_type: mediaType === 'image' ? 'post' : mediaType,
+        caption,
+        text: caption,
+        publish_now: true,
+        media: mediaUrls,
+      });
+      setStatus(data.overall_status || 'published');
+    } catch (err) {
+      setError(`Unable to publish through AISMM backend: ${err.message}`);
+    } finally {
+      setPublishing(false);
+    }
   };
 
-  const handlePublish = () => {
-    setPublishStatus("publishing");
-    setTimeout(() => {
-      setPublishStatus("success");
-      setTimeout(() => setPublishStatus(null), 4000);
-    }, 1200);
-  };
+  const currentPlatformLimit = availablePlatforms.find(p => p.id === previewPlatform)?.maxChars || 2200;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="space-y-6 animate-fadeIn">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-black text-white">Universal Post Composer & AI Studio</h2>
-          <p className="text-xs text-gray-400 mt-0.5">
-            Create once, optimize with AI, and publish simultaneously to selected platforms (CLAUDE.md Section 8)
+          <h2 className="text-xl font-bold text-white">Universal Post Composer & AI Studio</h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Compose once with character verification, media attachments, and simultaneous multi-platform dispatch
           </p>
         </div>
-        {publishStatus === "success" && (
-          <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold animate-bounce">
-            <CheckCircle2 className="h-4 w-4" />
-            <span>Successfully published across {selectedPlatforms.length} platforms!</span>
-          </div>
+        {status && (
+          <span className="px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex gap-2 items-center animate-bounce">
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Published Successfully ({status})</span>
+          </span>
         )}
       </div>
 
+      {error && (
+        <div className="p-4 bg-rose-950/20 border border-rose-500/30 rounded-2xl flex items-center justify-between text-xs text-rose-300">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+          <button onClick={() => setError(null)} className="underline hover:text-white">Dismiss</button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Composer Form */}
-        <div className="lg:col-span-7 space-y-5">
-          {/* Target Platform Selector */}
-          <div className="bg-gray-900/80 border border-gray-800 rounded-2xl p-4 shadow-xl">
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2.5">
-              Select Publishing Channels ({selectedPlatforms.length}/5)
+        {/* Left Column: Composer Editor & Controls */}
+        <div className="lg:col-span-7 bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl space-y-5">
+          {/* Target Platform Chips */}
+          <div>
+            <label className="block text-[11px] uppercase tracking-wider text-slate-400 font-bold mb-2.5">
+              Publishing Channels ({selectedPlatforms.length} / 5)
             </label>
             <div className="flex flex-wrap gap-2">
-              {[
-                { id: "instagram", name: "Instagram", color: "from-pink-500 to-purple-600" },
-                { id: "facebook", name: "Facebook", color: "from-blue-600 to-indigo-600" },
-                { id: "x", name: "X (Twitter)", color: "from-gray-700 to-black" },
-                { id: "linkedin", name: "LinkedIn", color: "from-blue-700 to-cyan-700" },
-                { id: "youtube", name: "YouTube", color: "from-red-600 to-rose-700" },
-              ].map((p) => {
+              {availablePlatforms.map((p) => {
                 const isSelected = selectedPlatforms.includes(p.id);
                 return (
                   <button
                     key={p.id}
                     onClick={() => togglePlatform(p.id)}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
                       isSelected
                         ? "bg-brand-600 text-white shadow-md shadow-brand-600/30"
-                        : "bg-gray-950 border border-gray-800 text-gray-400 hover:text-gray-200"
+                        : "bg-[#07090E] border border-[#1E293B] text-slate-400 hover:text-white"
                     }`}
                   >
-                    <span className={`h-2 w-2 rounded-full ${isSelected ? "bg-white" : "bg-gray-600"}`}></span>
+                    <span className={`w-2 h-2 rounded-full ${isSelected ? "bg-white" : "bg-slate-600"}`} />
                     <span>{p.name}</span>
                   </button>
                 );
@@ -108,157 +157,143 @@ export default function ComposerTab() {
             </div>
           </div>
 
-          {/* Caption Editor & AI Controls */}
-          <div className="bg-gray-900/80 border border-gray-800 rounded-2xl p-5 shadow-xl space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                Primary Content & Caption
+          {/* Caption Textarea & Character Counter */}
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">
+                Primary Content / Caption
               </label>
-              <button
-                onClick={handleAIOptimize}
-                disabled={isOptimizing}
-                className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-brand-600/20 flex items-center space-x-1.5 transition-all"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>{isOptimizing ? "Optimizing..." : "AI Auto-Optimize"}</span>
-              </button>
+              <div className="flex items-center gap-3 text-xs font-mono">
+                <span className={caption.length > currentPlatformLimit ? "text-rose-400 font-bold" : "text-slate-400"}>
+                  {caption.length} / {currentPlatformLimit} chars
+                </span>
+                <span className="text-slate-500">
+                  {caption.split(/\s+/).filter(Boolean).length} words
+                </span>
+              </div>
             </div>
-
             <textarea
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
-              rows={6}
-              className="w-full bg-gray-950 border border-gray-800 rounded-xl p-4 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all resize-none leading-relaxed"
-              placeholder="Write your primary message here..."
+              rows={8}
+              placeholder="Write your post content here..."
+              className="w-full bg-[#07090E] border border-[#1E293B] rounded-2xl p-4 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none leading-relaxed"
             />
+          </div>
 
-            {/* Media Format Selector */}
-            <div className="flex items-center space-x-2 pt-2 border-t border-gray-800">
-              <span className="text-xs font-semibold text-gray-400 mr-2">Media Format:</span>
-              {["image", "video", "carousel"].map((fmt) => (
+          {/* Media Tray */}
+          <div>
+            <label className="block text-[11px] uppercase tracking-wider text-slate-400 font-bold mb-2">
+              Media Attachment Format
+            </label>
+            <div className="flex gap-2 mb-3">
+              {[
+                { id: 'image', label: 'Single Image', icon: Image },
+                { id: 'video', label: 'Video / Reel', icon: Video },
+                { id: 'carousel', label: 'Carousel (Multi)', icon: Layers },
+              ].map(({ id, label, icon: Icon }) => (
                 <button
-                  key={fmt}
-                  onClick={() => setMediaType(fmt)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize transition-all ${
-                    mediaType === fmt
-                      ? "bg-gray-800 text-brand-400 border border-brand-500/30"
-                      : "bg-gray-950 text-gray-400 border border-gray-800"
+                  key={id}
+                  onClick={() => setMediaType(id)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                    mediaType === id
+                      ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/20'
+                      : 'bg-[#07090E] border border-[#1E293B] text-slate-400 hover:text-white'
                   }`}
                 >
-                  {fmt}
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{label}</span>
                 </button>
               ))}
             </div>
+          </div>
 
-            {/* Top-K Hashtags */}
-            <div className="pt-2">
-              <div className="text-[11px] font-bold text-gray-400 mb-1.5 flex items-center justify-between">
-                <span>Top-K Recommended Hashtags (93.1% Top-K Accuracy)</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {recommendedHashtags.map((tag) => (
-                  <span
-                    key={tag}
-                    onClick={() => setCaption(c => c.includes(tag) ? c : `${c} ${tag}`)}
-                    className="text-xs font-mono px-2 py-0.5 rounded-md bg-brand-500/10 text-brand-300 border border-brand-500/20 cursor-pointer hover:bg-brand-500/20 transition-all"
-                  >
-                    {tag} +
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* AI Diagnostics Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-3 border-t border-gray-800">
-              <div className="p-2.5 rounded-xl bg-gray-950 border border-gray-800">
-                <div className="text-[10px] text-gray-400">Quality Score</div>
-                <div className="text-sm font-black text-emerald-400 mt-0.5">{qualityScore} / 100</div>
-              </div>
-              <div className="p-2.5 rounded-xl bg-gray-950 border border-gray-800">
-                <div className="text-[10px] text-gray-400">Pre-Post Sentiment</div>
-                <div className="text-sm font-black text-emerald-400 mt-0.5">{sentimentResult.label} ({sentimentResult.score})</div>
-              </div>
-              <div className="p-2.5 rounded-xl bg-gray-950 border border-gray-800 col-span-2 sm:col-span-1">
-                <div className="text-[10px] text-gray-400">Peak Window</div>
-                <div className="text-sm font-black text-indigo-400 mt-0.5">Wed 19:00 UTC</div>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center justify-between pt-4 border-t border-gray-800">
-              <span className="text-xs text-gray-400">
-                Targeting <strong className="text-white">{selectedPlatforms.length}</strong> channels
-              </span>
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={handlePublish}
-                  disabled={publishStatus === "publishing" || selectedPlatforms.length === 0}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-brand-600/30 flex items-center space-x-2 transition-all disabled:opacity-50"
-                >
-                  <Send className="h-3.5 w-3.5" />
-                  <span>{publishStatus === "publishing" ? "Publishing..." : "Publish to All Channels"}</span>
-                </button>
-              </div>
-            </div>
+          {/* Action Buttons */}
+          <div className="flex flex-wrap gap-3 pt-2">
+            <button
+              onClick={handleAIOptimize}
+              disabled={loading || !caption.trim()}
+              className="flex-1 min-w-[160px] py-3 bg-gradient-to-r from-brand-600 to-cyan-600 hover:opacity-90 rounded-xl text-xs font-bold text-white disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20 transition-all"
+            >
+              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              <span>{loading ? 'Optimizing with AI...' : 'AI Auto-Optimize'}</span>
+            </button>
+            <button
+              onClick={handlePublish}
+              disabled={publishing || !caption.trim() || !selectedPlatforms.length}
+              className="flex-1 min-w-[160px] py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-xs font-bold text-white disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all"
+            >
+              {publishing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              <span>{publishing ? 'Publishing...' : 'Publish to All Channels'}</span>
+            </button>
           </div>
         </div>
 
-        {/* Right Column: Live Multi-Platform Native Preview Frame */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="bg-gray-900/80 border border-gray-800 rounded-2xl p-5 shadow-xl">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-800">
-              <span className="text-xs font-bold uppercase tracking-wider text-gray-300 flex items-center space-x-2">
-                <Eye className="h-4 w-4 text-brand-400" />
-                <span>Live Native Preview</span>
-              </span>
-              <div className="flex space-x-1">
-                {["instagram", "facebook", "x", "linkedin", "youtube"].map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setPreviewPlatform(p)}
-                    className={`px-2 py-1 rounded text-[10px] font-bold uppercase transition-all ${
-                      previewPlatform === p ? "bg-brand-600 text-white" : "bg-gray-800 text-gray-400"
-                    }`}
-                  >
-                    {p === "x" ? "X" : p.slice(0, 2)}
-                  </button>
-                ))}
-              </div>
+        {/* Right Column: Live Native Preview */}
+        <div className="lg:col-span-5 bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl space-y-4">
+          <div className="flex justify-between items-center border-b border-[#1E293B] pb-3">
+            <div>
+              <h3 className="font-bold text-sm text-white">Live Native Feed Preview</h3>
+              <p className="text-xs text-slate-400">Direct payload inspection</p>
             </div>
-
-            {/* Styled Native Preview Canvas */}
-            <div className="mt-4 bg-gray-950 border border-gray-800 rounded-xl overflow-hidden shadow-inner">
-              {/* Mock Header */}
-              <div className="p-3 bg-gray-900/90 border-b border-gray-800/80 flex items-center space-x-2.5">
-                <div className="h-7 w-7 rounded-full bg-gradient-to-tr from-brand-500 to-purple-600 flex items-center justify-center text-white text-xs font-black">
-                  A
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-gray-200">AISMM Official</div>
-                  <div className="text-[10px] text-gray-400 capitalize">{previewPlatform} Feed • Just now</div>
-                </div>
-              </div>
-
-              {/* Mock Media Placeholder */}
-              <div className="h-48 bg-gradient-to-br from-gray-900 via-gray-800 to-indigo-950/40 flex flex-col items-center justify-center text-gray-500 relative">
-                <div className="p-3 rounded-full bg-gray-800/80 mb-2">
-                  <ImageIcon className="h-6 w-6 text-brand-400" />
-                </div>
-                <span className="text-xs font-semibold text-gray-400">High-Resolution Visual Asset (1080x1080)</span>
-                <span className="text-[10px] text-gray-500">Auto-formatted for {previewPlatform}</span>
-              </div>
-
-              {/* Mock Content */}
-              <div className="p-3.5 space-y-2 text-xs">
-                <p className="text-gray-200 whitespace-pre-wrap leading-relaxed">
-                  {caption}
-                </p>
-                <div className="text-[11px] text-brand-400 font-semibold">
-                  #AISMM #AI #Tech #Innovation
-                </div>
-              </div>
+            <div className="flex gap-1">
+              {availablePlatforms.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setPreviewPlatform(p.id)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all ${
+                    previewPlatform === p.id
+                      ? "bg-brand-600 text-white"
+                      : "bg-[#07090E] text-slate-400 hover:text-white border border-[#1E293B]"
+                  }`}
+                >
+                  {p.id.slice(0, 2)}
+                </button>
+              ))}
             </div>
           </div>
+
+          {/* Preview Canvas */}
+          <div className="bg-[#07090E] border border-[#1E293B] rounded-2xl overflow-hidden shadow-inner">
+            {/* Mock Feed Header */}
+            <div className="p-3 bg-[#0D121F] border-b border-[#1E293B] flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-brand-500 to-cyan-500 flex items-center justify-center text-white text-xs font-bold">
+                A
+              </div>
+              <div>
+                <div className="text-xs font-bold text-slate-100">AISMM Studio</div>
+                <div className="text-[10px] text-slate-500 capitalize">{previewPlatform} Feed • Just now</div>
+              </div>
+            </div>
+
+            {/* Media Canvas Mock */}
+            <div className="h-44 bg-gradient-to-br from-slate-900 via-indigo-950/40 to-slate-950 flex flex-col items-center justify-center text-slate-500">
+              <Image className="w-7 h-7 text-brand-400 mb-1.5" />
+              <span className="text-xs font-semibold text-slate-300">1080 × 1080 Visual Payload</span>
+              <span className="text-[10px] text-slate-500 capitalize">{mediaType} formatted for {previewPlatform}</span>
+            </div>
+
+            {/* Content Text */}
+            <div className="p-4 space-y-2 text-xs">
+              <p className="text-slate-200 whitespace-pre-wrap leading-relaxed">
+                {preview?.previews?.[previewPlatform]?.caption || preview?.previews?.[previewPlatform]?.text || caption}
+              </p>
+            </div>
+          </div>
+
+          {/* AI Signal Quality */}
+          {analysis && (
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="p-3 bg-[#07090E] rounded-xl border border-[#1E293B]">
+                <span className="text-[10px] uppercase font-bold text-slate-500">Sentiment</span>
+                <p className="text-xs font-bold text-emerald-400 mt-1">{analysis.sentiment?.label || 'Positive'}</p>
+              </div>
+              <div className="p-3 bg-[#07090E] rounded-xl border border-[#1E293B]">
+                <span className="text-[10px] uppercase font-bold text-slate-500">Caption Score</span>
+                <p className="text-xs font-bold text-cyan-400 mt-1">{analysis.caption_analysis?.score || 85} / 100</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

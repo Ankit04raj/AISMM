@@ -1,24 +1,35 @@
 """Tests for Phase 8 Intelligent Scheduling Engine (ML Ensemble, Features, API, Service)."""
 
 import pytest
+import asyncio
+import os
 from uuid import uuid4
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import select
 
 from backend.app.main import app
+from backend.app.db.session import Base
+from backend.app.db.models import User, Schedule, Post, PostPublication, ContentTypeEnum, PostStatusEnum
+from backend.app.core.platform_adapters import PlatformRegistry
+from backend.app.core.platform_adapters.base import PostResult
 from backend.app.ai.scheduling import (
     SchedulingEngine,
     SchedulingFeatureExtractor,
     TimeConstraints,
 )
-from backend.app.services.scheduling_service import SchedulingService
+from backend.app.services.scheduling_service import (
+    SchedulingService,
+    run_scheduler_background_worker,
+)
 from backend.app.core.schemas.scheduling import (
     ScheduleRecommendRequest,
     AutoScheduleRequest,
 )
 from backend.app.core.schemas.post import MediaItem
-from backend.app.db.models import Schedule, Post, PostPublication
 
 client = TestClient(app)
 
@@ -163,3 +174,106 @@ class TestSchedulingAPIEndpoints:
             resp = client.post("/api/v1/scheduling/trigger-due")
             assert resp.status_code == 200
             assert resp.json()["processed"] == 2
+
+
+class TestBackgroundScheduledExecutionProof:
+    """Proof for Section 4: Scheduled post execution happens automatically in the background."""
+
+    @pytest.mark.asyncio
+    async def test_automatic_background_execution_without_manual_trigger(self):
+        """Schedule a post slightly in the future (or due), do nothing else, and show it reaches published on its own."""
+        db_file = f"/tmp/test_sched_{uuid4().hex}.db"
+        if os.path.exists(db_file):
+            os.remove(db_file)
+
+        test_engine = create_async_engine(f"sqlite+aiosqlite:///{db_file}", echo=False)
+        async with test_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
+
+        user_id = uuid4()
+        post_id = uuid4()
+        due_time = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
+
+        async with session_factory() as session:
+            # 1. Create User
+            user = User(
+                id=user_id,
+                email=f"scheduler_auto_{uuid4().hex[:8]}@aismm.io",
+                hashed_password="hash",
+                full_name="Scheduler Test",
+            )
+            session.add(user)
+
+            # 2. Create Post in DRAFT / SCHEDULED state
+            post = Post(
+                id=post_id,
+                user_id=user_id,
+                caption="Autonomous background publish proof post #automation",
+                content_type=ContentTypeEnum.POST,
+                status=PostStatusEnum.SCHEDULED,
+            )
+            session.add(post)
+
+            # 3. Create Schedule record scheduled due in 0.2s
+            schedule = Schedule(
+                user_id=user_id,
+                post_id=post_id,
+                scheduled_at=due_time,
+                status="pending",
+            )
+            session.add(schedule)
+
+            pub = PostPublication(
+                post_id=post_id,
+                platform="instagram",
+                status="pending",
+            )
+            session.add(pub)
+
+            await session.commit()
+
+        # 4. Mock platform adapter to return successful PostResult and run the background worker loop
+        adapter = PlatformRegistry.get_adapter("instagram")
+        mock_result = PostResult(
+            platform_post_id="ig_auto_published_999",
+            url="https://instagram.com/p/auto_published_999",
+        )
+
+        with patch.object(adapter, "publish_post", new_callable=AsyncMock, return_value=mock_result):
+            # Start background worker task with 0.05s poll interval pointing to our test session factory
+            worker_task = asyncio.create_task(run_scheduler_background_worker(interval_seconds=0.05, session_factory=session_factory))
+
+            # Allow event loop iterations for the background worker to execute the due post
+            for _ in range(10):
+                await asyncio.sleep(0.1)
+
+            # Stop the worker task
+            worker_task.cancel()
+            try:
+                await worker_task
+            except asyncio.CancelledError:
+                pass
+
+        # 5. Verify the post and schedule reached PUBLISHED automatically with NO manual trigger
+        async with session_factory() as session:
+            sched_result = await session.execute(select(Schedule).where(Schedule.post_id == post_id))
+            updated_sched = sched_result.scalar_one()
+
+            post_result = await session.execute(select(Post).where(Post.id == post_id))
+            updated_post = post_result.scalar_one()
+
+            pub_result = await session.execute(select(PostPublication).where(PostPublication.post_id == post_id))
+            updated_pub = pub_result.scalar_one()
+
+            # Assert automatic transitions
+            assert updated_sched.status == "sent", f"Expected 'sent', got '{updated_sched.status}'"
+            assert updated_post.status == PostStatusEnum.PUBLISHED, f"Expected PUBLISHED, got '{updated_post.status}'"
+            assert updated_post.published_at is not None
+            assert updated_pub.status == "published"
+            assert updated_pub.platform_post_id == "ig_auto_published_999"
+
+        await test_engine.dispose()
+        if os.path.exists(db_file):
+            os.remove(db_file)

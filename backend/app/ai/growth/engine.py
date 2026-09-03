@@ -1,4 +1,4 @@
-"""Predictive Growth Engine (Research Baseline: Platform-Specific Random Forest Regressors)."""
+"""Predictive Growth Engine (Platform-Specific Random Forest Regressors with Out-of-Sample Holdout Splits)."""
 
 import math
 from typing import Dict, Any, List, Optional, Tuple
@@ -7,13 +7,18 @@ from datetime import datetime, timedelta, timezone
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import r2_score, mean_squared_error
+from sklearn.model_selection import train_test_split
 
 from .features import GrowthFeatureExtractor, AccountGrowthFeatures
 
 
 @dataclass
 class HorizonPrediction:
-    """Predicted metrics for a specific time horizon."""
+    """Predicted metrics for a specific time horizon.
+
+    Note: 30-day growth is directly predicted by the platform-specific Random Forest Regressor.
+    7-day and 90-day projections are derived using temporal compounding scaling factors.
+    """
     horizon_days: int
     predicted_followers: int
     net_growth_followers: int
@@ -37,13 +42,13 @@ class GrowthPredictionResult:
 
 
 class GrowthEngine:
-    """Platform-specific predictive growth modeling engine."""
+    """Platform-specific predictive growth modeling engine evaluated on out-of-sample holdout test sets."""
 
-    # Research baseline target R2 metrics
+    # Research baseline target R2 metrics for reference
     PLATFORM_R2_BASELINES = {
-        "instagram": 0.892,  # 89.2% R2
-        "facebook": 0.875,   # 87.5% R2
-        "twitter": 0.858,    # 85.8% R2
+        "instagram": 0.892,  # 89.2% R2 baseline
+        "facebook": 0.875,   # 87.5% R2 baseline
+        "twitter": 0.858,    # 85.8% R2 baseline
         "linkedin": 0.865,
         "tiktok": 0.880,
     }
@@ -65,18 +70,19 @@ class GrowthEngine:
         self.model_version = model_version
         self.models: Dict[str, RandomForestRegressor] = {}
         self.metrics: Dict[str, Dict[str, float]] = {}
+        self.heldout_test_data: Dict[str, Tuple[List[List[float]], List[float]]] = {}
         self._initialize_platform_models()
 
     def _initialize_platform_models(self) -> None:
-        """Train and calibrate platform-specific Random Forest Regressors on synthetic corpus."""
+        """Train Random Forest Regressors on train split and evaluate on held-out test split."""
         np.random.seed(42)
 
         for platform, target_r2 in self.PLATFORM_R2_BASELINES.items():
-            X_train = []
-            y_train_30d = []
+            X_all = []
+            y_all_30d = []
 
-            # Generate 300 calibrated account samples per platform
-            for _ in range(300):
+            # Generate 400 account samples per platform
+            for _ in range(400):
                 followers = int(np.random.exponential(scale=15000) + 500)
                 freq = round(float(np.random.uniform(1.0, 14.0)), 2)
                 eng_rate = round(float(np.random.uniform(1.0, 8.5)), 2)
@@ -99,12 +105,17 @@ class GrowthEngine:
                     follower_following_ratio=ff_ratio,
                     platform_code=GrowthFeatureExtractor.PLATFORM_CODES.get(platform, 0),
                 )
-                X_train.append(feat.to_vector())
+                X_all.append(feat.to_vector())
 
-                # Target: actual 30-day net growth with slight noise
+                # Target: actual 30-day net growth with realistic stochastic variance
                 base_growth = vel_30d * 1.05 + (followers * 0.01 * (sentiment + 0.5))
-                noise = np.random.normal(0, base_growth * 0.05)
-                y_train_30d.append(max(0.0, base_growth + noise))
+                noise = np.random.normal(0, max(5.0, base_growth * 0.06))
+                y_all_30d.append(max(0.0, base_growth + noise))
+
+            # Genuine 75/25 Train-Test split for out-of-sample evaluation
+            X_train, X_test, y_train, y_test = train_test_split(
+                X_all, y_all_30d, test_size=0.25, random_state=42
+            )
 
             rf = RandomForestRegressor(
                 n_estimators=100,
@@ -112,18 +123,39 @@ class GrowthEngine:
                 min_samples_split=4,
                 random_state=42,
             )
-            rf.fit(X_train, y_train_30d)
+            rf.fit(X_train, y_train)
 
-            y_pred = rf.predict(X_train)
-            r2 = float(r2_score(y_train_30d, y_pred))
-            rmse = float(np.sqrt(mean_squared_error(y_train_30d, y_pred)))
+            # Evaluate on held-out test split (out-of-sample)
+            y_test_pred = rf.predict(X_test)
+            r2_test = float(r2_score(y_test, y_test_pred))
+            rmse_test = float(np.sqrt(mean_squared_error(y_test, y_test_pred)))
 
             self.models[platform] = rf
+            self.heldout_test_data[platform] = (X_test, y_test)
             self.metrics[platform] = {
-                "r2": round(r2, 4),
-                "rmse": round(rmse, 2),
+                "r2": round(r2_test, 4),
+                "rmse": round(rmse_test, 2),
+                "test_samples": len(X_test),
                 "target_baseline_r2": target_r2,
             }
+
+    def evaluate_on_heldout(self, platform: str = "instagram") -> Dict[str, float]:
+        """Compute live R2 and RMSE on held-out test split."""
+        p_key = platform.lower()
+        if p_key not in self.models or p_key not in self.heldout_test_data:
+            p_key = "instagram"
+
+        model = self.models[p_key]
+        X_test, y_test = self.heldout_test_data[p_key]
+        y_pred = model.predict(X_test)
+
+        r2 = float(r2_score(y_test, y_pred))
+        rmse = float(np.sqrt(mean_squared_error(y_test, y_pred)))
+        return {
+            "r2": round(r2, 4),
+            "rmse": round(rmse, 2),
+            "samples_count": len(X_test),
+        }
 
     def predict_growth(
         self,
@@ -159,13 +191,13 @@ class GrowthEngine:
             platform_code=GrowthFeatureExtractor.PLATFORM_CODES.get(p_key, 0),
         )
 
-        # 30-day base growth prediction
+        # 30-day base growth prediction (Direct ML Model Output)
         net_30d = float(model.predict([feat.to_vector()])[0])
         net_30d = max(0.0, net_30d)
 
-        # Projections for 7, 30, 90 days
+        # 7-day and 90-day derived projections via temporal compounding factors
         net_7d = net_30d * (7.0 / 30.0) * 0.98
-        net_90d = net_30d * 3.15 * (1.0 + (0.02 * min(5.0, posting_frequency_weekly)))  # Compounding
+        net_90d = net_30d * 3.15 * (1.0 + (0.02 * min(5.0, posting_frequency_weekly)))
 
         horizons = {
             "7d": (7, net_7d),

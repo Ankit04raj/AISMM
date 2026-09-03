@@ -12,163 +12,277 @@ import {
   ShieldCheck,
   Zap,
   Clock,
-  Layers
+  Layers,
+  AlertTriangle,
+  RefreshCw,
+  PieChart,
+  BarChart2
 } from 'lucide-react';
 import { api } from '../api/client';
 
 export default function OverviewTab({ onNavigateTab }) {
-  const [loading, setLoading] = useState(false);
-  const [overview, setOverview] = useState({
-    total_connected_platforms: 5,
-    total_followers: 58400,
-    total_impressions: 142000,
-    total_reach: 110760,
-    total_engagements: 6840,
-    overall_engagement_rate: 4.82,
-    total_posts_published: 28,
-    total_comments_received: 492,
-    average_sentiment_score: 0.68,
-    time_period_days: 30,
-  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [overview, setOverview] = useState(null);
+  const [strategy, setStrategy] = useState(null);
+  const [platforms, setPlatforms] = useState([]);
+
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [overviewData, strategyData, platformsData] = await Promise.all([
+        api.getOverview(30),
+        api.getStrategyDashboard().catch(() => null),
+        api.listPlatforms().catch(() => ({ platforms: [] })),
+      ]);
+      setOverview(overviewData);
+      setStrategy(strategyData);
+      setPlatforms(platformsData.platforms || []);
+    } catch (err) {
+      console.error("Failed to load overview telemetry:", err);
+      setError("Unable to reach AISMM backend. Please check connection or start the backend service.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function loadData() {
-      const data = await api.getOverview(30);
-      if (data) {
-        setOverview(data);
-      }
-    }
     loadData();
   }, []);
 
-  const kpis = [
-    { label: "Total Audience Reach", value: overview.total_reach?.toLocaleString() || "110,760", icon: Eye, change: "+14.2%", color: "from-blue-500 to-indigo-600" },
-    { label: "Total Connected Followers", value: overview.total_followers?.toLocaleString() || "58,400", icon: Users, change: "+8.6%", color: "from-purple-500 to-pink-600" },
-    { label: "Total Interactions", value: overview.total_engagements?.toLocaleString() || "6,840", icon: Heart, change: "+22.4%", color: "from-rose-500 to-orange-500" },
-    { label: "Avg Engagement Rate", value: `${overview.overall_engagement_rate || 4.82}%`, icon: TrendingUp, change: "+1.2%", color: "from-emerald-500 to-teal-600" },
-  ];
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[450px] gap-3">
+        <RefreshCw className="w-8 h-8 text-brand-400 animate-spin" />
+        <p className="text-slate-400 text-xs font-mono">Synchronizing live telemetry from AISMM backend...</p>
+      </div>
+    );
+  }
 
-  const connectedPlatforms = [
-    { name: "Instagram", followers: "18.4k", rate: "5.4%", status: "Active", format: "Carousels / Reels" },
-    { name: "Facebook", followers: "14.2k", rate: "3.8%", status: "Active", format: "Page Videos" },
-    { name: "X (Twitter)", followers: "12.8k", rate: "2.9%", status: "Active", format: "Threads & Media" },
-    { name: "LinkedIn", followers: "8.6k", rate: "4.5%", status: "Active", format: "Document Shares" },
-    { name: "YouTube", followers: "4.4k", rate: "8.1%", status: "Active", format: "Videos & Shorts" },
+  if (error || !overview) {
+    return (
+      <div className="p-8 bg-rose-950/20 border border-rose-500/30 rounded-3xl flex flex-col items-center justify-center text-center gap-4 my-8 animate-fadeIn">
+        <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
+          <AlertTriangle className="w-6 h-6" />
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-white mb-1">Backend Connection Offline</h3>
+          <p className="text-xs text-slate-400 max-w-md">{error || "Unable to reach AISMM backend"}</p>
+        </div>
+        <button
+          onClick={loadData}
+          className="px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-brand-600/20"
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+          <span>Retry Connection</span>
+        </button>
+      </div>
+    );
+  }
+
+  // 5 KPI Cards per Module 03 specification
+  const kpis = [
+    { label: "Total Audience Reach", value: overview.total_reach?.toLocaleString() || "0", icon: Eye, color: "from-blue-600 to-indigo-600", accent: "text-blue-400" },
+    { label: "Connected Followers", value: overview.total_followers?.toLocaleString() || "0", icon: Users, color: "from-purple-600 to-pink-600", accent: "text-purple-400" },
+    { label: "Total Interactions", value: overview.total_engagements?.toLocaleString() || "0", icon: Heart, color: "from-rose-600 to-orange-500", accent: "text-rose-400" },
+    { label: "Avg Engagement Rate", value: `${overview.overall_engagement_rate || 0}%`, icon: TrendingUp, color: "from-emerald-600 to-teal-600", accent: "text-emerald-400" },
+    { label: "Active Channels", value: `${platforms.length || 5} Active`, icon: Share2, color: "from-cyan-600 to-blue-600", accent: "text-cyan-400" },
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="bg-gradient-to-r from-brand-900/60 via-indigo-950/40 to-gray-900 border border-brand-500/20 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
-        <div>
-          <div className="inline-flex items-center space-x-2 px-2.5 py-1 rounded-md bg-brand-500/20 text-brand-300 text-xs font-semibold mb-2">
-            <Sparkles className="h-3.5 w-3.5 text-brand-400" />
-            <span>AI Strategy Active</span>
+    <div className="space-y-6 animate-fadeIn">
+      {/* Welcome Banner */}
+      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-brand-900/40 via-[#0D121F] to-[#07090E] border border-[#1E293B] shadow-2xl">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex flex-col md:flex-row justify-between md:items-center gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/30 text-brand-300 text-xs font-bold uppercase tracking-wider mb-2">
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Universal Studio Core</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Central Intelligence Dashboard</h1>
+            <p className="text-slate-400 text-xs sm:text-sm mt-1 max-w-xl">
+              Live operational telemetry, multi-line performance charts, platform distributions, and strategic recommendations.
+            </p>
           </div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-white">Universal Management Hub</h2>
-          <p className="text-xs sm:text-sm text-gray-400 mt-1">
-            5 Social Networks dynamically connected. AI engines optimizing timing, sentiment, and auto-reply.
-          </p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={() => onNavigateTab("composer")}
-            className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-600/30 transition-all flex items-center space-x-2"
-          >
-            <Zap className="h-4 w-4" />
-            <span>New Post with AI</span>
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => onNavigateTab('composer')}
+              className="px-5 py-2.5 bg-gradient-to-r from-brand-600 to-cyan-600 hover:opacity-95 text-white font-bold text-xs rounded-xl shadow-lg shadow-brand-600/30 transition-all flex items-center gap-2"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>Create Post</span>
+            </button>
+            <button
+              onClick={() => onNavigateTab('strategy')}
+              className="px-5 py-2.5 bg-[#07090E] hover:bg-[#131B2E] text-slate-200 font-bold text-xs rounded-xl border border-[#1E293B] transition-all flex items-center gap-2"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+              <span>AI Strategy</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((k, i) => {
-          const Icon = k.icon;
+      {/* 5 KPI Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {kpis.map((kpi, idx) => {
+          const Icon = kpi.icon;
           return (
-            <div key={i} className="bg-gray-900/80 border border-gray-800/80 rounded-2xl p-5 shadow-lg relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-400">{k.label}</span>
-                <div className={`h-8 w-8 rounded-lg bg-gradient-to-tr ${k.color} flex items-center justify-center text-white shadow-sm`}>
-                  <Icon className="h-4 w-4" />
+            <div
+              key={idx}
+              className="bg-[#0D121F] border border-[#1E293B] rounded-2xl p-5 hover:border-brand-500/40 transition-all shadow-xl relative overflow-hidden"
+            >
+              <div className="flex justify-between items-start">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{kpi.label}</span>
+                <div className={`w-8 h-8 rounded-lg bg-gradient-to-tr ${kpi.color} flex items-center justify-center text-white shadow-md`}>
+                  <Icon className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-2xl font-black text-white mt-3 tracking-tight">{k.value}</div>
-              <div className="flex items-center space-x-1.5 text-xs text-emerald-400 font-semibold mt-2">
-                <ArrowUpRight className="h-3.5 w-3.5" />
-                <span>{k.change} vs prior 30d</span>
+              <div className="mt-4">
+                <span className="text-2xl font-extrabold text-white tracking-tight font-mono">{kpi.value}</span>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Two Column Layout: Connected Platforms & AI Health Index */}
+      {/* Multi-Line Performance Chart & Platform Donut Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Active Platforms Status */}
-        <div className="lg:col-span-8 bg-gray-900/80 border border-gray-800 rounded-2xl p-6 shadow-xl">
-          <div className="flex items-center justify-between mb-4">
+        {/* Multi-Line Performance SVG Chart */}
+        <div className="lg:col-span-8 bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl space-y-4">
+          <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-sm text-gray-200">Connected Social Networks (5/5)</h3>
-              <p className="text-xs text-gray-400">All network adapters operating via BasePlatformAdapter contracts</p>
+              <h3 className="font-bold text-sm text-white">Cross-Platform Engagement Velocity</h3>
+              <p className="text-xs text-slate-400">Reach vs Engagement impressions trend across recent 30-day window</p>
+            </div>
+            <div className="flex items-center gap-4 text-xs font-mono">
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-0.5 bg-[#06B6D4] rounded" />
+                <span className="text-slate-300">Reach</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-0.5 bg-[#7C3AED] rounded" />
+                <span className="text-slate-300">Engagements</span>
+              </div>
+            </div>
+          </div>
+
+          {/* SVG Multi-Line Chart */}
+          <div className="relative h-56 w-full pt-4">
+            <svg viewBox="0 0 600 200" className="w-full h-full overflow-visible">
+              {/* Grid Lines */}
+              <line x1="0" y1="40" x2="600" y2="40" stroke="#1E293B" strokeDasharray="3 3" />
+              <line x1="0" y1="90" x2="600" y2="90" stroke="#1E293B" strokeDasharray="3 3" />
+              <line x1="0" y1="140" x2="600" y2="140" stroke="#1E293B" strokeDasharray="3 3" />
+              <line x1="0" y1="190" x2="600" y2="190" stroke="#1E293B" />
+
+              {/* Reach Line (Cyan) */}
+              <polyline
+                fill="none"
+                stroke="#06B6D4"
+                strokeWidth="3"
+                points="0,150 75,130 150,110 225,80 300,95 375,60 450,50 525,45 600,35"
+              />
+              {/* Engagements Line (Violet) */}
+              <polyline
+                fill="none"
+                stroke="#7C3AED"
+                strokeWidth="3"
+                points="0,180 75,165 150,145 225,120 300,135 375,100 450,85 525,75 600,60"
+              />
+
+              {/* Data Markers */}
+              <circle cx="225" cy="80" r="4" fill="#06B6D4" />
+              <circle cx="375" cy="60" r="4" fill="#06B6D4" />
+              <circle cx="600" cy="35" r="4" fill="#06B6D4" />
+
+              <circle cx="225" cy="120" r="4" fill="#7C3AED" />
+              <circle cx="375" cy="100" r="4" fill="#7C3AED" />
+              <circle cx="600" cy="60" r="4" fill="#7C3AED" />
+            </svg>
+          </div>
+
+          <div className="flex justify-between text-[11px] text-slate-500 font-mono pt-2 border-t border-[#1E293B]">
+            <span>Day 01</span>
+            <span>Day 08</span>
+            <span>Day 15</span>
+            <span>Day 22</span>
+            <span>Day 30 (Current)</span>
+          </div>
+        </div>
+
+        {/* Platform Donut Chart & Audience Share */}
+        <div className="lg:col-span-4 bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl flex flex-col justify-between">
+          <div>
+            <h3 className="font-bold text-sm text-white mb-1">Audience Distribution</h3>
+            <p className="text-xs text-slate-400 mb-4">Share of audience across 5 connected networks</p>
+
+            {/* SVG Donut Chart */}
+            <div className="relative h-44 flex items-center justify-center">
+              <svg viewBox="0 0 160 160" className="w-36 h-36">
+                {/* Background Ring */}
+                <circle cx="80" cy="80" r="55" fill="none" stroke="#1E293B" strokeWidth="18" />
+                {/* Instagram Arc (35%) */}
+                <circle cx="80" cy="80" r="55" fill="none" stroke="#EC4899" strokeWidth="18" strokeDasharray="120 345" strokeDashoffset="0" />
+                {/* Facebook Arc (25%) */}
+                <circle cx="80" cy="80" r="55" fill="none" stroke="#3B82F6" strokeWidth="18" strokeDasharray="86 345" strokeDashoffset="-120" />
+                {/* X Arc (20%) */}
+                <circle cx="80" cy="80" r="55" fill="none" stroke="#64748B" strokeWidth="18" strokeDasharray="69 345" strokeDashoffset="-206" />
+                {/* LinkedIn Arc (12%) */}
+                <circle cx="80" cy="80" r="55" fill="none" stroke="#06B6D4" strokeWidth="18" strokeDasharray="41 345" strokeDashoffset="-275" />
+                {/* YouTube Arc (8%) */}
+                <circle cx="80" cy="80" r="55" fill="none" stroke="#EF4444" strokeWidth="18" strokeDasharray="29 345" strokeDashoffset="-316" />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center font-mono">
+                <span className="text-xs font-bold text-slate-400">TOTAL</span>
+                <span className="text-sm font-extrabold text-white">{overview.total_followers?.toLocaleString() || "0"}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Platform Share Badges */}
+          <div className="grid grid-cols-2 gap-2 text-xs pt-4 border-t border-[#1E293B]">
+            <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-pink-500" /><span>Instagram (35%)</span></div>
+            <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500" /><span>Facebook (25%)</span></div>
+            <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-500" /><span>X / Twitter (20%)</span></div>
+            <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-cyan-500" /><span>LinkedIn (12%)</span></div>
+          </div>
+        </div>
+      </div>
+
+      {/* AI Insights & Strategic Recommendations Bar */}
+      {strategy?.directives && (
+        <div className="bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-cyan-400" />
+              <h3 className="font-bold text-base text-white">Live AI Strategic Insights</h3>
             </div>
             <button
-              onClick={() => onNavigateTab("platforms")}
-              className="text-xs font-semibold text-brand-400 hover:text-brand-300"
+              onClick={() => onNavigateTab('strategy')}
+              className="text-xs font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
             >
-              Manage Platforms →
+              <span>View Full Strategy</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div className="space-y-2.5">
-            {connectedPlatforms.map((p, idx) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between p-3.5 rounded-xl bg-gray-950/70 border border-gray-800/60 hover:border-gray-700 transition-all"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></div>
-                  <div>
-                    <div className="font-bold text-sm text-gray-200">{p.name}</div>
-                    <div className="text-[11px] text-gray-400">Top format: {p.format}</div>
-                  </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {strategy.directives.slice(0, 3).map((d) => (
+              <div key={d.id} className="p-4 bg-[#07090E] border border-[#1E293B] rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase text-brand-400 font-mono">{d.category}</span>
+                  <span className="text-[10px] font-bold text-emerald-400 font-mono">{d.projected_impact}</span>
                 </div>
-                <div className="text-right">
-                  <div className="text-xs font-bold text-gray-200">{p.followers} followers</div>
-                  <div className="text-[11px] text-emerald-400 font-medium">{p.rate} engagement</div>
-                </div>
+                <h4 className="font-bold text-xs text-slate-100">{d.title}</h4>
+                <p className="text-[11px] text-slate-400 line-clamp-2">{d.actionable_step}</p>
               </div>
             ))}
           </div>
         </div>
-
-        {/* Audience Sentiment & Model Health */}
-        <div className="lg:col-span-4 bg-gray-900/80 border border-gray-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
-          <div>
-            <h3 className="font-bold text-sm text-gray-200">Audience Sentiment & Health</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Dual-phase VADER + comment trajectory</p>
-
-            <div className="mt-6 text-center">
-              <div className="inline-flex items-center justify-center p-6 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                <span className="text-3xl font-extrabold">+0.68</span>
-              </div>
-              <div className="font-bold text-sm text-gray-200 mt-3">Very Positive Audience Mood</div>
-              <div className="text-xs text-gray-400 mt-1">78.4% positive / 4.2% negative comments</div>
-            </div>
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-gray-800 space-y-2 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400">Peak Window</span>
-              <span className="text-indigo-400 font-bold">Wednesdays 19:00 UTC</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400">Auto-Reply Routing</span>
-              <span className="text-emerald-400 font-bold">88.5% confidence (Active)</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

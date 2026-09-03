@@ -5,6 +5,7 @@ from typing import AsyncGenerator
 
 import time
 import uuid
+import asyncio
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +14,7 @@ from fastapi.exceptions import RequestValidationError
 
 from backend.app.config import get_settings
 from backend.app.db.session import init_db, close_db, check_db_connection
+from backend.app.services.scheduling_service import run_scheduler_background_worker
 from backend.app.core.errors import (
     AISMMError,
     NotFoundError,
@@ -30,12 +32,22 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan manager."""
+    """Application lifespan manager starting the background scheduler worker."""
     setup_logging()
     init_db()
     await check_db_connection()
-    yield
-    await close_db()
+
+    # Start automated scheduled-post background execution loop
+    scheduler_task = asyncio.create_task(run_scheduler_background_worker(interval_seconds=1.0))
+    try:
+        yield
+    finally:
+        scheduler_task.cancel()
+        try:
+            await scheduler_task
+        except asyncio.CancelledError:
+            pass
+        await close_db()
 
 
 def create_app() -> FastAPI:

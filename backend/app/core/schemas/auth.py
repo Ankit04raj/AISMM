@@ -2,7 +2,7 @@
 
 from typing import Optional, Dict, Any, List
 from datetime import datetime
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, EmailStr
 
 
 class OAuthInitRequest(BaseModel):
@@ -38,7 +38,7 @@ class OAuthTokenResponse(BaseModel):
 
 
 class RefreshTokenRequest(BaseModel):
-    """Request to refresh access token."""
+    """Request to refresh platform access token."""
     platform: str = Field(..., description="Platform")
     refresh_token: str = Field(..., description="Refresh token")
 
@@ -69,6 +69,17 @@ class APIKeyResponse(BaseModel):
     permissions: List[str]
 
 
+class UserProfile(BaseModel):
+    """User profile response."""
+    id: str
+    email: str
+    full_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    created_at: datetime
+    is_active: bool = True
+    is_verified: bool = False
+
+
 class UserLoginRequest(BaseModel):
     """User login request."""
     email: str = Field(..., description="User email")
@@ -82,25 +93,27 @@ class UserLoginResponse(BaseModel):
     token_type: str = "Bearer"
     expires_in: int
     refresh_token: str
-    user: "UserProfile"
-
-
-class UserProfile(BaseModel):
-    """User profile response."""
-    id: str
-    email: str
-    full_name: Optional[str] = None
-    avatar_url: Optional[str] = None
-    created_at: datetime
-    is_active: bool = True
-    is_verified: bool = False
+    user: UserProfile
 
 
 class RegisterRequest(BaseModel):
     """User registration request."""
     email: str = Field(..., description="Email address")
-    password: str = Field(..., min_length=8, description="Password")
+    password: str = Field(..., min_length=8, description="Password (min 8 chars)")
     full_name: Optional[str] = Field(None, max_length=100, description="Full name")
+
+
+class AppRefreshTokenRequest(BaseModel):
+    """Request to refresh JWT access token."""
+    refresh_token: str = Field(..., description="JWT refresh token")
+
+
+class AppTokenRefreshResponse(BaseModel):
+    """Refreshed token response."""
+    access_token: str
+    token_type: str = "Bearer"
+    expires_in: int
+    refresh_token: Optional[str] = None
 
 
 class PasswordResetRequest(BaseModel):
@@ -112,7 +125,3 @@ class PasswordResetConfirm(BaseModel):
     """Password reset confirmation."""
     token: str = Field(..., description="Reset token")
     password: str = Field(..., min_length=8, description="New password")
-
-
-# Forward reference resolution
-UserLoginResponse.update_forward_refs()

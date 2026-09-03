@@ -5,6 +5,8 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.session import get_db
+from backend.app.db.models import User
+from backend.app.api.deps import get_current_user
 from backend.app.services.post_service import PostService
 from backend.app.services.preview_service import PreviewService
 from backend.app.core.normalization import ContentNormalizer, UniversalContent, ContentType, MediaType
@@ -20,17 +22,21 @@ from backend.app.core.schemas.post import (
 
 router = APIRouter(prefix="/content", tags=["Content Management"])
 
-DEFAULT_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
-
 
 @router.post("/preview", response_model=ContentPreviewResponse)
-async def generate_content_preview(request: ContentPreviewRequest):
+async def generate_content_preview(
+    request: ContentPreviewRequest,
+    current_user: User = Depends(get_current_user),
+):
     """Generate platform-specific native previews for composed content."""
     return PreviewService.generate_previews(request)
 
 
 @router.post("/validate", response_model=ContentValidationResponse)
-async def validate_content_constraints(request: ContentValidationRequest):
+async def validate_content_constraints(
+    request: ContentValidationRequest,
+    current_user: User = Depends(get_current_user),
+):
     """Validate content against character, hashtag, mention, and media limits per platform."""
     platform_warnings = {}
     platform_errors = {}
@@ -89,19 +95,21 @@ async def validate_content_constraints(request: ContentValidationRequest):
 @router.post("/publish-multi", response_model=MultiPlatformPostResponse, status_code=status.HTTP_201_CREATED)
 async def publish_multi_platform(
     request: MultiPlatformPostRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Compose and publish/schedule content to multiple social media platforms simultaneously."""
     service = PostService(db)
-    return await service.create_multi_platform_post(DEFAULT_USER_ID, request)
+    return await service.create_multi_platform_post(current_user.id, request)
 
 
 @router.post("/{post_id}/retry/{platform}", response_model=PostResponse)
 async def retry_failed_platform_publication(
     post_id: str,
     platform: str,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Retry a failed publication on a specific platform for an existing post."""
     service = PostService(db)
-    return await service.retry_publication(UUID(post_id), DEFAULT_USER_ID, platform)
+    return await service.retry_publication(UUID(post_id), current_user.id, platform)

@@ -1,12 +1,13 @@
 """Base platform adapter interface."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Tuple
 from datetime import datetime
 from dataclasses import dataclass
 from enum import Enum
 
 from backend.app.core.errors import PlatformError, UnsupportedCapabilityError
+from backend.app.core.resilience import CircuitBreaker, async_retry_with_backoff
 
 
 class PlatformCapability(str, Enum):
@@ -135,6 +136,31 @@ class BasePlatformAdapter(ABC):
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self._session = None
+        self.circuit_breaker = CircuitBreaker(
+            name=getattr(self, "PLATFORM_NAME", "platform_adapter"),
+            failure_threshold=config.get("circuit_failure_threshold", 5),
+            recovery_timeout_seconds=config.get("circuit_recovery_timeout", 30.0),
+        )
+
+    async def execute_resilient_call(
+        self,
+        coro_func: Any,
+        *args,
+        max_retries: int = 2,
+        base_delay_seconds: float = 0.2,
+        retry_exceptions: Tuple[Any, ...] = (Exception,),
+        **kwargs,
+    ) -> Any:
+        """Execute platform API calls wrapped in CircuitBreaker and exponential backoff retry."""
+        return await async_retry_with_backoff(
+            coro_func,
+            *args,
+            max_retries=max_retries,
+            base_delay_seconds=base_delay_seconds,
+            retry_exceptions=retry_exceptions,
+            circuit_breaker=self.circuit_breaker,
+            **kwargs,
+        )
 
     @property
     @abstractmethod

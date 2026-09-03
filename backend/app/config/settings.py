@@ -1,9 +1,27 @@
 """AISMM Configuration Settings using Pydantic Settings."""
 
 from functools import lru_cache
-from typing import List, Optional
-from pydantic import Field
+from typing import List, Optional, Set
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Known insecure/placeholder secrets that must NEVER be used in production/staging
+DENYLISTED_SECRETS: Set[str] = {
+    "dev-secret-key-change-in-production",
+    "your-secret-key-change-in-production",
+    "aismm_production_master_secret_key_2026",
+    "aismm_production_master_secret_key_2026_docker",
+    "webhook-secret-change-in-production",
+    "replace_with_a_secure_random_secret_key_at_least_32_chars",
+    "replace_with_jwt_secret_key",
+    "secret",
+    "changeme",
+    "password",
+    "your-secret-key",
+    "dev-secret",
+    "admin",
+    "123456",
+}
 
 
 class Settings(BaseSettings):
@@ -37,8 +55,9 @@ class Settings(BaseSettings):
     REDIS_URL: str = Field(default="redis://localhost:6379/0")
     REDIS_MAX_CONNECTIONS: int = 50
 
-    # JWT Authentication
-    JWT_SECRET_KEY: str = Field(default="your-secret-key-change-in-production")
+    # Core Security Keys — NO DEFAULT VALUES ALLOWED
+    SECRET_KEY: str = Field(description="Master application secret key for encryption and signing")
+    JWT_SECRET_KEY: str = Field(description="JWT signing secret key")
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -67,7 +86,7 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE_MB: int = 100
 
     # Webhooks
-    WEBHOOK_SECRET: str = Field(default="webhook-secret-change-in-production")
+    WEBHOOK_SECRET: Optional[str] = Field(default=None, description="Webhook signature verification secret")
     WEBHOOK_TIMEOUT_SECONDS: int = 30
 
     # Notifications
@@ -82,7 +101,6 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:3000"
 
     # Platform OAuth (configured per platform in platform_config.yaml)
-    # These are fallback defaults
     INSTAGRAM_CLIENT_ID: Optional[str] = None
     INSTAGRAM_CLIENT_SECRET: Optional[str] = None
     FACEBOOK_CLIENT_ID: Optional[str] = None
@@ -108,6 +126,45 @@ class Settings(BaseSettings):
     ENABLE_SENTIMENT_ANALYSIS: bool = True
     ENABLE_SCHEDULING: bool = True
 
+    @model_validator(mode="after")
+    def validate_production_security(self) -> "Settings":
+        """Startup check: refuse to boot if in non-development environment with insecure/denylisted secrets."""
+        env_lower = self.ENVIRONMENT.strip().lower()
+        if env_lower != "development":
+            # 1. Check SECRET_KEY
+            if not self.SECRET_KEY or self.SECRET_KEY.strip().lower() in DENYLISTED_SECRETS:
+                raise ValueError(
+                    f"FATAL SECURITY ERROR: In environment '{self.ENVIRONMENT}', "
+                    f"SECRET_KEY cannot be a known placeholder value ({self.SECRET_KEY!r}). "
+                    f"A cryptographically secure secret key is required for boot."
+                )
+            if len(self.SECRET_KEY.strip()) < 16:
+                raise ValueError(
+                    f"FATAL SECURITY ERROR: In environment '{self.ENVIRONMENT}', "
+                    f"SECRET_KEY must be at least 16 characters long."
+                )
+
+            # 2. Check JWT_SECRET_KEY
+            if not self.JWT_SECRET_KEY or self.JWT_SECRET_KEY.strip().lower() in DENYLISTED_SECRETS:
+                raise ValueError(
+                    f"FATAL SECURITY ERROR: In environment '{self.ENVIRONMENT}', "
+                    f"JWT_SECRET_KEY cannot be a known placeholder value ({self.JWT_SECRET_KEY!r}). "
+                    f"A cryptographically secure JWT secret key is required for boot."
+                )
+            if len(self.JWT_SECRET_KEY.strip()) < 16:
+                raise ValueError(
+                    f"FATAL SECURITY ERROR: In environment '{self.ENVIRONMENT}', "
+                    f"JWT_SECRET_KEY must be at least 16 characters long."
+                )
+
+            # 3. Check WEBHOOK_SECRET if configured
+            if self.WEBHOOK_SECRET and self.WEBHOOK_SECRET.strip().lower() in DENYLISTED_SECRETS:
+                raise ValueError(
+                    f"FATAL SECURITY ERROR: In environment '{self.ENVIRONMENT}', "
+                    f"WEBHOOK_SECRET cannot be a known placeholder value."
+                )
+        return self
+
 
 @lru_cache()
 def get_settings() -> Settings:
@@ -116,4 +173,9 @@ def get_settings() -> Settings:
 
 
 # Export for easy imports
-settings = get_settings()
+try:
+    settings = get_settings()
+except Exception:
+    # If environment variables are missing at raw import time without .env,
+    # settings will be instantiated when get_settings() is called with proper env.
+    settings = None  # type: ignore

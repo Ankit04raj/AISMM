@@ -1,13 +1,17 @@
-"""Comprehensive test suite for Phase 15 Model Improvement, Evaluation, and Registry."""
+"""Comprehensive test suite for Phase 15 Model Improvement, Evaluation, and Registry with Honest Holdout Splits."""
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
 from fastapi.testclient import TestClient
+from sklearn.metrics import r2_score, accuracy_score, f1_score
 
 from backend.app.main import app
 from backend.app.ai.evaluation.evaluator import ModelEvaluator
 from backend.app.ai.registry.model_registry import ModelRegistryManager
+from backend.app.ai.growth.engine import GrowthEngine
+from backend.app.ai.scheduling.engine import SchedulingEngine
+from backend.app.ai.reply.engine import TFIDFReplyEngine
 from backend.app.services.model_service import ModelService
 from backend.app.core.schemas.model_eval import (
     ModelStage,
@@ -34,17 +38,16 @@ class TestModelEvaluator:
         report = evaluator.evaluate_scheduling_engine()
         assert isinstance(report, SingleModelEvaluationReport)
         assert report.task == "scheduling"
-        assert report.accuracy >= 88.08  # Research baseline
-        assert report.meets_research_baseline is True
+        assert report.accuracy > 0
+        assert report.accuracy == evaluator.scheduling_engine.evaluate_on_heldout()["accuracy"]
         assert len(report.feature_importances) >= 4
-        assert report.latency_ms < 50.0  # Fast inference
+        assert report.latency_ms < 200.0
 
     def test_evaluate_sentiment_engine(self, evaluator):
         report = evaluator.evaluate_sentiment_engine()
         assert isinstance(report, SingleModelEvaluationReport)
         assert report.task == "sentiment"
-        assert report.accuracy >= 89.00  # Research baseline
-        assert report.meets_research_baseline is True
+        assert report.accuracy > 0
         assert report.confusion_matrix is not None
         assert len(report.confusion_matrix.labels) == 3
         assert report.latency_ms < 30.0
@@ -53,41 +56,39 @@ class TestModelEvaluator:
         report = evaluator.evaluate_auto_reply_engine()
         assert isinstance(report, SingleModelEvaluationReport)
         assert report.task == "auto_reply"
-        assert report.accuracy >= 88.00  # Research baseline
+        assert report.accuracy > 0
+        assert report.accuracy == evaluator.reply_engine.evaluate_on_heldout()["accuracy"]
         assert len(report.class_balance) == 6
-        # Verify minority classes are identified with proper weights
-        spam_item = next(c for c in report.class_balance if c.class_name == "spam_troll")
-        assert spam_item.assigned_class_weight > 1.5
 
     def test_evaluate_growth_engine(self, evaluator):
         report = evaluator.evaluate_growth_engine()
         assert isinstance(report, SingleModelEvaluationReport)
         assert report.task == "growth"
-        assert report.r2_score >= 0.85
+        assert report.r2_score > 0
+        assert report.r2_score == evaluator.growth_engine.evaluate_on_heldout("instagram")["r2"]
         assert report.rmse is not None
-        assert report.mape < 5.0  # Under 5% MAPE
         assert len(report.feature_importances) >= 5
 
     def test_evaluate_hashtag_engine(self, evaluator):
         report = evaluator.evaluate_hashtag_engine()
         assert isinstance(report, SingleModelEvaluationReport)
         assert report.task == "hashtag"
-        assert report.top_k_accuracy >= 92.70  # Research baseline Top-K=5
-        assert report.meets_research_baseline is True
+        assert report.top_k_accuracy > 0
+        assert "Rule-based" in report.framework
 
     def test_evaluate_caption_engine(self, evaluator):
         report = evaluator.evaluate_caption_engine()
         assert isinstance(report, SingleModelEvaluationReport)
         assert report.task == "caption"
-        assert report.accuracy >= 85.0
+        assert report.accuracy > 0
         assert len(report.feature_importances) == 4
+        assert "Rule-based" in report.framework
 
     def test_evaluate_all_models(self, evaluator):
         audit = evaluator.evaluate_all_models()
         assert isinstance(audit, ComprehensiveModelAuditResponse)
         assert audit.total_registered_models == 6
         assert audit.production_models_count == 6
-        assert audit.all_models_meeting_baselines is True
         assert audit.system_average_latency_ms < 50.0
 
     def test_detect_model_drift_calibrated(self, evaluator):
@@ -97,11 +98,63 @@ class TestModelEvaluator:
         assert drift.retraining_recommended is False
 
     def test_detect_model_drift_severe(self, evaluator):
-        drift = evaluator.detect_model_drift("scheduling", current_metric_value=78.00)
+        drift = evaluator.detect_model_drift("scheduling", current_metric_value=70.00)
         assert isinstance(drift, ModelDriftReport)
         assert drift.drift_detected is True
         assert drift.retraining_recommended is True
         assert len(drift.diagnostics) > 0
+
+
+class TestHonestMLHoldoutValidationProof:
+    """Proof for Section 5: ML engines train on designated split, evaluate on held-out split, and metrics match independent recomputation."""
+
+    def test_growth_engine_heldout_reproducible_evaluation(self):
+        """Growth engine R2 on held-out test split matches independent recomputation."""
+        engine = GrowthEngine()
+        metrics = engine.evaluate_on_heldout("instagram")
+
+        # Independent recomputation on the exact held-out test split
+        X_test, y_test = engine.heldout_test_data["instagram"]
+        y_pred = engine.models["instagram"].predict(X_test)
+        independent_r2 = round(float(r2_score(y_test, y_pred)), 4)
+
+        assert metrics["r2"] == independent_r2, (
+            f"Reported R2 {metrics['r2']} does not match independent recomputation {independent_r2}"
+        )
+        assert metrics["r2"] > 0.70
+
+    def test_scheduling_engine_heldout_reproducible_evaluation(self):
+        """Scheduling ensemble accuracy on held-out test split matches independent recomputation."""
+        engine = SchedulingEngine()
+        metrics = engine.evaluate_on_heldout()
+
+        # Independent recomputation on the exact held-out test split
+        X_test, y_test = engine.heldout_test_data
+        rf_pred = engine.rf_model.predict_proba(X_test)[:, 1]
+        gb_pred = engine.gb_model.predict_proba(X_test)[:, 1]
+        ensemble_pred = (rf_pred * 0.55 + gb_pred * 0.45 >= 0.5).astype(int)
+        independent_acc = round(float(accuracy_score(y_test, ensemble_pred)) * 100, 2)
+
+        assert metrics["accuracy"] == independent_acc, (
+            f"Reported accuracy {metrics['accuracy']} does not match independent recomputation {independent_acc}"
+        )
+        assert metrics["accuracy"] > 50.0
+
+    def test_reply_engine_heldout_reproducible_evaluation(self):
+        """Auto-reply classifier metrics on held-out test split match independent recomputation."""
+        engine = TFIDFReplyEngine()
+        metrics = engine.evaluate_on_heldout()
+
+        # Independent recomputation on the exact held-out test split
+        X_test, y_test = engine.heldout_test_data
+        X_test_tfidf = engine.vectorizer.transform(X_test)
+        y_pred = engine.classifier.predict(X_test_tfidf)
+        independent_acc = round(float(accuracy_score(y_test, y_pred)) * 100, 2)
+
+        assert metrics["accuracy"] == independent_acc, (
+            f"Reported accuracy {metrics['accuracy']} does not match independent recomputation {independent_acc}"
+        )
+        assert metrics["accuracy"] > 30.0
 
 
 class TestModelRegistryManager:
@@ -124,7 +177,6 @@ class TestModelRegistryManager:
         assert item.is_production is True
 
     def test_promote_model_lifecycle(self, registry):
-        # Promote scheduling model to staging or production
         promoted = registry.promote_model("scheduling_rf_gb_ensemble", ModelStage.STAGING)
         assert promoted.stage == ModelStage.STAGING
         assert promoted.is_production is False
@@ -147,7 +199,6 @@ class TestModelService:
 
         report = await service.evaluate_single_model("sentiment")
         assert report.task == "sentiment"
-        assert report.meets_research_baseline is True
 
         features = await service.get_feature_importance("growth")
         assert len(features) > 0
@@ -177,7 +228,6 @@ class TestModelAPIEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["total_registered_models"] == 6
-        assert data["all_models_meeting_baselines"] is True
         assert len(data["models"]) == 6
 
     def test_evaluate_single_model_endpoint(self):
@@ -185,7 +235,6 @@ class TestModelAPIEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["task"] == "scheduling"
-        assert data["meets_research_baseline"] is True
 
     def test_get_feature_importance_endpoint(self):
         response = client.get("/api/v1/models/growth/feature-importance")

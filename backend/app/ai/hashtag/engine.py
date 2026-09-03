@@ -1,4 +1,4 @@
-"""Hashtag Extraction & Recommendation Engine (Research Baseline: Top-K evaluation)."""
+"""Hashtag Extraction & Recommendation Engine (Rule-based Keyword Frequency Heuristic)."""
 
 import re
 from typing import List, Dict, Any, Optional
@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 @dataclass
 class HashtagRecommendation:
-    """Recommended hashtag with category and confidence/relevance score."""
+    """Recommended hashtag with category and heuristic relevance score."""
     hashtag: str
     category: str
     relevance_score: float
@@ -24,7 +24,7 @@ class HashtagSuggestionResponse:
 
 
 class HashtagEngine:
-    """Extracts, categorizes, and recommends relevant hashtags."""
+    """Rule-based & keyword frequency heuristic engine for extracting and recommending relevant hashtags."""
 
     CATEGORY_KEYWORDS = {
         "ai_tech": {
@@ -77,7 +77,7 @@ class HashtagEngine:
         platform: str = "instagram",
         top_k: int = 5,
     ) -> HashtagSuggestionResponse:
-        """Generate Top-K hashtag recommendations based on content text."""
+        """Generate Top-K hashtag recommendations based on rule-based keyword match scoring."""
         clean_text = (text or "").lower()
         existing_tags = set(self.extract_hashtags(clean_text))
 

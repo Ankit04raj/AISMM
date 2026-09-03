@@ -1,4 +1,4 @@
-"""Caption Analysis & Optimization Engine."""
+"""Caption Analysis & Optimization Engine (Rule-based & Heuristic Readability Scoring)."""
 
 import re
 from typing import Dict, Any, List, Optional
@@ -21,7 +21,7 @@ class CaptionFeatures:
 
 @dataclass
 class CaptionAnalysis:
-    """Caption quality evaluation result."""
+    """Caption quality evaluation result based on rule-based heuristics."""
     score: float  # 0 to 100 quality score
     grade: str  # Excellent (85-100), Good (70-84), Fair (50-69), Needs Improvement (<50)
     features: CaptionFeatures
@@ -30,7 +30,7 @@ class CaptionAnalysis:
 
 
 class CaptionEngine:
-    """Analyzes caption quality and provides platform-adapted variants."""
+    """Rule-based and heuristic engine for analyzing caption quality and providing platform-adapted variants."""
 
     CTA_PATTERNS = [
         r"\b(link in bio|click the link|tap the link|check out|learn more|sign up|swipe up)\b",
@@ -75,7 +75,7 @@ class CaptionEngine:
         )
 
     def analyze(self, text: str, platform: str = "instagram") -> CaptionAnalysis:
-        """Evaluate caption quality and generate actionable suggestions."""
+        """Evaluate caption quality using rule-based engagement and readability heuristics."""
         features = self.extract_features(text)
         score = 50.0  # Base score
         strengths = []
@@ -156,7 +156,7 @@ class CaptionEngine:
         platform: str,
         target_tone: str = "engaging",
     ) -> str:
-        """Transform base caption into platform-tailored variant."""
+        """Transform base caption into platform-tailored variant using rule-based formatting."""
         clean = text or ""
         features = self.extract_features(clean)
         platform_key = platform.lower()
