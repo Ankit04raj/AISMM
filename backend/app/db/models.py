@@ -1,6 +1,7 @@
 """Database models for AISMM."""
 
 import enum
+import uuid
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from uuid import uuid4
@@ -19,10 +20,45 @@ from sqlalchemy import (
     Index,
     UniqueConstraint,
 )
+from sqlalchemy.types import TypeDecorator, CHAR
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import relationship, declared_attr
 
 from backend.app.db.session import Base
+
+
+class GUID(TypeDecorator):
+    """Platform-independent GUID type.
+    Uses PostgreSQL's native UUID type when on Postgres, otherwise uses CHAR(36) / String(36) for SQLite.
+    """
+
+    impl = CHAR
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(PG_UUID(as_uuid=True))
+        else:
+            return dialect.type_descriptor(CHAR(36))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        elif dialect.name == "postgresql":
+            return str(value)
+        else:
+            if isinstance(value, uuid.UUID):
+                return str(value)
+            else:
+                return str(uuid.UUID(str(value)))
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        else:
+            if not isinstance(value, uuid.UUID):
+                return uuid.UUID(str(value))
+            return value
 
 
 class User(Base):
@@ -30,7 +66,7 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid4)
     email = Column(String(255), unique=True, nullable=False, index=True)
     hashed_password = Column(String(255), nullable=False)
     full_name = Column(String(100), nullable=True)
@@ -38,6 +74,8 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     is_verified = Column(Boolean, default=False, nullable=False)
     is_superuser = Column(Boolean, default=False, nullable=False)
+    two_factor_enabled = Column(Boolean, default=False, nullable=False)
+    two_factor_secret = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     last_login_at = Column(DateTime, nullable=True)
@@ -56,8 +94,8 @@ class SocialAccount(Base):
 
     __tablename__ = "social_accounts"
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    user_id = Column(PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(GUID(), primary_key=True, default=uuid4)
+    user_id = Column(GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     platform = Column(String(50), nullable=False, index=True)
     platform_user_id = Column(String(100), nullable=False, index=True)
     username = Column(String(100), nullable=True)
@@ -112,8 +150,8 @@ class Post(Base):
 
     __tablename__ = "posts"
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    user_id = Column(PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(GUID(), primary_key=True, default=uuid4)
+    user_id = Column(GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     content_type = Column(SQLEnum(ContentTypeEnum), default=ContentTypeEnum.POST, nullable=False)
     text = Column(Text, nullable=True)
     caption = Column(Text, nullable=True)
@@ -150,8 +188,8 @@ class PostMedia(Base):
 
     __tablename__ = "post_media"
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    post_id = Column(PG_UUID(as_uuid=True), ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(GUID(), primary_key=True, default=uuid4)
+    post_id = Column(GUID(), ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
     media_type = Column(String(20), nullable=False)  # image, video, reel
     url = Column(String(500), nullable=False)
     thumbnail_url = Column(String(500), nullable=True)
@@ -177,8 +215,8 @@ class PostPublication(Base):
 
     __tablename__ = "post_publications"
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    post_id = Column(PG_UUID(as_uuid=True), ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(GUID(), primary_key=True, default=uuid4)
+    post_id = Column(GUID(), ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
     platform = Column(String(50), nullable=False, index=True)
     platform_post_id = Column(String(100), nullable=True, index=True)
     platform_container_id = Column(String(100), nullable=True)  # For scheduled posts
@@ -210,11 +248,11 @@ class Comment(Base):
 
     __tablename__ = "comments"
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    post_id = Column(PG_UUID(as_uuid=True), ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(GUID(), primary_key=True, default=uuid4)
+    post_id = Column(GUID(), ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
     platform = Column(String(50), nullable=False)
     platform_comment_id = Column(String(100), nullable=True)
-    parent_comment_id = Column(PG_UUID(as_uuid=True), ForeignKey("comments.id"), nullable=True)
+    parent_comment_id = Column(GUID(), ForeignKey("comments.id"), nullable=True)
     text = Column(Text, nullable=True)
     username = Column(String(100), nullable=True)
     user_id = Column(String(100), nullable=True)
@@ -236,8 +274,8 @@ class Metric(Base):
 
     __tablename__ = "metrics"
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    post_id = Column(PG_UUID(as_uuid=True), ForeignKey("posts.id", ondelete="CASCADE"), nullable=True, index=True)
+    id = Column(GUID(), primary_key=True, default=uuid4)
+    post_id = Column(GUID(), ForeignKey("posts.id", ondelete="CASCADE"), nullable=True, index=True)
     platform = Column(String(50), nullable=False, index=True)
     entity_id = Column(String(100), nullable=False, index=True)
     entity_type = Column(String(20), nullable=False)  # post, account, media
@@ -263,9 +301,9 @@ class Schedule(Base):
 
     __tablename__ = "schedules"
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    user_id = Column(PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    post_id = Column(PG_UUID(as_uuid=True), ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(GUID(), primary_key=True, default=uuid4)
+    user_id = Column(GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    post_id = Column(GUID(), ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
     scheduled_at = Column(DateTime, nullable=False, index=True)
     timezone = Column(String(50), default="UTC", nullable=False)
     status = Column(String(20), default="pending", nullable=False)  # pending, sent, failed, cancelled
@@ -295,7 +333,7 @@ class MLModel(Base):
 
     __tablename__ = "ml_models"
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid4)
     name = Column(String(100), nullable=False, index=True)
     version = Column(String(50), nullable=False)
     model_type = Column(String(50), nullable=False)  # classification, regression, generation
@@ -327,8 +365,8 @@ class ModelPrediction(Base):
 
     __tablename__ = "model_predictions"
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    model_id = Column(PG_UUID(as_uuid=True), ForeignKey("ml_models.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(GUID(), primary_key=True, default=uuid4)
+    model_id = Column(GUID(), ForeignKey("ml_models.id", ondelete="CASCADE"), nullable=False, index=True)
     entity_id = Column(String(100), nullable=False, index=True)
     entity_type = Column(String(20), nullable=False)  # post, account, user
     input_data = Column(JSON, nullable=False, default=dict)
@@ -354,8 +392,8 @@ class SentimentAnalysis(Base):
 
     __tablename__ = "sentiment_analyses"
 
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    post_id = Column(PG_UUID(as_uuid=True), ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(GUID(), primary_key=True, default=uuid4)
+    post_id = Column(GUID(), ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
     platform = Column(String(50), nullable=False)
     text = Column(Text, nullable=False)
     sentiment = Column(String(20), nullable=False)  # positive, negative, neutral

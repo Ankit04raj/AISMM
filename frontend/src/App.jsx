@@ -16,18 +16,52 @@ import ReportsTab from './components/ReportsTab';
 import ModelsTab from './components/ModelsTab';
 import SettingsTab from './components/SettingsTab';
 import SecurityTab from './components/SecurityTab';
+import TermsPage from './components/TermsPage';
+import PrivacyPage from './components/PrivacyPage';
 import { getStoredUser, clearAuthSession } from './api/client';
 
 export default function App() {
-  const [view, setView] = useState('landing');
+  const [view, setView] = useState('landing'); // 'landing' | 'dashboard' | 'terms' | 'privacy'
   const [activeTab, setActiveTab] = useState('overview');
   const [refreshKey, setRefreshKey] = useState(0);
   const [currentUser, setCurrentUser] = useState(getStoredUser());
   const [showAuthModal, setShowAuthModal] = useState(false);
 
+  // Synchronize initial URL hash for route continuity
   useEffect(() => {
     setCurrentUser(getStoredUser());
+
+    const hash = window.location.hash.replace('#', '').toLowerCase();
+    if (hash === 'terms') {
+      setView('terms');
+    } else if (hash === 'privacy') {
+      setView('privacy');
+    } else if (hash.startsWith('tab-')) {
+      const tabName = hash.replace('tab-', '');
+      setActiveTab(tabName);
+      setView('dashboard');
+    }
+
+    const onHashChange = () => {
+      const h = window.location.hash.replace('#', '').toLowerCase();
+      if (h === 'terms') setView('terms');
+      else if (h === 'privacy') setView('privacy');
+      else if (h.startsWith('tab-')) {
+        setActiveTab(h.replace('tab-', ''));
+        setView('dashboard');
+      } else if (h === 'landing' || !h) {
+        setView('landing');
+      }
+    };
+
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
+
+  const handleNavigateTab = (tab) => {
+    setActiveTab(tab);
+    window.location.hash = `tab-${tab}`;
+  };
 
   const handleRefresh = () => {
     setRefreshKey((k) => k + 1);
@@ -37,13 +71,23 @@ export default function App() {
     setCurrentUser(user);
     setShowAuthModal(false);
     setView('dashboard');
+    window.location.hash = 'tab-overview';
   };
 
   const handleLogout = () => {
     clearAuthSession();
     setCurrentUser(null);
     setView('landing');
+    window.location.hash = '';
   };
+
+  if (view === 'terms') {
+    return <TermsPage onBack={() => { setView('dashboard'); window.location.hash = 'tab-overview'; }} />;
+  }
+
+  if (view === 'privacy') {
+    return <PrivacyPage onBack={() => { setView('dashboard'); window.location.hash = 'tab-overview'; }} />;
+  }
 
   if (view === 'landing') {
     return (
@@ -52,6 +96,7 @@ export default function App() {
           onLaunchDashboard={() => {
             if (currentUser) {
               setView('dashboard');
+              window.location.hash = 'tab-overview';
             } else {
               setShowAuthModal(true);
             }
@@ -72,7 +117,7 @@ export default function App() {
     <div className="min-h-screen bg-[#07090E] text-[#F1F5F9] flex flex-col selection:bg-[#7C3AED] selection:text-white font-['Plus_Jakarta_Sans']">
       {/* Top Navigation Bar */}
       <Navbar
-        onGoHome={() => setView('landing')}
+        onGoHome={() => { setView('landing'); window.location.hash = ''; }}
         activeTab={activeTab}
         onRefresh={handleRefresh}
         onOpenAuth={() => setShowAuthModal(true)}
@@ -82,11 +127,11 @@ export default function App() {
 
       {/* Main Studio Workspace Layout */}
       <div className="flex-1 flex flex-row overflow-hidden">
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <Sidebar activeTab={activeTab} setActiveTab={handleNavigateTab} />
 
         <main className="flex-1 p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
           {/* Module 03: Dashboard Overview */}
-          {activeTab === 'overview' && <OverviewTab onNavigateTab={setActiveTab} key={refreshKey} />}
+          {activeTab === 'overview' && <OverviewTab onNavigateTab={handleNavigateTab} key={refreshKey} />}
 
           {/* Module 04: Analytics Dashboard */}
           {activeTab === 'analytics' && <AnalyticsTab key={refreshKey} />}

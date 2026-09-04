@@ -78,12 +78,14 @@ class UserProfile(BaseModel):
     created_at: datetime
     is_active: bool = True
     is_verified: bool = False
+    two_factor_enabled: bool = False
 
 
 class UserLoginRequest(BaseModel):
     """User login request."""
     email: str = Field(..., description="User email")
     password: str = Field(..., description="User password")
+    two_factor_code: Optional[str] = Field(None, description="Optional 6-digit 2FA code")
     remember_me: bool = Field(default=False, description="Extended session")
 
 
@@ -93,6 +95,7 @@ class UserLoginResponse(BaseModel):
     token_type: str = "Bearer"
     expires_in: int
     refresh_token: str
+    requires_2fa: bool = False
     user: UserProfile
 
 
@@ -114,6 +117,28 @@ class AppTokenRefreshResponse(BaseModel):
     token_type: str = "Bearer"
     expires_in: int
     refresh_token: Optional[str] = None
+
+
+class VerifyEmailRequest(BaseModel):
+    """Request to verify user email address."""
+    token: Optional[str] = Field(None, description="Email verification token")
+    code: Optional[str] = Field(None, description="6-digit verification code")
+
+
+class TwoFactorSetupResponse(BaseModel):
+    """Response containing 2FA secret and setup URI."""
+    secret: str = Field(..., description="Base32 TOTP secret key")
+    otpauth_url: str = Field(..., description="Standard otpauth URI for QR codes")
+
+
+class TwoFactorVerifyRequest(BaseModel):
+    """Request to verify or toggle 2FA."""
+    code: str = Field(..., min_length=6, max_length=6, description="6-digit TOTP code")
+
+
+class LogoutRequest(BaseModel):
+    """Request to invalidate active tokens upon logout."""
+    refresh_token: Optional[str] = Field(None, description="Refresh token to revoke")
 
 
 class PasswordResetRequest(BaseModel):

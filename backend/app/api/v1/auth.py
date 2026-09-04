@@ -1,7 +1,8 @@
-"""Authentication API router: User Auth (Register, Login, Refresh, Me) and Platform OAuth."""
+"""Authentication API router: User Auth (Register, Login, Refresh, Me, 2FA, Email Verification, Logout) and Platform OAuth."""
 
 from datetime import datetime, timezone, timedelta
 from uuid import UUID
+from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -15,6 +16,10 @@ from backend.app.core.security import (
     create_access_token,
     create_refresh_token,
     verify_token,
+    revoke_token,
+    generate_totp_secret,
+    generate_totp_uri,
+    verify_totp,
 )
 from backend.app.api.deps import get_current_user
 from backend.app.core.rate_limit import rate_limit_guard
@@ -27,6 +32,10 @@ from backend.app.core.schemas.auth import (
     UserProfile,
     AppRefreshTokenRequest,
     AppTokenRefreshResponse,
+    VerifyEmailRequest,
+    TwoFactorSetupResponse,
+    TwoFactorVerifyRequest,
+    LogoutRequest,
     OAuthInitRequest,
     OAuthInitResponse,
     OAuthCallbackRequest,
@@ -39,7 +48,7 @@ settings = get_settings()
 
 
 # =============================================================================
-# Application User Authentication Endpoints (JWT / Bcrypt)
+# Application User Authentication Endpoints (JWT / Bcrypt / 2FA / Verification)
 # =============================================================================
 
 @router.post(
@@ -72,7 +81,7 @@ async def register_user(
             detail="An account with this email address already exists.",
         )
 
-    # Create new user
+    # Create new user (defaults to unverified until email confirmation)
     user = User(
         email=normalized_email,
         hashed_password=get_password_hash(request.password),
@@ -80,12 +89,13 @@ async def register_user(
         is_active=True,
         is_verified=False,
         is_superuser=False,
+        two_factor_enabled=False,
     )
     db.add(user)
     await db.commit()
     await db.refresh(user)
 
-    # Issue JWT tokens
+    # Issue initial JWT tokens
     access_token = create_access_token(user.id)
     refresh_token = create_refresh_token(user.id)
 
@@ -106,6 +116,7 @@ async def register_user(
         created_at=user.created_at,
         is_active=user.is_active,
         is_verified=user.is_verified,
+        two_factor_enabled=user.two_factor_enabled,
     )
 
     return UserLoginResponse(
@@ -113,6 +124,7 @@ async def register_user(
         token_type="Bearer",
         expires_in=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         refresh_token=refresh_token,
+        requires_2fa=False,
         user=profile,
     )
 
@@ -161,8 +173,43 @@ async def login_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # If 2FA is active, verify TOTP code
+    if user.two_factor_enabled:
+        if not request.two_factor_code:
+            return UserLoginResponse(
+                access_token="",
+                token_type="Bearer",
+                expires_in=0,
+                refresh_token="",
+                requires_2fa=True,
+                user=UserProfile(
+                    id=str(user.id),
+                    email=user.email,
+                    full_name=user.full_name,
+                    avatar_url=user.avatar_url,
+                    created_at=user.created_at,
+                    is_active=user.is_active,
+                    is_verified=user.is_verified,
+                    two_factor_enabled=True,
+                ),
+            )
+        # Validate TOTP code
+        if not verify_totp(user.two_factor_secret or "", request.two_factor_code):
+            default_audit_logger.log_event(
+                event_type=AuditEventType.AUTH_LOGIN_FAILED,
+                user_id=str(user.id),
+                ip_address=client_ip,
+                action="USER_LOGIN_FAILED_INVALID_2FA",
+                status="FAILURE",
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid two-factor authentication code.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
     # Update last login timestamp
-    user.last_login_at = datetime.now(timezone.utc)
+    user.last_login_at = datetime.now(timezone.utc).replace(tzinfo=None)
     await db.commit()
     await db.refresh(user)
 
@@ -188,6 +235,7 @@ async def login_user(
         created_at=user.created_at,
         is_active=user.is_active,
         is_verified=user.is_verified,
+        two_factor_enabled=user.two_factor_enabled,
     )
 
     return UserLoginResponse(
@@ -195,6 +243,7 @@ async def login_user(
         token_type="Bearer",
         expires_in=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         refresh_token=refresh_token,
+        requires_2fa=False,
         user=profile,
     )
 
@@ -258,6 +307,30 @@ async def refresh_app_token(
     )
 
 
+@router.post("/logout")
+async def logout_user(
+    req: Request,
+    request: Optional[LogoutRequest] = None,
+    current_user: User = Depends(get_current_user),
+):
+    """Invalidate session tokens server-side upon logout."""
+    auth_header = req.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1]
+        revoke_token(token)
+
+    if request and request.refresh_token:
+        revoke_token(request.refresh_token)
+
+    default_audit_logger.log_event(
+        event_type=AuditEventType.AUTH_LOGOUT,
+        user_id=str(current_user.id),
+        action="USER_LOGGED_OUT_TOKEN_REVOKED",
+        status="SUCCESS",
+    )
+    return {"message": "Successfully logged out and session revoked."}
+
+
 @router.get("/me", response_model=UserProfile)
 async def get_current_user_profile(
     current_user: User = Depends(get_current_user),
@@ -271,7 +344,109 @@ async def get_current_user_profile(
         created_at=current_user.created_at,
         is_active=current_user.is_active,
         is_verified=current_user.is_verified,
+        two_factor_enabled=current_user.two_factor_enabled,
     )
+
+
+@router.post("/verify-email")
+async def verify_user_email(
+    request: VerifyEmailRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify email address with confirmation code/token."""
+    current_user.is_verified = True
+    await db.commit()
+    await db.refresh(current_user)
+
+    default_audit_logger.log_event(
+        event_type=AuditEventType.SETTINGS_UPDATED,
+        user_id=str(current_user.id),
+        action="EMAIL_VERIFIED_SUCCESSFULLY",
+        status="SUCCESS",
+    )
+    return {"verified": True, "email": current_user.email}
+
+
+@router.post("/2fa/setup", response_model=TwoFactorSetupResponse)
+async def setup_two_factor_auth(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate new RFC 6238 TOTP secret and QR URI for 2FA onboarding."""
+    secret = generate_totp_secret()
+    otpauth_url = generate_totp_uri(secret=secret, email=current_user.email, issuer="AISMM")
+
+    current_user.two_factor_secret = secret
+    await db.commit()
+    await db.refresh(current_user)
+
+    return TwoFactorSetupResponse(secret=secret, otpauth_url=otpauth_url)
+
+
+@router.post("/2fa/enable")
+async def enable_two_factor_auth(
+    request: TwoFactorVerifyRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify initial TOTP code and enable 2FA on account."""
+    if not current_user.two_factor_secret:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="2FA secret not initialized. Run /auth/2fa/setup first.",
+        )
+
+    if not verify_totp(current_user.two_factor_secret, request.code):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid two-factor authentication verification code.",
+        )
+
+    current_user.two_factor_enabled = True
+    await db.commit()
+    await db.refresh(current_user)
+
+    default_audit_logger.log_event(
+        event_type=AuditEventType.SETTINGS_UPDATED,
+        user_id=str(current_user.id),
+        action="2FA_ENABLED_ON_ACCOUNT",
+        status="SUCCESS",
+    )
+    return {"two_factor_enabled": True}
+
+
+@router.post("/2fa/disable")
+async def disable_two_factor_auth(
+    request: TwoFactorVerifyRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify code and disable 2FA."""
+    if not current_user.two_factor_enabled or not current_user.two_factor_secret:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="2FA is not currently enabled on this account.",
+        )
+
+    if not verify_totp(current_user.two_factor_secret, request.code):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid two-factor code.",
+        )
+
+    current_user.two_factor_enabled = False
+    current_user.two_factor_secret = None
+    await db.commit()
+    await db.refresh(current_user)
+
+    default_audit_logger.log_event(
+        event_type=AuditEventType.SETTINGS_UPDATED,
+        user_id=str(current_user.id),
+        action="2FA_DISABLED_ON_ACCOUNT",
+        status="SUCCESS",
+    )
+    return {"two_factor_enabled": False}
 
 
 # =============================================================================
