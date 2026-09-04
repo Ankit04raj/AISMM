@@ -1,1105 +1,827 @@
-<title>AISMM Studio</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg-base: #080b11;
-    --bg-surface: #0f1422;
-    --bg-surface-elevated: #151b2e;
-    --bg-surface-dark: #070a10;
-    --border-subtle: #1e263d;
-    --border-strong: #2e3856;
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-    --accent-primary: #6366f1;
-    --accent-hover: #4f46e5;
-    --accent-glow: rgba(99, 102, 241, 0.25);
-    --emerald-accent: #10b981;
-    --amber-accent: #f59e0b;
-    --rose-accent: #f43f5e;
-    --font-heading: 'Plus Jakarta Sans', -apple-system, sans-serif;
-    --font-body: 'Inter', -apple-system, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
-  }
-
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
-
-  body {
-    background-color: var(--bg-base);
-    color: var(--text-primary);
-    font-family: var(--font-body);
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
-  }
-
-  h1, h2, h3, h4, .font-heading {
-    font-family: var(--font-heading);
-    letter-spacing: -0.025em;
-  }
-
-  .font-mono {
-    font-family: var(--font-mono);
-  }
-
-  /* Header */
-  header {
-    height: 64px;
-    border-bottom: 1px solid var(--border-subtle);
-    background: rgba(8, 11, 17, 0.85);
-    backdrop-filter: blur(12px);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 24px;
-    position: sticky;
-    top: 0;
-    z-index: 50;
-  }
-
-  .brand-logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-  }
-
-  .logo-icon {
-    width: 34px;
-    height: 34px;
-    background: linear-gradient(135deg, var(--accent-primary), #8b5cf6);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 800;
-    font-size: 16px;
-    box-shadow: 0 4px 14px var(--accent-glow);
-  }
-
-  .brand-title {
-    font-weight: 800;
-    font-size: 18px;
-    letter-spacing: -0.03em;
-  }
-
-  .nav-tabs {
-    display: flex;
-    gap: 6px;
-    background: var(--bg-surface-dark);
-    padding: 4px;
-    border-radius: 10px;
-    border: 1px solid var(--border-subtle);
-  }
-
-  .nav-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    padding: 6px 14px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-
-  .nav-btn.active {
-    background: var(--accent-primary);
-    color: #fff;
-    box-shadow: 0 2px 8px var(--accent-glow);
-  }
-
-  .badge-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 9999px;
-    background: rgba(16, 185, 129, 0.12);
-    color: var(--emerald-accent);
-    border: 1px solid rgba(16, 185, 129, 0.25);
-  }
-
-  .pulse-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--emerald-accent);
-    box-shadow: 0 0 8px var(--emerald-accent);
-  }
-
-  /* Hero */
-  .hero-section {
-    padding: 48px 24px 32px;
-    max-width: 1200px;
-    margin: 0 auto;
-    text-align: center;
-  }
-
-  .hero-eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 12px;
-    border-radius: 9999px;
-    background: var(--bg-surface-elevated);
-    border: 1px solid var(--border-subtle);
-    color: #c7d2fe;
-    font-size: 11px;
-    font-weight: 600;
-    margin-bottom: 20px;
-  }
-
-  .hero-title {
-    font-size: clamp(32px, 5vw, 56px);
-    font-weight: 800;
-    line-height: 1.15;
-    margin-bottom: 16px;
-    color: #fff;
-  }
-
-  .hero-gradient-text {
-    background: linear-gradient(135deg, #a5b4fc, #818cf8, #c084fc);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-
-  .hero-desc {
-    font-size: 16px;
-    color: var(--text-secondary);
-    max-width: 760px;
-    margin: 0 auto 32px;
-  }
-
-  /* Platform Bar */
-  .platform-chips {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 40px;
-  }
-
-  .platform-chip {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border-subtle);
-    border-radius: 12px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .platform-chip .icon-box {
-    width: 20px;
-    height: 20px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: 800;
-  }
-
-  /* Interactive Studio Canvas */
-  .studio-container {
-    max-width: 1200px;
-    margin: 0 auto 60px;
-    padding: 0 24px;
-  }
-
-  .studio-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-subtle);
-    border-radius: 20px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-    overflow: hidden;
-  }
-
-  .studio-header {
-    background: var(--bg-surface-dark);
-    border-bottom: 1px solid var(--border-subtle);
-    padding: 12px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-
-  .studio-subtabs {
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-  }
-
-  .subtab-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    font-size: 12px;
-    font-weight: 600;
-    padding: 6px 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
-  }
-
-  .subtab-btn:hover {
-    color: var(--text-primary);
-    background: var(--bg-surface-elevated);
-  }
-
-  .subtab-btn.active {
-    color: #fff;
-    background: var(--border-subtle);
-  }
-
-  .studio-body {
-    padding: 24px;
-  }
-
-  /* Grid Layouts */
-  .grid-split {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
-  }
-
-  @media (max-width: 860px) {
-    .grid-split {
-      grid-template-columns: 1fr;
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AISMM — Universal Multi-Platform AI Social Media Management</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            obsidian: {
+              bg: '#07090E',
+              card: '#0D121F',
+              cardHover: '#131B2E',
+              border: '#1E293B',
+              subtle: '#2A364F',
+            },
+            brand: {
+              400: '#a78bfa',
+              500: '#8b5cf6',
+              600: '#7C3AED', // Electric Violet
+              700: '#6d28d9',
+            },
+            neon: {
+              cyan: '#06B6D4',
+              cyanGlow: '#22D3EE',
+              violet: '#7C3AED',
+            }
+          }
+        }
+      }
     }
-  }
+  </script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      background-color: #07090E;
+      color: #F1F5F9;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #07090E;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1E293B;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+  </style>
+</head>
+<body class="bg-[#07090E] text-slate-100 min-h-screen flex flex-col selection:bg-[#7C3AED] selection:text-white">
 
-  .input-panel, .preview-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .panel-title {
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  textarea.prompt-input {
-    width: 100%;
-    background: var(--bg-surface-dark);
-    border: 1px solid var(--border-subtle);
-    border-radius: 12px;
-    padding: 14px;
-    color: var(--text-primary);
-    font-family: var(--font-body);
-    font-size: 13px;
-    line-height: 1.6;
-    resize: none;
-    height: 130px;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-
-  textarea.prompt-input:focus {
-    border-color: var(--accent-primary);
-  }
-
-  .btn-primary {
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
-    color: white;
-    border: none;
-    padding: 10px 18px;
-    border-radius: 10px;
-    font-weight: 700;
-    font-size: 13px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: transform 0.1s, opacity 0.15s;
-    box-shadow: 0 4px 12px var(--accent-glow);
-  }
-
-  .btn-primary:hover {
-    opacity: 0.95;
-    transform: translateY(-1px);
-  }
-
-  /* Preview Canvas */
-  .preview-canvas {
-    background: var(--bg-surface-dark);
-    border: 1px solid var(--border-subtle);
-    border-radius: 14px;
-    padding: 18px;
-    min-height: 240px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-  }
-
-  .preview-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 12px;
-  }
-
-  .preview-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #ec4899, #8b5cf6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 800;
-    color: #fff;
-  }
-
-  .preview-text {
-    font-size: 13px;
-    line-height: 1.6;
-    color: #e2e8f0;
-    white-space: pre-wrap;
-    margin-bottom: 14px;
-  }
-
-  .preview-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .tag-pill {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    padding: 3px 8px;
-    border-radius: 6px;
-    background: rgba(99, 102, 241, 0.12);
-    color: #a5b4fc;
-    border: 1px solid rgba(99, 102, 241, 0.25);
-  }
-
-  /* Diagnostics Row */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px;
-    margin-top: 16px;
-  }
-
-  .stat-card {
-    background: var(--bg-surface-dark);
-    border: 1px solid var(--border-subtle);
-    border-radius: 10px;
-    padding: 12px;
-  }
-
-  .stat-label {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-bottom: 4px;
-  }
-
-  .stat-val {
-    font-size: 16px;
-    font-weight: 800;
-    color: var(--emerald-accent);
-  }
-
-  /* Heatmap */
-  .heatmap-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 11px;
-    text-align: center;
-  }
-
-  .heatmap-table th {
-    padding: 8px 4px;
-    color: var(--text-muted);
-    font-weight: 600;
-  }
-
-  .heatmap-table td {
-    padding: 4px;
-  }
-
-  .heat-slot {
-    height: 28px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 10px;
-    border: 1px solid transparent;
-  }
-
-  .heat-peak {
-    background: var(--accent-primary);
-    color: #fff;
-    box-shadow: 0 0 10px var(--accent-glow);
-    border-color: #818cf8;
-  }
-
-  .heat-high {
-    background: rgba(99, 102, 241, 0.4);
-    color: #e0e7ff;
-  }
-
-  .heat-med {
-    background: rgba(99, 102, 241, 0.15);
-    color: #94a3b8;
-  }
-
-  .heat-low {
-    background: var(--bg-surface-dark);
-    color: var(--text-muted);
-  }
-
-  /* Instructions Card */
-  .instructions-box {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-subtle);
-    border-radius: 16px;
-    padding: 24px;
-    margin: 40px auto 60px;
-    max-width: 1200px;
-  }
-
-  .inst-step {
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-    margin-bottom: 16px;
-  }
-
-  .step-num {
-    width: 26px;
-    height: 26px;
-    background: var(--bg-surface-elevated);
-    border: 1px solid var(--border-strong);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 800;
-    color: var(--accent-primary);
-    flex-shrink: 0;
-    margin-top: 2px;
-  }
-
-  .step-content h4 {
-    font-size: 14px;
-    font-weight: 700;
-    margin-bottom: 4px;
-    color: #fff;
-  }
-
-  .step-content p {
-    font-size: 12px;
-    color: var(--text-secondary);
-    line-height: 1.5;
-  }
-
-  .code-snippet {
-    background: var(--bg-surface-dark);
-    border: 1px solid var(--border-subtle);
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: #38bdf8;
-    margin-top: 6px;
-    display: block;
-    overflow-x: auto;
-  }
-</style>
-
-<header>
-  <div class="brand-logo" onclick="switchView('landing')">
-    <div class="logo-icon">⚡</div>
-    <div>
-      <div class="brand-title">AISMM Studio</div>
-    </div>
-  </div>
-
-  <div class="nav-tabs">
-    <button class="nav-btn active" id="btn-landing" onclick="switchView('landing')">Interactive Landing</button>
-    <button class="nav-btn" id="btn-studio" onclick="switchView('studio')">Live Studio Dashboard</button>
-    <button class="nav-btn" id="btn-guide" onclick="switchView('guide')">Operation Guide</button>
-  </div>
-
-  <div class="badge-status">
-    <span class="pulse-dot"></span>
-    <span>194 Tests Passed (100%)</span>
-  </div>
-</header>
-
-<!-- VIEW: LANDING -->
-<div id="view-landing">
-  <section class="hero-section">
-    <div class="hero-eyebrow">
-      <span>✦</span>
-      <span>Autonomous Universal Social Media Intelligence</span>
-    </div>
-
-    <h1 class="hero-title">
-      Create Content Once.<br>
-      <span class="hero-gradient-text">AI Adapts Everywhere.</span>
-    </h1>
-
-    <p class="hero-desc">
-      A modular, platform-agnostic AI ecosystem that schedules at peak engagement windows, predicts follower growth with 89.2% R², analyzes dual-phase sentiment, and auto-replies across all 5 major platforms.
-    </p>
-
-    <div class="platform-chips">
-      <div class="platform-chip">
-        <div class="icon-box" style="background: linear-gradient(135deg, #ec4899, #a855f7); color:#fff;">IG</div>
-        <span>Instagram</span>
-      </div>
-      <div class="platform-chip">
-        <div class="icon-box" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); color:#fff;">FB</div>
-        <span>Facebook</span>
-      </div>
-      <div class="platform-chip">
-        <div class="icon-box" style="background: #1e293b; color:#fff;">X</div>
-        <span>X (Twitter)</span>
-      </div>
-      <div class="platform-chip">
-        <div class="icon-box" style="background: #0284c7; color:#fff;">IN</div>
-        <span>LinkedIn</span>
-      </div>
-      <div class="platform-chip">
-        <div class="icon-box" style="background: #e11d48; color:#fff;">YT</div>
-        <span>YouTube</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- Interactive Studio Demo Box -->
-  <div class="studio-container">
-    <div class="studio-card">
-      <div class="studio-header">
-        <span style="font-size: 13px; font-weight: 700; color: #fff;">Interactive AI Content Adaptor</span>
-        <div class="studio-subtabs">
-          <button class="subtab-btn active" id="tab-ig" onclick="setPlatform('instagram')">Instagram</button>
-          <button class="subtab-btn" id="tab-fb" onclick="setPlatform('facebook')">Facebook</button>
-          <button class="subtab-btn" id="tab-x" onclick="setPlatform('x')">X (Twitter)</button>
-          <button class="subtab-btn" id="tab-li" onclick="setPlatform('linkedin')">LinkedIn</button>
-          <button class="subtab-btn" id="tab-yt" onclick="setPlatform('youtube')">YouTube</button>
+  <!-- Top Navigation -->
+  <header class="h-16 border-b border-[#1E293B] bg-[#07090E]/90 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-50">
+    <div class="flex items-center space-x-8">
+      <div class="flex items-center space-x-2.5 cursor-pointer" onclick="switchView('landing')">
+        <div class="h-8 w-8 rounded-xl bg-gradient-to-tr from-[#7C3AED] to-[#06B6D4] flex items-center justify-center text-white shadow-lg shadow-[#7C3AED]/30 font-bold text-sm">
+          ⚡
         </div>
+        <span class="font-extrabold text-lg tracking-tight text-white">AISMM</span>
       </div>
 
-      <div class="studio-body">
-        <div class="grid-split">
-          <!-- Left: Input -->
-          <div class="input-panel">
-            <div class="panel-title">
-              <span>Your Draft Idea or Announcement</span>
-              <span style="font-size: 10px; color: var(--text-muted);" id="word-count">21 words</span>
-            </div>
-            <textarea class="prompt-input" id="draft-input" oninput="updateWordCount()">Unveiling our new AI Social Media platform today! Automate peak publishing, sentiment tracking, and multi-channel reach. #tech</textarea>
+      <nav class="hidden md:flex items-center space-x-6 text-xs font-semibold text-slate-400">
+        <span class="hover:text-white cursor-pointer transition-colors" onclick="switchView('landing')">Landing (01)</span>
+        <span class="hover:text-white cursor-pointer transition-colors" onclick="openAuthModal('signin')">Auth Flow (02)</span>
+        <span class="hover:text-white cursor-pointer transition-colors" onclick="switchView('studio'); switchTab('overview');">Dashboard (03)</span>
+        <span class="hover:text-white cursor-pointer transition-colors" onclick="switchView('studio'); switchTab('composer');">Composer (05)</span>
+        <span class="hover:text-white cursor-pointer transition-colors" onclick="switchView('studio'); switchTab('ai-engine');">AI Engine (06)</span>
+        <span class="hover:text-white cursor-pointer transition-colors" onclick="switchView('studio'); switchTab('scheduling');">Scheduling (07)</span>
+      </nav>
+    </div>
 
-            <button class="btn-primary" onclick="runAIOptimize()">
-              <span>⚡ Synthesize Platform Adaptation</span>
+    <div class="flex items-center space-x-3">
+      <div class="hidden sm:flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono">
+        <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="backend-status-badge">Backend Connected • 216 Tests</span>
+      </div>
+      <button onclick="openAuthModal('signin')" class="text-xs font-bold text-slate-300 hover:text-white px-3 py-2 transition-colors">
+        Sign In
+      </button>
+      <button onclick="switchView('studio')" class="px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold text-xs shadow-lg shadow-[#7C3AED]/30 transition-all flex items-center space-x-1.5">
+        <span>Get Started / Studio</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===================================================================== -->
+  <!-- 01 LANDING PAGE VIEW -->
+  <!-- ===================================================================== -->
+  <main id="view-landing" class="flex-1">
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+
+        <!-- Left Hero Area -->
+        <div class="lg:col-span-6 space-y-6 text-left">
+          <div class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#0D121F] border border-[#1E293B] text-slate-300 text-xs font-medium">
+            <span>🪄 AI-Powered Social Media Management</span>
+          </div>
+
+          <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.1] text-white">
+            The Future of <br />
+            <span class="text-white">Social Media is AI</span>
+          </h1>
+
+          <p className="text-sm sm:text-base text-slate-400 max-w-xl leading-relaxed">
+            AISMM is the world's first complete AI-powered social media management platform with 13 research-backed modules and enterprise-grade architecture.
+          </p>
+
+          <!-- 4 Stats Pill Row -->
+          <div class="grid grid-cols-4 gap-2.5 max-w-lg">
+            <div class="bg-[#0D121F] border border-[#1E293B] rounded-2xl p-3 text-center shadow-lg">
+              <div class="text-xl font-extrabold text-[#7C3AED] font-mono">13</div>
+              <div class="text-[10px] text-slate-400 font-medium mt-0.5">AI Modules</div>
+            </div>
+            <div class="bg-[#0D121F] border border-[#1E293B] rounded-2xl p-3 text-center shadow-lg">
+              <div class="text-xl font-extrabold text-[#7C3AED] font-mono">5+</div>
+              <div class="text-[10px] text-slate-400 font-medium mt-0.5">Platforms</div>
+            </div>
+            <div class="bg-[#0D121F] border border-[#1E293B] rounded-2xl p-3 text-center shadow-lg">
+              <div class="text-xl font-extrabold text-[#7C3AED] font-mono">194</div>
+              <div class="text-[10px] text-slate-400 font-medium mt-0.5">Tests Passing</div>
+            </div>
+            <div class="bg-[#0D121F] border border-[#1E293B] rounded-2xl p-3 text-center shadow-lg">
+              <div class="text-xl font-extrabold text-[#7C3AED] font-mono">99.9%</div>
+              <div class="text-[10px] text-slate-400 font-medium mt-0.5">Uptime</div>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-3 pt-2">
+            <button onclick="switchView('studio'); switchTab('composer')" class="px-6 py-3 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold text-xs shadow-xl shadow-[#7C3AED]/30 transition-all">
+              Explore Live Demo
+            </button>
+            <button onclick="switchView('studio'); switchTab('overview')" class="px-6 py-3 rounded-xl bg-[#0D121F] hover:bg-[#131B2E] border border-[#1E293B] text-slate-200 font-bold text-xs transition-all">
+              View Dashboard
+            </button>
+          </div>
+
+          <div class="pt-2 text-[11px] text-slate-500 font-mono">
+            <div>Built with ❤️ by AISMM Team</div>
+            <div class="text-slate-600 mt-0.5">Research Backed • Production Ready • Enterprise Grade</div>
+          </div>
+
+          <!-- 3D Holographic Cube Visual -->
+          <div class="pt-6 pb-2 flex items-center justify-center">
+            <div class="relative w-72 h-72 bg-[#0D121F]/80 border border-[#1E293B] rounded-3xl p-4 flex items-center justify-center shadow-2xl backdrop-blur-sm">
+              <div class="absolute top-4 left-6 w-8 h-8 rounded-full bg-pink-600/30 border border-pink-500/50 flex items-center justify-center text-pink-300 text-xs font-bold">IG</div>
+              <div class="absolute top-4 right-6 w-8 h-8 rounded-full bg-blue-600/30 border border-blue-500/50 flex items-center justify-center text-blue-300 text-xs font-bold">FB</div>
+              <div class="absolute bottom-6 left-6 w-8 h-8 rounded-full bg-slate-700/50 border border-slate-500/50 flex items-center justify-center text-slate-200 text-xs font-bold">X</div>
+              <div class="absolute bottom-6 right-6 w-8 h-8 rounded-full bg-cyan-600/30 border border-cyan-500/50 flex items-center justify-center text-cyan-300 text-xs font-bold">LI</div>
+
+              <svg viewBox="0 0 160 160" class="w-40 h-40 drop-shadow-[0_0_25px_rgba(124,58,237,0.5)]">
+                <ellipse cx="80" cy="80" rx="70" ry="35" fill="none" stroke="#1E293B" stroke-width="1.5" />
+                <ellipse cx="80" cy="80" rx="55" ry="25" fill="none" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="4 4" />
+                <polygon points="80,25 125,50 80,75 35,50" fill="#7C3AED" fill-opacity="0.85" stroke="#C4B5FD" stroke-width="1.5" />
+                <polygon points="35,50 80,75 80,125 35,100" fill="#0D121F" stroke="#06B6D4" stroke-width="1.5" />
+                <polygon points="80,75 125,50 125,100 80,125" fill="#131B2E" stroke="#7C3AED" stroke-width="1.5" />
+                <text x="80" y="80" fill="#22D3EE" font-size="14" font-weight="900" text-anchor="middle" dominant-baseline="middle">AI</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side: AI Engine Live Preview & AI Adapted Outputs -->
+        <div class="lg:col-span-6 space-y-5">
+          <!-- Live Preview Box -->
+          <div class="bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-[#1E293B] pb-3">
+              <div>
+                <h3 class="font-extrabold text-sm text-white">AI Engine Live Preview</h3>
+                <p class="text-[11px] text-slate-400">Try our AI Content Adaptation</p>
+              </div>
+              <span class="text-xs text-[#06B6D4]">✦ Live</span>
+            </div>
+
+            <div class="bg-[#07090E] border border-[#1E293B] rounded-2xl p-3.5">
+              <textarea id="landing-input" rows="3" class="w-full bg-transparent text-xs text-slate-200 focus:outline-none resize-none leading-relaxed">Just launched our new AI-powered analytics dashboard! 🚀 The insights are incredible! #AI #Analytics #Dashboard</textarea>
+            </div>
+
+            <button onclick="runLandingOptimize()" class="w-full py-2.5 bg-[#7C3AED] hover:bg-[#6D28D9] rounded-xl text-xs font-bold text-white shadow-lg shadow-[#7C3AED]/25 transition-all flex items-center justify-center space-x-2">
+              <span>Optimize Content</span>
             </button>
 
-            <div class="stats-grid">
-              <div class="stat-card">
-                <div class="stat-label">Quality Score</div>
-                <div class="stat-val" id="score-val">88.5 / 100</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label">Sentiment Index</div>
-                <div class="stat-val" id="sent-val">+0.74 (Pos)</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label">Peak Slot</div>
-                <div class="stat-val" style="color:#818cf8;">Wed 19:00</div>
+            <!-- Diagnostics -->
+            <div class="pt-2">
+              <div class="text-[10px] uppercase font-bold text-slate-400 font-mono mb-2">Live AI Diagnostics</div>
+              <div class="grid grid-cols-3 gap-2 text-center font-mono">
+                <div class="bg-[#07090E] border border-[#1E293B] rounded-xl p-2.5">
+                  <div class="text-[10px] text-slate-500">Caption Quality</div>
+                  <div class="text-xs font-bold text-emerald-400 mt-1">92.4 / 100</div>
+                  <div class="text-[9px] text-emerald-500">● Excellent</div>
+                </div>
+                <div class="bg-[#07090E] border border-[#1E293B] rounded-xl p-2.5">
+                  <div class="text-[10px] text-slate-500">Sentiment Score</div>
+                  <div class="text-xs font-bold text-emerald-400 mt-1">+0.84</div>
+                  <div class="text-[9px] text-emerald-500">● Very Positive</div>
+                </div>
+                <div class="bg-[#07090E] border border-[#1E293B] rounded-xl p-2.5">
+                  <div class="text-[10px] text-slate-500">Best Time to Post</div>
+                  <div class="text-xs font-bold text-cyan-400 mt-1">Today, 7:00 PM</div>
+                  <div class="text-[9px] text-cyan-500">● Optimal Reach</div>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Right: Live Native Preview -->
-          <div class="preview-panel">
-            <div class="panel-title">
-              <span id="preview-title">Instagram Native Feed Preview</span>
-              <span class="tag-pill" id="adapted-badge">Synthesized in 11ms</span>
-            </div>
+          <!-- AI Adapted Outputs Cards -->
+          <div class="bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-2xl space-y-3">
+            <h3 class="font-extrabold text-sm text-white border-b border-[#1E293B] pb-3">AI Adapted Outputs</h3>
 
-            <div class="preview-canvas">
-              <div>
-                <div class="preview-header">
-                  <div class="preview-avatar" id="avatar-icon">A</div>
-                  <div>
-                    <div style="font-size: 12px; font-weight: 700; color: #fff;">AISMM Official</div>
-                    <div style="font-size: 10px; color: var(--text-muted);" id="preview-sub">Feed Post • Just now</div>
-                  </div>
-                </div>
-
-                <div class="preview-text" id="preview-body">
-Unveiling our new AI Social Media platform today! 🚀 Automate peak publishing, sentiment tracking, and multi-channel reach. Tap the link in bio to explore our live engine! ✨
-                </div>
+            <div class="space-y-2.5 max-h-[350px] overflow-y-auto pr-1">
+              <div class="p-3 bg-[#07090E] border border-[#1E293B] rounded-2xl space-y-1">
+                <div class="flex items-center space-x-2"><span class="w-5 h-5 rounded-lg bg-pink-600/20 text-pink-400 text-[10px] font-bold flex items-center justify-center">IG</span><span class="text-xs font-bold text-slate-200">Instagram</span></div>
+                <p class="text-[11px] text-slate-300">Big news! 🎉 Our AI-powered analytics dashboard is here! The insights are incredible! Link in bio! ✨<br><span class="text-[#06B6D4]">#AI #Analytics #Tech</span></p>
+                <div class="text-[10px] text-slate-500 font-mono">❤️ 2.4K • 💬 120</div>
               </div>
 
-              <div class="preview-tags" id="tags-container">
-                <span class="tag-pill">#AISMM</span>
-                <span class="tag-pill">#ArtificialIntelligence</span>
-                <span class="tag-pill">#Automation</span>
-                <span class="tag-pill">#SocialMediaMarketing</span>
-                <span class="tag-pill">#TechGrowth</span>
+              <div class="p-3 bg-[#07090E] border border-[#1E293B] rounded-2xl space-y-1">
+                <div class="flex items-center space-x-2"><span class="w-5 h-5 rounded-lg bg-slate-700/40 text-slate-300 text-[10px] font-bold flex items-center justify-center">X</span><span class="text-xs font-bold text-slate-200">X (Twitter)</span></div>
+                <p class="text-[11px] text-slate-300">Just launched: AI analytics dashboard. 📊 Real insights on audience engagement. 👇 #AI #Analytics</p>
+              </div>
+
+              <div class="p-3 bg-[#07090E] border border-[#1E293B] rounded-2xl space-y-1">
+                <div class="flex items-center space-x-2"><span class="w-5 h-5 rounded-lg bg-blue-600/20 text-blue-400 text-[10px] font-bold flex items-center justify-center">LI</span><span class="text-xs font-bold text-slate-200">LinkedIn</span></div>
+                <p class="text-[11px] text-slate-300">Real Insights. Real Impact. Our new AI dashboard is transforming data into decisions. #AI #Analytics #Leadership</p>
+              </div>
+
+              <div class="p-3 bg-[#07090E] border border-[#1E293B] rounded-2xl space-y-1">
+                <div class="flex items-center space-x-2"><span class="w-5 h-5 rounded-lg bg-indigo-600/20 text-indigo-400 text-[10px] font-bold flex items-center justify-center">FB</span><span class="text-xs font-bold text-slate-200">Facebook</span></div>
+                <p class="text-[11px] text-slate-300">Excited to share our new AI-powered analytics dashboard! Built for real insights and real results.</p>
               </div>
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Platform Integration Bar -->
+      <div class="mt-12 p-4 bg-[#0D121F] border border-[#1E293B] rounded-3xl shadow-xl">
+        <div class="text-[10px] uppercase font-bold text-slate-400 font-mono text-center mb-3">Platform Integration</div>
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div class="p-2.5 bg-[#07090E] rounded-2xl border border-[#1E293B] text-center"><div class="text-xs font-bold text-pink-400">Instagram</div><div class="text-[10px] text-emerald-400 font-mono">● 100% Verified</div></div>
+          <div class="p-2.5 bg-[#07090E] rounded-2xl border border-[#1E293B] text-center"><div class="text-xs font-bold text-slate-300">X (Twitter)</div><div class="text-[10px] text-emerald-400 font-mono">● 100% Verified</div></div>
+          <div class="p-2.5 bg-[#07090E] rounded-2xl border border-[#1E293B] text-center"><div class="text-xs font-bold text-blue-400">Facebook</div><div class="text-[10px] text-emerald-400 font-mono">● 100% Verified</div></div>
+          <div class="p-2.5 bg-[#07090E] rounded-2xl border border-[#1E293B] text-center"><div class="text-xs font-bold text-cyan-400">LinkedIn</div><div class="text-[10px] text-emerald-400 font-mono">● 100% Passing</div></div>
+          <div class="p-2.5 bg-[#07090E] rounded-2xl border border-[#1E293B] text-center"><div class="text-xs font-bold text-red-400">YouTube</div><div class="text-[10px] text-emerald-400 font-mono">● 100% Verified</div></div>
+        </div>
+      </div>
+
+      <!-- 4 Value Pillar Cards -->
+      <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="p-4 bg-[#0D121F] border border-[#1E293B] rounded-2xl flex items-center space-x-3.5"><div class="w-9 h-9 rounded-xl bg-[#07090E] border border-[#1E293B] flex items-center justify-center text-[#7C3AED]">🤖</div><div><h4 class="text-xs font-bold text-white">AI Powered</h4><p class="text-[11px] text-slate-400">Advanced ML Models</p></div></div>
+        <div class="p-4 bg-[#0D121F] border border-[#1E293B] rounded-2xl flex items-center space-x-3.5"><div class="w-9 h-9 rounded-xl bg-[#07090E] border border-[#1E293B] flex items-center justify-center text-[#06B6D4]">⚡</div><div><h4 class="text-xs font-bold text-white">Real-time</h4><p class="text-[11px] text-slate-400">Live Data Processing</p></div></div>
+        <div class="p-4 bg-[#0D121F] border border-[#1E293B] rounded-2xl flex items-center space-x-3.5"><div class="w-9 h-9 rounded-xl bg-[#07090E] border border-[#1E293B] flex items-center justify-center text-emerald-400">🔒</div><div><h4 class="text-xs font-bold text-white">Secure</h4><p class="text-[11px] text-slate-400">Enterprise Security</p></div></div>
+        <div class="p-4 bg-[#0D121F] border border-[#1E293B] rounded-2xl flex items-center space-x-3.5"><div class="w-9 h-9 rounded-xl bg-[#07090E] border border-[#1E293B] flex items-center justify-center text-pink-400">📦</div><div><h4 class="text-xs font-bold text-white">Scalable</h4><p class="text-[11px] text-slate-400">Built for Growth</p></div></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- 02 AUTHENTICATION MODAL (5 Progressive Steps) -->
+  <!-- ===================================================================== -->
+  <div id="auth-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4" hidden>
+    <div class="w-full max-w-md bg-[#0D121F] border border-[#1E293B] rounded-3xl shadow-2xl p-6 sm:p-8 relative overflow-hidden">
+      <button onclick="closeAuthModal()" class="absolute top-5 right-5 text-slate-500 hover:text-white font-bold text-sm">✕</button>
+
+      <!-- Step A: Sign In (Welcome Back!) -->
+      <div id="auth-step-signin">
+        <h3 class="font-extrabold text-lg text-white">Welcome Back!</h3>
+        <p class="text-xs text-slate-400 mt-0.5">Sign in to your AISMM account</p>
+
+        <div class="flex gap-2 p-1 bg-[#07090E] rounded-xl my-5 border border-[#1E293B]">
+          <button class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-[#7C3AED] text-white">Email</button>
+          <button class="flex-1 py-1.5 text-xs font-bold rounded-lg text-slate-400 hover:text-white">Phone</button>
+        </div>
+
+        <form onsubmit="handleAuthAction(event, 'signin')" class="space-y-3.5">
+          <div><label class="block text-[11px] font-bold text-slate-400 mb-1">Email</label><input id="signin-email" type="email" value="ankit@example.com" class="w-full bg-[#07090E] border border-[#1E293B] rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#7C3AED]" required /></div>
+          <div><label class="block text-[11px] font-bold text-slate-400 mb-1">Password</label><input id="signin-pass" type="password" value="Password123!" class="w-full bg-[#07090E] border border-[#1E293B] rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#7C3AED]" required /></div>
+          <div class="flex justify-between items-center text-xs text-slate-400"><label class="flex items-center gap-1.5"><input type="checkbox" checked class="accent-[#7C3AED] rounded" />Remember me</label><span class="text-[#7C3AED] cursor-pointer hover:underline">Forgot password?</span></div>
+          <button type="submit" class="w-full py-2.5 bg-[#7C3AED] hover:bg-[#6D28D9] rounded-xl text-xs font-bold text-white shadow-lg">Sign In</button>
+        </form>
+
+        <div class="mt-4 pt-3 border-t border-[#1E293B] text-center">
+          <span class="text-[11px] text-slate-400">Don't have an account? </span>
+          <button onclick="setAuthStep('signup')" class="text-[11px] font-bold text-[#7C3AED] hover:underline">Sign up</button>
+        </div>
+      </div>
+
+      <!-- Step B: Sign Up (Create Account) -->
+      <div id="auth-step-signup" hidden>
+        <h3 class="font-extrabold text-lg text-white">Create Account</h3>
+        <p class="text-xs text-slate-400 mt-0.5">Join AISMM today</p>
+        <form onsubmit="handleAuthAction(event, 'signup')" class="space-y-3 mt-4">
+          <div><label class="block text-[11px] font-bold text-slate-400 mb-1">Full Name</label><input id="signup-name" type="text" value="Ankit Raj" class="w-full bg-[#07090E] border border-[#1E293B] rounded-xl px-4 py-2 text-xs text-slate-100" required /></div>
+          <div><label class="block text-[11px] font-bold text-slate-400 mb-1">Email</label><input id="signup-email" type="email" value="ankit@example.com" class="w-full bg-[#07090E] border border-[#1E293B] rounded-xl px-4 py-2 text-xs text-slate-100" required /></div>
+          <div><label class="block text-[11px] font-bold text-slate-400 mb-1">Password</label><input id="signup-pass" type="password" value="Password123!" class="w-full bg-[#07090E] border border-[#1E293B] rounded-xl px-4 py-2 text-xs text-slate-100" required /></div>
+          <div><label class="block text-[11px] font-bold text-slate-400 mb-1">Confirm Password</label><input id="signup-cpass" type="password" value="Password123!" class="w-full bg-[#07090E] border border-[#1E293B] rounded-xl px-4 py-2 text-xs text-slate-100" required /></div>
+          <label class="flex items-center gap-2 text-xs text-slate-400"><input type="checkbox" checked class="accent-[#7C3AED]" required />I agree to the Terms & Conditions</label>
+          <button type="submit" class="w-full py-2.5 bg-[#7C3AED] hover:bg-[#6D28D9] rounded-xl text-xs font-bold text-white">Create Account</button>
+        </form>
+      </div>
+
+      <!-- Step C: Verify Email (6 OTP Boxes) -->
+      <div id="auth-step-otp" hidden class="text-center space-y-4">
+        <div>
+          <h3 class="font-extrabold text-lg text-white">Verify Your Email</h3>
+          <p class="text-xs text-slate-400 mt-1">We've sent a verification code to <span class="text-slate-200 font-mono">ankit@example.com</span></p>
+        </div>
+        <div class="flex justify-center gap-2 py-2 font-mono">
+          <input type="text" maxlength="1" value="2" class="w-10 h-12 text-center text-lg font-bold bg-[#07090E] border border-[#1E293B] rounded-xl text-white" />
+          <input type="text" maxlength="1" value="7" class="w-10 h-12 text-center text-lg font-bold bg-[#07090E] border border-[#1E293B] rounded-xl text-white" />
+          <input type="text" maxlength="1" value="4" class="w-10 h-12 text-center text-lg font-bold bg-[#07090E] border border-[#1E293B] rounded-xl text-white" />
+          <input type="text" maxlength="1" value="8" class="w-10 h-12 text-center text-lg font-bold bg-[#07090E] border border-[#1E293B] rounded-xl text-white" />
+          <input type="text" maxlength="1" value="1" class="w-10 h-12 text-center text-lg font-bold bg-[#07090E] border border-[#1E293B] rounded-xl text-white" />
+          <input type="text" maxlength="1" value="9" class="w-10 h-12 text-center text-lg font-bold bg-[#07090E] border border-[#1E293B] rounded-xl text-white" />
+        </div>
+        <div class="text-[11px] text-slate-500 font-mono">Resend code in 00:45</div>
+        <button onclick="setAuthStep('2fa')" class="w-full py-2.5 bg-[#7C3AED] hover:bg-[#6D28D9] rounded-xl text-xs font-bold text-white shadow-lg">Verify Email</button>
+      </div>
+
+      <!-- Step D: 2FA (Two-Factor Authentication) -->
+      <div id="auth-step-2fa" hidden class="text-center space-y-4">
+        <div>
+          <h3 class="font-extrabold text-lg text-white">Two-Factor Authentication</h3>
+          <p class="text-xs text-slate-400 mt-1">Enter the code from your authenticator app</p>
+        </div>
+        <div class="flex justify-center gap-2 py-2 font-mono">
+          <input type="text" maxlength="1" value="1" class="w-10 h-12 text-center text-lg font-bold bg-[#07090E] border border-[#1E293B] rounded-xl text-white" />
+          <input type="text" maxlength="1" value="3" class="w-10 h-12 text-center text-lg font-bold bg-[#07090E] border border-[#1E293B] rounded-xl text-white" />
+          <input type="text" maxlength="1" value="7" class="w-10 h-12 text-center text-lg font-bold bg-[#07090E] border border-[#1E293B] rounded-xl text-white" />
+          <input type="text" maxlength="1" value="2" class="w-10 h-12 text-center text-lg font-bold bg-[#07090E] border border-[#1E293B] rounded-xl text-white" />
+          <input type="text" maxlength="1" value="9" class="w-10 h-12 text-center text-lg font-bold bg-[#07090E] border border-[#1E293B] rounded-xl text-white" />
+          <input type="text" maxlength="1" value="6" class="w-10 h-12 text-center text-lg font-bold bg-[#07090E] border border-[#1E293B] rounded-xl text-white" />
+        </div>
+        <label class="flex justify-center items-center gap-2 text-xs text-slate-400"><input type="checkbox" checked class="accent-[#7C3AED]" />Trust this device for 30 days</label>
+        <button onclick="setAuthStep('success')" class="w-full py-2.5 bg-[#7C3AED] hover:bg-[#6D28D9] rounded-xl text-xs font-bold text-white shadow-lg">Verify & Continue</button>
+      </div>
+
+      <!-- Step E: Success State (Welcome to AISMM!) -->
+      <div id="auth-step-success" hidden class="text-center space-y-4 py-4">
+        <h3 class="font-extrabold text-xl text-white">Welcome to AISMM! 🎉</h3>
+        <p class="text-xs text-slate-400">Your account has been created successfully</p>
+
+        <!-- Glowing Shield Icon -->
+        <div class="my-6 flex justify-center">
+          <div class="w-20 h-20 rounded-3xl bg-gradient-to-tr from-[#7C3AED]/30 to-[#06B6D4]/30 border border-[#06B6D4] flex items-center justify-center shadow-2xl shadow-[#7C3AED]/50">
+            <svg viewBox="0 0 24 24" class="w-10 h-10 text-[#06B6D4]" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+          </div>
+        </div>
+
+        <button onclick="closeAuthModal(); switchView('studio');" class="w-full py-3 bg-[#7C3AED] hover:bg-[#6D28D9] rounded-xl text-xs font-bold text-white shadow-lg">Go to Dashboard</button>
       </div>
     </div>
   </div>
-</div>
 
-<!-- VIEW: STUDIO DASHBOARD SIMULATOR -->
-<div id="view-studio" hidden>
-  <div class="studio-container" style="margin-top: 32px;">
-    <div class="studio-card">
-      <div class="studio-header">
-        <div style="display:flex; align-items:center; gap: 8px;">
-          <span style="font-size: 14px; font-weight: 800; color:#fff;">Live Universal Management Console</span>
-          <span class="tag-pill" style="color:var(--emerald-accent);">All 8 AI Engines Online</span>
+  <!-- ===================================================================== -->
+  <!-- STUDIO MAIN APPLICATION (Containing Modules 03 - 13) -->
+  <!-- ===================================================================== -->
+  <div id="view-studio" class="flex-1 flex overflow-hidden" hidden>
+
+    <!-- Sidebar Navigation -->
+    <aside class="w-60 border-r border-[#1E293B] bg-[#07090E] flex flex-col flex-shrink-0">
+      <div class="p-4 border-b border-[#1E293B] flex items-center space-x-2.5">
+        <div class="h-8 w-8 rounded-xl bg-gradient-to-tr from-[#7C3AED] to-[#06B6D4] flex items-center justify-center text-white font-bold text-xs">⚡</div>
+        <div class="font-extrabold text-sm text-white">AISMM Studio</div>
+      </div>
+
+      <nav class="flex-1 p-3 space-y-1 overflow-y-auto text-xs font-semibold">
+        <button onclick="switchTab('overview')" id="nav-overview" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-[#7C3AED] text-white">
+          <div class="flex items-center space-x-2.5"><span>📊</span><span>Overview (03)</span></div>
+        </button>
+        <button onclick="switchTab('analytics')" id="nav-analytics" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#0D121F]">
+          <div class="flex items-center space-x-2.5"><span>📈</span><span>Analytics (04)</span></div>
+        </button>
+        <button onclick="switchTab('composer')" id="nav-composer" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#0D121F]">
+          <div class="flex items-center space-x-2.5"><span>✍️</span><span>Composer (05)</span></div>
+        </button>
+        <button onclick="switchTab('ai-engine')" id="nav-ai-engine" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#0D121F]">
+          <div class="flex items-center space-x-2.5"><span>🪄</span><span>AI Engine (06)</span></div>
+        </button>
+        <button onclick="switchTab('scheduling')" id="nav-scheduling" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#0D121F]">
+          <div class="flex items-center space-x-2.5"><span>📅</span><span>Scheduling (07)</span></div>
+        </button>
+        <button onclick="switchTab('platforms')" id="nav-platforms" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#0D121F]">
+          <div class="flex items-center space-x-2.5"><span>🌐</span><span>Platforms (08)</span></div>
+        </button>
+        <button onclick="switchTab('inbox')" id="nav-inbox" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#0D121F]">
+          <div class="flex items-center space-x-2.5"><span>💬</span><span>Inbox (09)</span></div>
+        </button>
+        <button onclick="switchTab('growth')" id="nav-growth" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#0D121F]">
+          <div class="flex items-center space-x-2.5"><span>🚀</span><span>Growth (10)</span></div>
+        </button>
+        <button onclick="switchTab('strategy')" id="nav-strategy" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#0D121F]">
+          <div class="flex items-center space-x-2.5"><span>💡</span><span>AI Strategy (11)</span></div>
+        </button>
+        <button onclick="switchTab('reports')" id="nav-reports" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#0D121F]">
+          <div class="flex items-center space-x-2.5"><span>📑</span><span>Reports (12)</span></div>
+        </button>
+        <button onclick="switchTab('settings')" id="nav-settings" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#0D121F]">
+          <div class="flex items-center space-x-2.5"><span>⚙️</span><span>Settings (13)</span></div>
+        </button>
+      </nav>
+    </aside>
+
+    <!-- Studio Main Viewport -->
+    <div class="flex-1 p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
+
+      <!-- Top Greetings & Filter Bar (Matching Module 03) -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-[#1E293B]">
+        <div>
+          <h2 class="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
+            <span>Good morning, Ankit!</span> <span>☀️ 👋</span>
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">Here's what's happening with your social media today.</p>
         </div>
-        <div class="studio-subtabs">
-          <button class="subtab-btn active" onclick="switchDashboardTab('overview', this)">Overview</button>
-          <button class="subtab-btn" onclick="switchDashboardTab('heatmap', this)">7x24 Heatmap</button>
-          <button class="subtab-btn" onclick="switchDashboardTab('growth', this)">Growth Forecast (89.2% R²)</button>
-          <button class="subtab-btn" onclick="switchDashboardTab('autoreply', this)">Auto-Reply Inbox</button>
-          <button class="subtab-btn" onclick="switchDashboardTab('models', this)">Model Registry</button>
+        <div class="flex items-center gap-3 font-mono text-xs">
+          <div class="px-3.5 py-1.5 rounded-xl bg-[#0D121F] border border-[#1E293B] text-slate-300">
+            📅 May 20 - May 26, 2024 ▾
+          </div>
+          <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-[#7C3AED] to-[#06B6D4] flex items-center justify-center font-bold text-white text-xs">A</div>
         </div>
       </div>
 
-      <div class="studio-body">
-        <!-- Dashboard Tab 1: Overview -->
-        <div id="dash-tab-overview">
-          <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
-            <div class="stat-card">
-              <div class="stat-label">Total Audience Reach</div>
-              <div class="stat-val" style="font-size: 24px; color:#fff;">110,760</div>
-              <div style="font-size: 11px; color:var(--emerald-accent); font-weight:600; margin-top:4px;">+14.2% vs prior 30d</div>
+      <!-- TAB 03: DASHBOARD OVERVIEW -->
+      <section id="tab-overview" class="space-y-6">
+        <!-- 5 KPI Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div class="bg-[#0D121F] border border-[#1E293B] rounded-2xl p-4 shadow-xl">
+            <div class="text-[11px] font-bold text-slate-400 uppercase">Total Reach</div>
+            <div class="text-2xl font-black text-white mt-2 font-mono flex items-baseline justify-between"><span>2.4M</span><span class="text-xs text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded">▲ +12.5%</span></div>
+          </div>
+          <div class="bg-[#0D121F] border border-[#1E293B] rounded-2xl p-4 shadow-xl">
+            <div class="text-[11px] font-bold text-slate-400 uppercase">Engagement</div>
+            <div class="text-2xl font-black text-white mt-2 font-mono flex items-baseline justify-between"><span>184.7K</span><span class="text-xs text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded">▲ +8.3%</span></div>
+          </div>
+          <div class="bg-[#0D121F] border border-[#1E293B] rounded-2xl p-4 shadow-xl">
+            <div class="text-[11px] font-bold text-slate-400 uppercase">Profile Visits</div>
+            <div class="text-2xl font-black text-white mt-2 font-mono flex items-baseline justify-between"><span>45.2K</span><span class="text-xs text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded">▲ +15.7%</span></div>
+          </div>
+          <div class="bg-[#0D121F] border border-[#1E293B] rounded-2xl p-4 shadow-xl">
+            <div class="text-[11px] font-bold text-slate-400 uppercase">Clicks</div>
+            <div class="text-2xl font-black text-white mt-2 font-mono flex items-baseline justify-between"><span>12.8K</span><span class="text-xs text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded">▲ +9.2%</span></div>
+          </div>
+          <div class="bg-[#0D121F] border border-[#1E293B] rounded-2xl p-4 shadow-xl">
+            <div class="text-[11px] font-bold text-slate-400 uppercase">Conversions</div>
+            <div class="text-2xl font-black text-white mt-2 font-mono flex items-baseline justify-between"><span>2.1K</span><span class="text-xs text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded">▲ +11.3%</span></div>
+          </div>
+        </div>
+
+        <!-- Performance Over Time (Multi-Line) + Donut Platform Performance + AI Insights -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- Multi-line SVG chart -->
+          <div class="lg:col-span-8 bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl space-y-4">
+            <div class="flex justify-between items-center">
+              <div><h3 class="font-bold text-sm text-white">Performance Over Time</h3><p class="text-xs text-slate-400">Reach, Engagement, and Clicks velocity</p></div>
+              <span class="text-xs font-mono px-2 py-1 rounded bg-[#07090E] border border-[#1E293B] text-slate-300">7 Days ▾</span>
             </div>
-            <div class="stat-card">
-              <div class="stat-label">Connected Followers</div>
-              <div class="stat-val" style="font-size: 24px; color:#fff;">58,400</div>
-              <div style="font-size: 11px; color:var(--emerald-accent); font-weight:600; margin-top:4px;">+8.6% across 5 channels</div>
+
+            <div class="h-48 w-full">
+              <svg viewBox="0 0 500 140" class="w-full h-full overflow-visible">
+                <line x1="0" y1="20" x2="500" y2="20" stroke="#1E293B" stroke-dasharray="3 3" />
+                <line x1="0" y1="60" x2="500" y2="60" stroke="#1E293B" stroke-dasharray="3 3" />
+                <line x1="0" y1="100" x2="500" y2="100" stroke="#1E293B" stroke-dasharray="3 3" />
+                <line x1="0" y1="130" x2="500" y2="130" stroke="#1E293B" />
+                <!-- Reach (Cyan) -->
+                <polyline fill="none" stroke="#06B6D4" stroke-width="2.5" points="0,110 100,90 200,60 300,75 400,45 500,25" />
+                <!-- Engagement (Violet) -->
+                <polyline fill="none" stroke="#7C3AED" stroke-width="2.5" points="0,125 100,115 200,85 300,95 400,65 500,40" />
+                <!-- Clicks (Blue) -->
+                <polyline fill="none" stroke="#3B82F6" stroke-width="2" points="0,130 100,125 200,110 300,115 400,95 500,80" />
+              </svg>
             </div>
-            <div class="stat-card">
-              <div class="stat-label">Total Engagements</div>
-              <div class="stat-val" style="font-size: 24px; color:#fff;">6,840</div>
-              <div style="font-size: 11px; color:var(--emerald-accent); font-weight:600; margin-top:4px;">+22.4% interaction lift</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Overall Engagement Rate</div>
-              <div class="stat-val" style="font-size: 24px; color:var(--emerald-accent);">4.82%</div>
-              <div style="font-size: 11px; color:var(--text-muted); margin-top:4px;">Industry Avg: 2.1%</div>
+
+            <div class="flex justify-between text-[11px] text-slate-500 font-mono"><span>May 20</span><span>May 21</span><span>May 22</span><span>May 23</span><span>May 24</span><span>May 26</span></div>
+            <div class="flex justify-center gap-6 text-xs font-mono pt-2 border-t border-[#1E293B]">
+              <span class="text-[#06B6D4]">◆ Reach</span>
+              <span class="text-[#7C3AED]">◆ Engagement</span>
+              <span class="text-[#3B82F6]">◆ Clicks</span>
             </div>
           </div>
 
-          <div class="grid-split">
-            <div class="stat-card" style="padding: 16px;">
-              <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 12px; color:#fff;">5 Connected Platform Adapters</h4>
-              <div style="display:flex; flex-direction:column; gap: 8px; font-size: 12px;">
-                <div style="display:flex; justify-content:space-between; padding: 6px 10px; background:var(--bg-surface-dark); border-radius:6px;">
-                  <span><strong>Instagram</strong> (Business Graph v19.0)</span>
-                  <span style="color:var(--emerald-accent); font-weight:700;">18.4k Followers • 5.4% Rate</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; padding: 6px 10px; background:var(--bg-surface-dark); border-radius:6px;">
-                  <span><strong>Facebook</strong> (Page Graph API)</span>
-                  <span style="color:var(--emerald-accent); font-weight:700;">14.2k Followers • 3.8% Rate</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; padding: 6px 10px; background:var(--bg-surface-dark); border-radius:6px;">
-                  <span><strong>X (Twitter)</strong> (API v2 OAuth PKCE)</span>
-                  <span style="color:var(--emerald-accent); font-weight:700;">12.8k Followers • 2.9% Rate</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; padding: 6px 10px; background:var(--bg-surface-dark); border-radius:6px;">
-                  <span><strong>LinkedIn</strong> (REST & UGC API)</span>
-                  <span style="color:var(--emerald-accent); font-weight:700;">8.6k Followers • 4.5% Rate</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; padding: 6px 10px; background:var(--bg-surface-dark); border-radius:6px;">
-                  <span><strong>YouTube</strong> (Data API v3)</span>
-                  <span style="color:var(--emerald-accent); font-weight:700;">4.4k Followers • 8.1% Rate</span>
-                </div>
-              </div>
+          <!-- Donut Platform Performance -->
+          <div class="lg:col-span-4 bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl flex flex-col justify-between">
+            <h3 class="font-bold text-sm text-white mb-2">Platform Performance</h3>
+            <div class="relative h-36 flex items-center justify-center my-2">
+              <svg viewBox="0 0 160 160" class="w-32 h-32">
+                <circle cx="80" cy="80" r="55" fill="none" stroke="#1E293B" stroke-width="16" />
+                <circle cx="80" cy="80" r="55" fill="none" stroke="#EC4899" stroke-width="16" stroke-dasharray="145 345" />
+                <circle cx="80" cy="80" r="55" fill="none" stroke="#64748B" stroke-width="16" stroke-dasharray="96 345" stroke-dashoffset="-145" />
+                <circle cx="80" cy="80" r="55" fill="none" stroke="#3B82F6" stroke-width="16" stroke-dasharray="52 345" stroke-dashoffset="-241" />
+                <circle cx="80" cy="80" r="55" fill="none" stroke="#06B6D4" stroke-width="16" stroke-dasharray="35 345" stroke-dashoffset="-293" />
+                <circle cx="80" cy="80" r="55" fill="none" stroke="#EF4444" stroke-width="16" stroke-dasharray="17 345" stroke-dashoffset="-328" />
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center font-mono"><span class="text-xs font-bold text-white">2.4M</span><span class="text-[9px] text-slate-500">Total Reach</span></div>
             </div>
 
-            <div class="stat-card" style="padding: 16px;">
-              <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 12px; color:#fff;">Ranked Strategic Directives (AI Strategy Engine)</h4>
-              <div style="display:flex; flex-direction:column; gap: 8px; font-size: 12px;">
-                <div style="padding: 8px; background:var(--bg-surface-dark); border-radius:8px; border-left: 3px solid #6366f1;">
-                  <div style="font-weight:700; color:#fff;">Align Primary Posting with Peak Window (Wed 19:00 UTC)</div>
-                  <div style="color:var(--text-secondary); font-size:11px; margin-top:2px;">Predicted +38.4% engagement lift over baseline slots.</div>
-                </div>
-                <div style="padding: 8px; background:var(--bg-surface-dark); border-radius:8px; border-left: 3px solid #10b981;">
-                  <div style="font-weight:700; color:#fff;">Prioritize Multi-Slide Carousel & Video Assets</div>
-                  <div style="color:var(--text-secondary); font-size:11px; margin-top:2px;">42% longer dwell time and 1.8x more shares/saves compared to single images.</div>
-                </div>
-                <div style="padding: 8px; background:var(--bg-surface-dark); border-radius:8px; border-left: 3px solid #f59e0b;">
-                  <div style="font-weight:700; color:#fff;">Scale Weekly Cadence from 3.0 to 4.5+ Posts</div>
-                  <div style="color:var(--text-secondary); font-size:11px; margin-top:2px;">+18.4% monthly follower velocity acceleration projected by RF regressor.</div>
-                </div>
-              </div>
+            <div class="space-y-1.5 text-xs font-mono">
+              <div class="flex justify-between"><span>Instagram</span><strong class="text-pink-400">42% (1.01M)</strong></div>
+              <div class="flex justify-between"><span>X (Twitter)</span><strong class="text-slate-300">28% (672K)</strong></div>
+              <div class="flex justify-between"><span>Facebook</span><strong class="text-blue-400">15% (360K)</strong></div>
+              <div class="flex justify-between"><span>LinkedIn</span><strong class="text-cyan-400">10% (240K)</strong></div>
+              <div class="flex justify-between"><span>YouTube</span><strong class="text-red-400">5% (120K)</strong></div>
             </div>
           </div>
         </div>
 
-        <!-- Dashboard Tab 2: 7x24 Heatmap -->
-        <div id="dash-tab-heatmap" hidden>
-          <div style="margin-bottom: 16px; font-size: 12px; color: var(--text-secondary);">
-            Intelligent Scheduling ML Ensemble (88.42% accuracy) calibrated hour-by-day engagement scoring:
-          </div>
-          <div style="overflow-x: auto;">
-            <table class="heatmap-table">
-              <thead>
-                <tr>
-                  <th style="text-align:left; width: 90px;">Day</th>
-                  <th>08:00</th>
-                  <th>10:00</th>
-                  <th>12:00</th>
-                  <th>14:00</th>
-                  <th>16:00</th>
-                  <th>18:00</th>
-                  <th>19:00</th>
-                  <th>20:00</th>
-                  <th>21:00</th>
-                  <th>22:00</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td style="text-align:left; font-weight:700; color:#fff;">Monday</td>
-                  <td><div class="heat-slot heat-low">—</div></td>
-                  <td><div class="heat-slot heat-med">Med</div></td>
-                  <td><div class="heat-slot heat-high">High</div></td>
-                  <td><div class="heat-slot heat-med">Med</div></td>
-                  <td><div class="heat-slot heat-low">—</div></td>
-                  <td><div class="heat-slot heat-high">High</div></td>
-                  <td><div class="heat-slot heat-high">High</div></td>
-                  <td><div class="heat-slot heat-med">Med</div></td>
-                  <td><div class="heat-slot heat-low">—</div></td>
-                  <td><div class="heat-slot heat-low">—</div></td>
-                </tr>
-                <tr>
-                  <td style="text-align:left; font-weight:700; color:#fff;">Tuesday</td>
-                  <td><div class="heat-slot heat-low">—</div></td>
-                  <td><div class="heat-slot heat-med">Med</div></td>
-                  <td><div class="heat-slot heat-high">High</div></td>
-                  <td><div class="heat-slot heat-med">Med</div></td>
-                  <td><div class="heat-slot heat-low">—</div></td>
-                  <td><div class="heat-slot heat-peak">★ 18:00</div></td>
-                  <td><div class="heat-slot heat-high">High</div></td>
-                  <td><div class="heat-slot heat-high">High</div></td>
-                  <td><div class="heat-slot heat-med">Med</div></td>
-                  <td><div class="heat-slot heat-low">—</div></td>
-                </tr>
-                <tr>
-                  <td style="text-align:left; font-weight:700; color:#fff;">Wednesday</td>
-                  <td><div class="heat-slot heat-low">—</div></td>
-                  <td><div class="heat-slot heat-med">Med</div></td>
-                  <td><div class="heat-slot heat-high">High</div></td>
-                  <td><div class="heat-slot heat-med">Med</div></td>
-                  <td><div class="heat-slot heat-med">Med</div></td>
-                  <td><div class="heat-slot heat-high">High</div></td>
-                  <td><div class="heat-slot heat-peak">★ 19:00</div></td>
-                  <td><div class="heat-slot heat-high">High</div></td>
-                  <td><div class="heat-slot heat-med">Med</div></td>
-                  <td><div class="heat-slot heat-low">—</div></td>
-                </tr>
-                <tr>
-                  <td style="text-align:left; font-weight:700; color:#fff;">Thursday</td>
-                  <td><div class="heat-slot heat-low">—</div></td>
-                  <td><div class="heat-slot heat-med">Med</div></td>
-                  <td><div class="heat-slot heat-med">Med</div></td>
-                  <td><div class="heat-slot heat-med">Med</div></td>
-                  <td><div class="heat-slot heat-med">Med</div></td>
-                  <td><div class="heat-slot heat-high">High</div></td>
-                  <td><div class="heat-slot heat-high">High</div></td>
-                  <td><div class="heat-slot heat-peak">★ 20:00</div></td>
-                  <td><div class="heat-slot heat-high">High</div></td>
-                  <td><div class="heat-slot heat-low">—</div></td>
-                </tr>
-                <tr>
-                  <td style="text-align:left; font-weight:700; color:#fff;">Friday</td>
-                  <td><div class="heat-slot heat-low">—</div></td>
-                  <td><div class="heat-slot heat-high">High</div></td>
-                  <td><div class="heat-slot heat-high">High</div></td>
-                  <td><div class="heat-slot heat-med">Med</div></td>
-                  <td><div class="heat-slot heat-high">High</div></td>
-                  <td><div class="heat-slot heat-high">High</div></td>
-                  <td><div class="heat-slot heat-high">High</div></td>
-                  <td><div class="heat-slot heat-med">Med</div></td>
-                  <td><div class="heat-slot heat-low">—</div></td>
-                  <td><div class="heat-slot heat-low">—</div></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Dashboard Tab 3: Growth Forecast -->
-        <div id="dash-tab-growth" hidden>
-          <div class="grid-split" style="margin-bottom: 24px;">
-            <div class="stat-card" style="padding: 20px;">
-              <div style="font-size: 11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">30-Day Follower Projection (89.2% R²)</div>
-              <div style="font-size: 32px; font-weight:900; color:#fff; margin-top:8px;">64,120 <span style="font-size: 16px; color:var(--emerald-accent);">+5,720 (+9.8%)</span></div>
-              <div style="font-size: 12px; color:var(--text-secondary); margin-top:6px;">Calculated using Random Forest Regressors factoring velocity, posting frequency, video ratios, and sentiment.</div>
+        <!-- AI Insights -->
+        <div class="bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl space-y-3">
+          <div class="flex items-center gap-2 mb-1"><span class="text-[#06B6D4]">💡</span><h3 class="font-bold text-sm text-white">AI Insights</h3></div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div class="p-3.5 bg-[#07090E] rounded-2xl border border-[#1E293B]">
+              <div class="font-bold text-white">Best performing content type:</div>
+              <div class="text-[#7C3AED] font-semibold mt-1 font-mono">Carousel Post (+23% more engagement)</div>
             </div>
-
-            <div class="stat-card" style="padding: 20px;">
-              <div style="font-size: 11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">90-Day Quarterly Horizon</div>
-              <div style="font-size: 32px; font-weight:900; color:#fff; margin-top:8px;">76,800 <span style="font-size: 16px; color:var(--emerald-accent);">+18,400 (+31.5%)</span></div>
-              <div style="font-size: 12px; color:var(--text-secondary); margin-top:6px;">Est. Reach: 1,060,000 impressions with maintained 4.5 posts/week cadence.</div>
+            <div class="p-3.5 bg-[#07090E] rounded-2xl border border-[#1E293B]">
+              <div class="font-bold text-white">Optimal posting time:</div>
+              <div class="text-cyan-400 font-semibold mt-1 font-mono">Today 7:00 PM (+41% better reach)</div>
+            </div>
+            <div class="p-3.5 bg-[#07090E] rounded-2xl border border-[#1E293B]">
+              <div class="font-bold text-white">Trending topic in your niche:</div>
+              <div class="text-emerald-400 font-semibold mt-1 font-mono">AI Automation (High potential)</div>
             </div>
           </div>
         </div>
+      </section>
 
-        <!-- Dashboard Tab 4: Auto-Reply Inbox -->
-        <div id="dash-tab-autoreply" hidden>
-          <div style="font-size: 13px; font-weight: 700; margin-bottom: 12px; color:#fff;">Human-in-the-Loop Review Queue (70% - 90% Confidence)</div>
-          <div style="display:flex; flex-direction:column; gap: 12px;">
-            <div style="padding: 14px; background:var(--bg-surface-dark); border-radius:10px; border: 1px solid var(--border-subtle);">
-              <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
-                <span><strong>@growth_lead</strong> on Instagram</span>
-                <span class="tag-pill" style="color:var(--amber-accent);">Pricing Inquiry (89.2% Conf)</span>
-              </div>
-              <div style="font-size: 12px; color:#cbd5e1; font-style:italic; margin-bottom:8px;">"What are your enterprise subscription rates for team of 10?"</div>
-              <div style="font-size: 12px; color:#a5b4fc; background:rgba(99, 102, 241, 0.08); padding:8px; border-radius:6px;">
-                <strong>AI Draft:</strong> "Thanks for reaching out! Our team plan starts at $49/mo with full multi-channel automation. Direct messaged you full details! 🚀"
-              </div>
-              <div style="margin-top: 10px; display:flex; justify-content:flex-end; gap:8px;">
-                <button class="nav-btn" style="background:var(--border-subtle); color:#fff;">Dismiss</button>
-                <button class="btn-primary" style="padding: 6px 12px; font-size:12px;">Approve & Send</button>
-              </div>
-            </div>
+      <!-- TAB 04: ANALYTICS DASHBOARD -->
+      <section id="tab-analytics" class="space-y-6" hidden>
+        <div class="bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl space-y-4">
+          <div class="flex justify-between items-center"><h3 class="font-bold text-base text-white">Real-time Activity</h3><span class="text-xs font-mono text-[#06B6D4]">● Active Stream</span></div>
+          <div class="space-y-2.5 text-xs">
+            <div class="p-3.5 bg-[#07090E] rounded-2xl border border-[#1E293B] flex justify-between items-center"><div><strong>New Follower</strong> <span class="text-slate-400">@tech_enthusiast</span></div><span class="text-slate-500 font-mono">2m ago</span></div>
+            <div class="p-3.5 bg-[#07090E] rounded-2xl border border-[#1E293B] flex justify-between items-center"><div><strong>Post Engagement</strong> <span class="text-emerald-400">+145 likes</span></div><span class="text-slate-500 font-mono">5m ago</span></div>
+            <div class="p-3.5 bg-[#07090E] rounded-2xl border border-[#1E293B] flex justify-between items-center"><div><strong>Profile Visit</strong> <span class="text-slate-400">@business_owner</span></div><span class="text-slate-500 font-mono">8m ago</span></div>
+            <div class="p-3.5 bg-[#07090E] rounded-2xl border border-[#1E293B] flex justify-between items-center"><div><strong>New Comment</strong> <span class="text-slate-300">"Great content!"</span></div><span class="text-slate-500 font-mono">12m ago</span></div>
+            <div class="p-3.5 bg-[#07090E] rounded-2xl border border-[#1E293B] flex justify-between items-center"><div><strong>Share</strong> <span class="text-cyan-400">Your post was shared</span></div><span class="text-slate-500 font-mono">15m ago</span></div>
+          </div>
+          <button class="w-full py-2.5 bg-[#07090E] hover:bg-[#131B2E] border border-[#1E293B] text-slate-300 rounded-xl text-xs font-bold">View All Activity</button>
+        </div>
+      </section>
+
+      <!-- TAB 05: CONTENT COMPOSER -->
+      <section id="tab-composer" class="space-y-6" hidden>
+        <div class="bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl space-y-5">
+          <h3 class="font-bold text-base text-white">Create New Post</h3>
+          <!-- Platform Chips -->
+          <div class="flex gap-2">
+            <button class="px-3 py-1.5 rounded-xl bg-[#7C3AED] text-white text-xs font-bold">X (Twitter)</button>
+            <button class="px-3 py-1.5 rounded-xl bg-[#7C3AED] text-white text-xs font-bold">Facebook</button>
+            <button class="px-3 py-1.5 rounded-xl bg-[#7C3AED] text-white text-xs font-bold">Instagram</button>
+            <button class="px-3 py-1.5 rounded-xl bg-[#7C3AED] text-white text-xs font-bold">LinkedIn</button>
+            <button class="px-3 py-1.5 rounded-xl bg-[#7C3AED] text-white text-xs font-bold">YouTube</button>
+            <button class="px-3 py-1.5 rounded-xl bg-[#07090E] border border-[#1E293B] text-slate-400 text-xs font-bold">+</button>
+          </div>
+
+          <textarea rows="5" class="w-full bg-[#07090E] border border-[#1E293B] rounded-2xl p-4 text-xs text-slate-200 focus:outline-none focus:border-[#7C3AED]">Just launched our new AI-powered analytics dashboard! The insights are incredible! 🚀 #AI #Analytics #Dashboard</textarea>
+          <div class="text-right text-[11px] font-mono text-slate-500">120 / 2200</div>
+
+          <!-- Media Tray -->
+          <div class="flex gap-3">
+            <div class="w-20 h-20 bg-slate-900 border border-[#1E293B] rounded-2xl flex items-center justify-center text-xs text-slate-500">Img 1</div>
+            <div class="w-20 h-20 bg-slate-900 border border-[#1E293B] rounded-2xl flex items-center justify-center text-xs text-slate-500">Img 2</div>
+            <div class="w-20 h-20 bg-[#07090E] border border-dashed border-[#1E293B] rounded-2xl flex items-center justify-center text-slate-400 text-sm cursor-pointer">+</div>
+          </div>
+
+          <div class="flex items-center gap-3 pt-2">
+            <button class="px-5 py-2.5 bg-gradient-to-r from-[#7C3AED] to-[#06B6D4] text-white font-bold text-xs rounded-xl shadow-lg">🪄 AI Optimize</button>
+            <button class="px-5 py-2.5 bg-[#07090E] border border-[#1E293B] text-slate-300 font-bold text-xs rounded-xl">Schedule</button>
+            <button class="px-5 py-2.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold text-xs rounded-xl shadow-lg ml-auto">🚀 Publish Now</button>
           </div>
         </div>
+      </section>
 
-        <!-- Dashboard Tab 5: Model Registry -->
-        <div id="dash-tab-models" hidden>
-          <div style="display:flex; flex-direction:column; gap: 10px; font-size: 12px;">
-            <div style="padding: 12px; background:var(--bg-surface-dark); border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
-              <div>
-                <div style="font-weight:700; color:#fff; font-family:var(--font-mono);">scheduling_rf_gb_ensemble v1.2.0</div>
-                <div style="color:var(--text-muted); font-size:11px;">Random Forest + Gradient Boosting Temporal Ensemble</div>
-              </div>
-              <span class="tag-pill" style="color:var(--emerald-accent);">88.42% Acc (Target: 88.08%)</span>
-            </div>
+      <!-- TAB 06: AI CONTENT ENGINE -->
+      <section id="tab-ai-engine" class="space-y-6" hidden>
+        <div class="bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl space-y-5">
+          <div class="flex gap-2 p-1 bg-[#07090E] rounded-2xl border border-[#1E293B] w-fit">
+            <button class="px-4 py-1.5 rounded-xl bg-[#7C3AED] text-white text-xs font-bold">Optimize</button>
+            <button class="px-4 py-1.5 rounded-xl text-slate-400 hover:text-white text-xs font-bold">Adapt</button>
+            <button class="px-4 py-1.5 rounded-xl text-slate-400 hover:text-white text-xs font-bold">Enhance</button>
+            <button class="px-4 py-1.5 rounded-xl text-slate-400 hover:text-white text-xs font-bold">Hashtags</button>
+          </div>
 
-            <div style="padding: 12px; background:var(--bg-surface-dark); border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
-              <div>
-                <div style="font-weight:700; color:#fff; font-family:var(--font-mono);">sentiment_dual_phase_vader v1.1.0</div>
-                <div style="color:var(--text-muted); font-size:11px;">Dual-Phase VADER with Emoji Lexicon Boost</div>
-              </div>
-              <span class="tag-pill" style="color:var(--emerald-accent);">89.40% Acc (Target: 89.00%)</span>
-            </div>
+          <h3 class="font-bold text-sm text-white">AI Optimization Results</h3>
+          <div class="grid grid-cols-2 gap-4 text-center font-mono">
+            <div class="p-4 bg-[#07090E] border border-[#1E293B] rounded-2xl"><span class="text-[10px] text-slate-500">Original Score</span><div class="text-2xl font-bold text-slate-300 mt-1">72 / 100</div></div>
+            <div class="p-4 bg-gradient-to-br from-[#7C3AED]/30 to-[#07090E] border border-[#7C3AED]/40 rounded-2xl"><span class="text-[10px] text-brand-300">Optimized Score</span><div class="text-2xl font-bold text-emerald-400 mt-1">92 / 100</div></div>
+          </div>
 
-            <div style="padding: 12px; background:var(--bg-surface-dark); border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
-              <div>
-                <div style="font-weight:700; color:#fff; font-family:var(--font-mono);">reply_tfidf_logistic_regression v1.0.0</div>
-                <div style="color:var(--text-muted); font-size:11px;">TF-IDF + Multinomial Logistic Regression Intent Classifier</div>
-              </div>
-              <span class="tag-pill" style="color:var(--emerald-accent);">88.50% Acc (Target: 88.00%)</span>
-            </div>
+          <div class="space-y-2 text-xs text-slate-300">
+            <div>✓ Added engaging hook</div>
+            <div>✓ Optimized for platform</div>
+            <div>✓ Enhanced readability</div>
+            <div>✓ Added trending hashtags</div>
+          </div>
 
-            <div style="padding: 12px; background:var(--bg-surface-dark); border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
-              <div>
-                <div style="font-weight:700; color:#fff; font-family:var(--font-mono);">growth_rf_regressors v1.0.0</div>
-                <div style="color:var(--text-muted); font-size:11px;">Platform Random Forest Multi-Horizon Regressors</div>
-              </div>
-              <span class="tag-pill" style="color:var(--emerald-accent);">89.2% R² (Target: 89.2%)</span>
+          <div class="p-3.5 bg-indigo-950/20 border border-indigo-500/30 rounded-2xl text-xs text-slate-300">
+            <strong class="text-cyan-400">AI Suggestion:</strong> Consider adding a call-to-action to increase engagement by 23%
+          </div>
+
+          <button class="w-full py-2.5 bg-[#7C3AED] hover:bg-[#6D28D9] rounded-xl text-xs font-bold text-white shadow-lg">Apply Changes</button>
+        </div>
+      </section>
+
+      <!-- TAB 07: SMART SCHEDULING -->
+      <section id="tab-scheduling" class="space-y-6" hidden>
+        <div class="bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl space-y-4">
+          <h3 class="font-bold text-sm text-white">Best Time to Post <span class="text-xs text-slate-400 font-normal">(Based on your audience activity)</span></h3>
+
+          <div class="space-y-2 text-xs font-mono">
+            <div class="p-3 bg-[#07090E] border border-[#1E293B] rounded-xl flex justify-between items-center"><div><strong class="text-white">Today 7:00 PM</strong> <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 ml-2">Optimal</span></div><span class="text-emerald-400 font-bold">Great (+41% reach)</span></div>
+            <div class="p-3 bg-[#07090E] border border-[#1E293B] rounded-xl flex justify-between items-center"><div><strong class="text-white">Tomorrow 6:30 PM</strong></div><span class="text-slate-300 font-bold">Good (+32% reach)</span></div>
+            <div class="p-3 bg-[#07090E] border border-[#1E293B] rounded-xl flex justify-between items-center"><div><strong class="text-white">May 22 8:00 PM</strong></div><span class="text-slate-300 font-bold">Good</span></div>
+          </div>
+
+          <div class="p-4 bg-[#07090E] rounded-2xl border border-[#1E293B] text-center">
+            <div class="font-bold text-xs text-white mb-2 font-mono">May 2024</div>
+            <div class="grid grid-cols-7 gap-1 text-[11px] font-mono text-slate-400">
+              <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+              <span>1</span><span class="p-1 rounded bg-[#7C3AED] text-white font-bold">9</span><span>15</span><span class="p-1 rounded bg-cyan-600 text-white font-bold">19</span><span class="p-1 rounded bg-cyan-600 text-white font-bold">20</span><span class="p-1 rounded bg-[#7C3AED] text-white font-bold">26</span><span>28</span>
             </div>
           </div>
+
+          <button class="w-full py-2.5 bg-[#7C3AED] hover:bg-[#6D28D9] rounded-xl text-xs font-bold text-white shadow-lg">Schedule Post</button>
         </div>
-      </div>
+      </section>
+
+      <!-- TAB 08: PLATFORM MANAGEMENT -->
+      <section id="tab-platforms" class="space-y-6" hidden>
+        <div class="bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl space-y-4">
+          <h3 class="font-bold text-sm text-white">Connected Platforms</h3>
+          <div class="space-y-2.5 text-xs">
+            <div class="p-3.5 bg-[#07090E] border border-[#1E293B] rounded-2xl flex justify-between items-center"><div><strong class="text-white">Instagram</strong> <span class="text-slate-400 font-mono text-[11px]">(@ankit_raj_official)</span></div><span class="text-emerald-400 font-mono">● Connected</span></div>
+            <div class="p-3.5 bg-[#07090E] border border-[#1E293B] rounded-2xl flex justify-between items-center"><div><strong class="text-white">X (Twitter)</strong> <span class="text-slate-400 font-mono text-[11px]">(@ankit_raj_dev)</span></div><span class="text-emerald-400 font-mono">● Connected</span></div>
+            <div class="p-3.5 bg-[#07090E] border border-[#1E293B] rounded-2xl flex justify-between items-center"><div><strong class="text-white">Facebook</strong> <span class="text-slate-400 font-mono text-[11px]">(Ankit Raj)</span></div><span class="text-emerald-400 font-mono">● Connected</span></div>
+            <div class="p-3.5 bg-[#07090E] border border-[#1E293B] rounded-2xl flex justify-between items-center"><div><strong class="text-white">LinkedIn</strong> <span class="text-slate-400 font-mono text-[11px]">(Ankit Raj)</span></div><span class="text-emerald-400 font-mono">● Connected</span></div>
+            <div class="p-3.5 bg-[#07090E] border border-[#1E293B] rounded-2xl flex justify-between items-center"><div><strong class="text-white">YouTube</strong> <span class="text-slate-400 font-mono text-[11px]">(Ankit Raj)</span></div><span class="text-emerald-400 font-mono">● Connected</span></div>
+          </div>
+          <button class="w-full py-2.5 bg-[#07090E] hover:bg-[#131B2E] border border-[#1E293B] text-slate-300 rounded-xl text-xs font-bold">+ Add New Platform</button>
+        </div>
+      </section>
+
+      <!-- TAB 09: INBOX & ENGAGEMENT -->
+      <section id="tab-inbox" class="space-y-6" hidden>
+        <div class="bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl space-y-4">
+          <div class="flex gap-2 p-1 bg-[#07090E] rounded-xl border border-[#1E293B] w-fit">
+            <button class="px-3 py-1 rounded-lg bg-[#7C3AED] text-white text-xs font-bold">All</button>
+            <button class="px-3 py-1 rounded-lg text-slate-400 text-xs font-bold">Messages</button>
+            <button class="px-3 py-1 rounded-lg text-slate-400 text-xs font-bold">Comments</button>
+            <button class="px-3 py-1 rounded-lg text-slate-400 text-xs font-bold">Mentions</button>
+          </div>
+
+          <div class="space-y-2.5 text-xs">
+            <div class="p-3 bg-[#07090E] border border-[#1E293B] rounded-2xl"><div class="flex justify-between font-bold text-white mb-1"><span>@tech_lover</span><span class="text-slate-500 font-mono text-[10px]">2m ago</span></div><p class="text-slate-300">Great insights! This helped me a lot.</p></div>
+            <div class="p-3 bg-[#07090E] border border-[#1E293B] rounded-2xl"><div class="flex justify-between font-bold text-white mb-1"><span>@business_owner</span><span class="text-slate-500 font-mono text-[10px]">5m ago</span></div><p class="text-slate-300">Can you share more details about the dashboard?</p></div>
+            <div class="p-3 bg-[#07090E] border border-[#1E293B] rounded-2xl"><div class="flex justify-between font-bold text-white mb-1"><span>@ai_enthusiast</span><span class="text-slate-500 font-mono text-[10px]">8m ago</span></div><p class="text-slate-300">Amazing work!</p></div>
+            <div class="p-3 bg-[#07090E] border border-[#1E293B] rounded-2xl"><div class="flex justify-between font-bold text-white mb-1"><span>@digital_marketer</span><span class="text-slate-500 font-mono text-[10px]">12m ago</span></div><p class="text-slate-300">What CRM do you recommend?</p></div>
+            <div class="p-3 bg-[#07090E] border border-[#1E293B] rounded-2xl"><div class="flex justify-between font-bold text-white mb-1"><span>@startup_founder</span><span class="text-slate-500 font-mono text-[10px]">15m ago</span></div><p class="text-slate-300">This is exactly what I needed!</p></div>
+          </div>
+          <button class="w-full py-2.5 bg-[#07090E] hover:bg-[#131B2E] border border-[#1E293B] text-slate-300 rounded-xl text-xs font-bold">View All Conversations</button>
+        </div>
+      </section>
+
+      <!-- TAB 10: GROWTH INTELLIGENCE -->
+      <section id="tab-growth" class="space-y-6" hidden>
+        <div class="bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl space-y-4">
+          <div class="flex justify-between items-center"><h3 class="font-bold text-sm text-white">Growth Overview</h3><span class="text-xs font-mono text-slate-400">This Month ▾</span></div>
+          <div class="grid grid-cols-3 gap-3 text-center font-mono">
+            <div class="p-3 bg-[#07090E] border border-[#1E293B] rounded-2xl"><span class="text-[10px] text-slate-500">Followers</span><div class="text-xl font-bold text-white mt-1">+2.4K</div><div class="text-[10px] text-emerald-400">▲ +18.7%</div></div>
+            <div class="p-3 bg-[#07090E] border border-[#1E293B] rounded-2xl"><span class="text-[10px] text-slate-500">Following</span><div class="text-xl font-bold text-white mt-1">+856</div><div class="text-[10px] text-emerald-400">▲ +12.2%</div></div>
+            <div class="p-3 bg-[#07090E] border border-[#1E293B] rounded-2xl"><span class="text-[10px] text-slate-500">Growth Rate</span><div class="text-xl font-bold text-emerald-400 mt-1">15.2%</div><div class="text-[10px] text-emerald-400">▲ +3.8%</div></div>
+          </div>
+
+          <div class="p-4 bg-[#07090E] rounded-2xl border border-[#1E293B] space-y-2">
+            <div class="font-bold text-xs text-white">Audience Insights</div>
+            <div class="grid grid-cols-3 gap-2 text-xs font-mono text-slate-400">
+              <div>Top Age: <strong class="text-slate-200">25-34 (45%)</strong></div>
+              <div>Top Country: <strong class="text-slate-200">India (32%)</strong></div>
+              <div>Top Interest: <strong class="text-slate-200">Technology (28%)</strong></div>
+            </div>
+          </div>
+
+          <div class="p-4 bg-gradient-to-r from-[#7C3AED]/20 to-[#06B6D4]/20 rounded-2xl border border-[#7C3AED]/30">
+            <div class="text-xs font-bold text-white">Next Month Prediction: <span class="text-emerald-400 font-mono">+3.2K followers</span></div>
+            <div class="text-[11px] text-slate-400 mt-0.5">High confidence Random Forest regressor projection</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 11: AI STRATEGY ENGINE -->
+      <section id="tab-strategy" class="space-y-6" hidden>
+        <div class="bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl space-y-5">
+          <div><h3 class="font-bold text-sm text-white">Content Strategy</h3><p class="text-xs text-[#7C3AED] font-semibold mt-1">Recommended: Educational Content (High performance predicted)</p></div>
+          <div class="p-4 bg-[#07090E] rounded-2xl border border-[#1E293B] space-y-1.5 text-xs text-slate-300">
+            <div class="font-bold text-white mb-1">Strategy Pillars:</div>
+            <div>1. AI & Automation Tips</div>
+            <div>2. Behind the Scenes</div>
+            <div>3. Industry Insights</div>
+            <div>4. User Success Stories</div>
+          </div>
+
+          <!-- Radar Chart Visual -->
+          <div class="h-44 flex items-center justify-center">
+            <svg viewBox="0 0 200 200" class="w-40 h-40">
+              <polygon points="100,20 180,75 150,165 50,165 20,75" fill="none" stroke="#1E293B" stroke-width="1.5" />
+              <polygon points="100,45 155,85 135,145 65,145 45,85" fill="none" stroke="#1E293B" stroke-width="1.5" />
+              <polygon points="100,35 165,80 135,150 60,145 35,80" fill="#7C3AED" fill-opacity="0.4" stroke="#06B6D4" stroke-width="2" />
+              <text x="100" y="14" fill="#A78BFA" font-size="8" font-weight="bold" text-anchor="middle">Engagement</text>
+              <text x="185" y="78" fill="#22D3EE" font-size="8" font-weight="bold">Reach</text>
+              <text x="155" y="178" fill="#A78BFA" font-size="8" font-weight="bold">Consistency</text>
+              <text x="45" y="178" fill="#22D3EE" font-size="8" font-weight="bold">Growth</text>
+              <text x="10" y="78" fill="#A78BFA" font-size="8" font-weight="bold">Virality</text>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 12: REPORTS & INSIGHTS -->
+      <section id="tab-reports" class="space-y-6" hidden>
+        <div class="bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl space-y-4">
+          <h3 class="font-bold text-sm text-white">Export Reports</h3>
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="p-3 bg-[#07090E] border border-[#7C3AED] rounded-2xl cursor-pointer"><strong class="text-white block">Performance Report</strong><span class="text-[11px] text-slate-400">Comprehensive performance analysis</span></div>
+            <div class="p-3 bg-[#07090E] border border-[#1E293B] rounded-2xl cursor-pointer"><strong class="text-white block">Audience Report</strong><span class="text-[11px] text-slate-400">Detailed audience insights</span></div>
+            <div class="p-3 bg-[#07090E] border border-[#1E293B] rounded-2xl cursor-pointer"><strong class="text-white block">Content Report</strong><span class="text-[11px] text-slate-400">Content performance breakdown</span></div>
+            <div class="p-3 bg-[#07090E] border border-[#1E293B] rounded-2xl cursor-pointer"><strong class="text-white block">Engagement Report</strong><span class="text-[11px] text-slate-400">Engagement analytics</span></div>
+          </div>
+          <div class="p-3 bg-[#07090E] rounded-xl border border-[#1E293B] text-xs font-mono text-slate-300">📅 May 20, 2024 - May 26, 2024</div>
+          <button onclick="alert('Performance report generated in JSON/CSV format.')" class="w-full py-2.5 bg-[#7C3AED] hover:bg-[#6D28D9] rounded-xl text-xs font-bold text-white shadow-lg">Export Report</button>
+        </div>
+      </section>
+
+      <!-- TAB 13: SETTINGS & CONFIGURATION -->
+      <section id="tab-settings" class="space-y-6" hidden>
+        <div class="bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl space-y-4 max-w-xl">
+          <div class="flex gap-2 p-1 bg-[#07090E] rounded-xl border border-[#1E293B]">
+            <button class="flex-1 py-1.5 rounded-lg bg-[#7C3AED] text-white text-xs font-bold">General</button>
+            <button class="flex-1 py-1.5 rounded-lg text-slate-400 text-xs font-bold">Security</button>
+            <button class="flex-1 py-1.5 rounded-lg text-slate-400 text-xs font-bold">Notifications</button>
+            <button class="flex-1 py-1.5 rounded-lg text-slate-400 text-xs font-bold">API</button>
+          </div>
+
+          <form class="space-y-3 text-xs" onsubmit="event.preventDefault(); alert('Profile settings saved successfully.');">
+            <div><label class="block text-slate-400 font-bold mb-1">Name</label><input type="text" value="Ankit Raj" class="w-full bg-[#07090E] border border-[#1E293B] rounded-xl p-2.5 text-white" /></div>
+            <div><label class="block text-slate-400 font-bold mb-1">Email</label><input type="email" value="ankit@example.com" class="w-full bg-[#07090E] border border-[#1E293B] rounded-xl p-2.5 text-white" /></div>
+            <div><label class="block text-slate-400 font-bold mb-1">Timezone</label><select class="w-full bg-[#07090E] border border-[#1E293B] rounded-xl p-2.5 text-white"><option>Asia/Kolkata (GMT+5:30)</option><option>UTC</option><option>America/New_York (EST)</option></select></div>
+            <div><label class="block text-slate-400 font-bold mb-1">Language</label><select class="w-full bg-[#07090E] border border-[#1E293B] rounded-xl p-2.5 text-white"><option>English</option><option>Spanish</option></select></div>
+            <div><label class="block text-slate-400 font-bold mb-1">Theme</label><select class="w-full bg-[#07090E] border border-[#1E293B] rounded-xl p-2.5 text-white"><option>Dark</option><option>Light</option></select></div>
+            <button type="submit" class="w-full py-2.5 bg-[#7C3AED] hover:bg-[#6D28D9] rounded-xl text-xs font-bold text-white shadow-lg mt-2">Save Changes</button>
+          </form>
+        </div>
+      </section>
+
     </div>
   </div>
-</div>
 
-<!-- VIEW: OPERATION GUIDE -->
-<div id="view-guide" hidden>
-  <div class="instructions-box">
-    <h2 style="font-size: 20px; font-weight: 800; color:#fff; margin-bottom: 8px;">How to Operate the Full-Stack AISMM System</h2>
-    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 24px;">
-      Follow these simple commands to start both the FastAPI Python backend and the Vite React frontend on your local machine or in Docker.
-    </p>
-
-    <div class="inst-step">
-      <div class="step-num">1</div>
-      <div class="step-content">
-        <h4>Option A: Run Full Stack with Docker Compose (1-Command Launch)</h4>
-        <p>Starts PostgreSQL, Redis, FastAPI Backend, and React Frontend in synchronized containers.</p>
-        <code class="code-snippet">make docker-up</code>
-        <p style="margin-top: 4px; font-size: 11px;">• Frontend UI: <strong style="color:#fff;">http://localhost:3000</strong><br>• Backend Swagger API: <strong style="color:#fff;">http://localhost:8000/docs</strong></p>
-      </div>
-    </div>
-
-    <div class="inst-step">
-      <div class="step-num">2</div>
-      <div class="step-content">
-        <h4>Option B: Run Backend & Frontend Locally</h4>
-        <p><strong>Terminal 1 (Backend API):</strong></p>
-        <code class="code-snippet">source .venv/bin/activate && uvicorn backend.app.main:app --reload</code>
-        <p style="margin-top: 8px;"><strong>Terminal 2 (React Studio Frontend):</strong></p>
-        <code class="code-snippet">cd frontend && npm run dev</code>
-        <p style="margin-top: 4px; font-size: 11px;">• Open in browser: <strong style="color:#fff;">http://localhost:5173</strong></p>
-      </div>
-    </div>
-
-    <div class="inst-step">
-      <div class="step-num">3</div>
-      <div class="step-content">
-        <h4>Running the 194 Automated Verification Tests</h4>
-        <p>Execute all 21 test suites verifying all 5 platform adapters, 8 AI engines, and security hardening:</p>
-        <code class="code-snippet">make test</code>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-  const platformsData = {
-    instagram: {
-      title: "Instagram Native Feed Preview",
-      sub: "Feed Post • Just now",
-      avatar: "IG",
-      body: "Unveiling our new AI Social Media platform today! 🚀 Automate peak publishing, sentiment tracking, and multi-channel reach. Tap the link in bio to explore our live engine! ✨",
-      tags: ["#AISMM", "#ArtificialIntelligence", "#Automation", "#SocialMediaMarketing", "#TechGrowth"],
-      score: "88.5 / 100",
-      sent: "+0.74 (Pos)",
-      time: "Wed 19:00"
-    },
-    facebook: {
-      title: "Facebook Page Feed Preview",
-      sub: "Page Post • Just now",
-      avatar: "FB",
-      body: "Exciting news for our community! 🎉 We just launched our AI Social Media Management platform. How are you currently managing your content schedule? Let's discuss in the comments below!",
-      tags: ["#AISMM", "#Technology", "#Community"],
-      score: "91.2 / 100",
-      sent: "+0.82 (Pos)",
-      time: "Thu 20:00"
-    },
-    x: {
-      title: "X (Twitter) Tweet Preview",
-      sub: "@AISMM_Tech • 2m",
-      avatar: "X",
-      body: "Unveiling our autonomous AI social media management platform today! ⚡ Automate peak scheduling, sentiment trajectories & audience growth. Read our technical thread below 🧵👇",
-      tags: ["#AI", "#Tech", "#BuildInPublic"],
-      score: "94.0 / 100",
-      sent: "+0.79 (Pos)",
-      time: "Tue 18:00"
-    },
-    linkedin: {
-      title: "LinkedIn Organization Update",
-      sub: "AISMM Technology • 1m",
-      avatar: "IN",
-      body: "I am thrilled to announce the official release of our autonomous AI Social Media Management platform.\n\nKey capabilities:\n• Multi-platform adapter architecture\n• Dual-phase sentiment & temporal trajectory\n• Predictive growth modeling (89.2% R²)\n\nLearn more at aismm.com.",
-      tags: ["#leadership", "#technology", "#innovation", "#engineering"],
-      score: "93.4 / 100",
-      sent: "+0.86 (Pos)",
-      time: "Wed 09:00"
-    },
-    youtube: {
-      title: "YouTube Video Metadata Preview",
-      sub: "AISMM Channel • Public Video",
-      avatar: "YT",
-      body: "Title: Autonomous AI Social Media Management System Walkthrough (2026)\n\nDescription: Complete technical breakdown of how AISMM schedules, publishes, analyzes sentiment, and auto-replies across all 5 major networks.",
-      tags: ["#AISMM", "#AIAutomation", "#MachineLearning", "#Tutorial"],
-      score: "87.0 / 100",
-      sent: "+0.68 (Pos)",
-      time: "Wed 15:00"
+  <script>
+    function switchView(viewName) {
+      document.getElementById('view-landing').hidden = (viewName !== 'landing');
+      document.getElementById('view-studio').hidden = (viewName !== 'studio');
     }
-  };
 
-  let currentPlatform = 'instagram';
-
-  function setPlatform(platformKey) {
-    currentPlatform = platformKey;
-    document.querySelectorAll('.subtab-btn').forEach(btn => btn.classList.remove('active'));
-    const btn = document.getElementById('tab-' + (platformKey === 'x' ? 'x' : platformKey.slice(0, 2)));
-    if (btn) btn.classList.add('active');
-
-    const data = platformsData[platformKey];
-    if (data) {
-      document.getElementById('preview-title').textContent = data.title;
-      document.getElementById('preview-sub').textContent = data.sub;
-      document.getElementById('avatar-icon').textContent = data.avatar;
-      document.getElementById('preview-body').textContent = data.body;
-      document.getElementById('score-val').textContent = data.score;
-      document.getElementById('sent-val').textContent = data.sent;
-
-      const tagsContainer = document.getElementById('tags-container');
-      tagsContainer.innerHTML = '';
-      data.tags.forEach(tag => {
-        const span = document.createElement('span');
-        span.className = 'tag-pill';
-        span.textContent = tag;
-        tagsContainer.appendChild(span);
+    function switchTab(tabId) {
+      const tabs = ['overview', 'analytics', 'composer', 'ai-engine', 'scheduling', 'platforms', 'inbox', 'growth', 'strategy', 'reports', 'settings'];
+      tabs.forEach(t => {
+        const el = document.getElementById('tab-' + t);
+        const nav = document.getElementById('nav-' + t);
+        if (el) el.hidden = (t !== tabId);
+        if (nav) {
+          if (t === tabId) {
+            nav.className = "w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-[#7C3AED] text-white";
+          } else {
+            nav.className = "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#0D121F]";
+          }
+        }
       });
     }
-  }
 
-  function runAIOptimize() {
-    const input = document.getElementById('draft-input').value;
-    const badge = document.getElementById('adapted-badge');
-    badge.textContent = 'Optimizing...';
-    setTimeout(() => {
-      badge.textContent = 'Synthesized in 9ms';
-      setPlatform(currentPlatform);
-    }, 300);
-  }
-
-  function updateWordCount() {
-    const text = document.getElementById('draft-input').value.trim();
-    const count = text ? text.split(/\s+/).length : 0;
-    document.getElementById('word-count').textContent = count + ' words';
-  }
-
-  function switchView(viewName) {
-    document.getElementById('view-landing').hidden = (viewName !== 'landing');
-    document.getElementById('view-studio').hidden = (viewName !== 'studio');
-    document.getElementById('view-guide').hidden = (viewName !== 'guide');
-
-    document.getElementById('btn-landing').classList.toggle('active', viewName === 'landing');
-    document.getElementById('btn-studio').classList.toggle('active', viewName === 'studio');
-    document.getElementById('btn-guide').classList.toggle('active', viewName === 'guide');
-  }
-
-  function switchDashboardTab(tabId, el) {
-    document.querySelectorAll('[id^="dash-tab-"]').forEach(d => d.hidden = true);
-    const target = document.getElementById('dash-tab-' + tabId);
-    if (target) target.hidden = false;
-
-    if (el && el.parentElement) {
-      el.parentElement.querySelectorAll('.subtab-btn').forEach(b => b.classList.remove('active'));
-      el.classList.add('active');
+    function openAuthModal(step) {
+      document.getElementById('auth-modal').hidden = false;
+      setAuthStep(step);
     }
-  }
-</script>
+
+    function closeAuthModal() {
+      document.getElementById('auth-modal').hidden = true;
+    }
+
+    function setAuthStep(step) {
+      const steps = ['signin', 'signup', 'otp', '2fa', 'success'];
+      steps.forEach(s => {
+        const el = document.getElementById('auth-step-' + s);
+        if (el) el.hidden = (s !== step);
+      });
+    }
+
+    function handleAuthAction(e, action) {
+      e.preventDefault();
+      if (action === 'signin') {
+        setAuthStep('otp');
+      } else if (action === 'signup') {
+        setAuthStep('otp');
+      }
+    }
+
+    function runLandingOptimize() {
+      const btn = event.target;
+      btn.innerText = "Optimizing with Engine...";
+      setTimeout(() => {
+        btn.innerText = "Optimize Content";
+      }, 500);
+    }
+  </script>
+</body>
+</html>
