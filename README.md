@@ -1,9 +1,9 @@
 # AISMM — Universal Multi-Platform AI Social Media Management
 
 ![Phase](https://img.shields.io/badge/phase-17%20Final%20Verification%20Complete-brightgreen)
-![Tests](https://img.shields.io/badge/tests-194%2F194%20passing%20(100%25)-brightgreen)
+![Tests](https://img.shields.io/badge/tests-216%2F216%20passing%20(100%25)-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
-![Framework](https://img.shields.io/badge/framework-FastAPI%20%7C%20SQLAlchemy%20%7C%20Alembic-blue)
+![Framework](https://img.shields.io/badge/framework-FastAPI%20%7C%20SQLAlchemy%20%7C%20React%2019-blue)
 
 AISMM is a **platform-agnostic, AI-powered social media management platform** built with a modular adapter architecture. The core AI engines (scheduling, sentiment, growth prediction, auto-reply, caption/hashtag optimization) are completely independent of any social media platform — new platforms are added via adapters without touching core logic.
 
