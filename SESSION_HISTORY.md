@@ -1108,3 +1108,71 @@ This file contains the complete session history for the AISMM project. It is sep
 **Git Commit:** 95a36a4
 
 **GitHub Push:** VERIFIED
+
+---
+
+### SESSION-023 — 2026-09-04
+
+**Phase:** CLAUDE2 REMEDIATION & 13-SCREEN OBSIDIAN UI INTEGRATION COMPLETE
+
+**Objective:** Complete comprehensive codebase remediation across Sections 1–8 of CLAUDE2.md (Secrets & Config, Auth & Authorization, Hardening Wiring, Scheduler Execution Engine, Honest ML Holdouts, 13-Screen Obsidian & Cyber Neon UI, Repository Hygiene, Alembic Discipline).
+
+**Completed:**
+- **Section 1 (Secrets & Configuration)**: Removed hardcoded default secrets, implemented startup validation refusing boot with placeholder keys in non-development environments, updated `SecretVault` to use cryptographically secure random per-record salts, added `.env.docker.example`, and added `cryptography` explicitly to requirements.
+- **Section 2 (Authentication & Authorization)**: Implemented app user registration (`POST /api/v1/auth/register`), login (`POST /api/v1/auth/login`), token refresh (`POST /api/v1/auth/refresh`), and profile (`GET /api/v1/auth/me`). Wired `get_current_user` dependency across all business routes, eliminated all `DEFAULT_USER_ID` constants, enforced user scoping, and deleted dead duplicate modules (`core/config.py` and `core/models/`).
+- **Section 3 (Production Hardening Wiring)**: Applied `rate_limit_guard` to authentication, registration, and platform endpoints. Integrated `CircuitBreaker` with exponential backoff retries into `BasePlatformAdapter`. Wired structured security and compliance audit logging via `default_audit_logger`.
+- **Section 4 (Scheduled-Post Execution Engine)**: Implemented async scheduler background worker loop in FastAPI lifespan with concurrency-safe state transitions (`pending` → `publishing` → `sent` / `failed`) and PostgreSQL row locking.
+- **Section 5 (Honest ML Holdout Validation)**: Rebuilt Growth, Scheduling, and Auto-Reply engines with genuine out-of-sample `train_test_split` holdouts. Eliminated all hardcoded accuracy literals from `ModelEvaluator`. Relabeled Hashtag and Caption engines as rule-based heuristics.
+- **Section 6 (13-Screen Obsidian & Cyber Neon UI Remediation)**: Implemented and styled the complete 13-module frontend catalog matching the master design spec (`#07090E` ground, `#7C3AED` electric violet, `#06B6D4` cyan). Wired all components to authenticated backend API calls with explicit offline error banners.
+- **Section 7 (Repository Hygiene)**: Deleted orphaned `aismm/` directory and verified zero remaining dead references across the entire codebase.
+- **Section 8 (Migration Discipline)**: Created separate reviewable Alembic migration revision `2a3f7b8c9d0e_add_auth_user_security_attributes.py`.
+
+**Files Created/Updated:**
+- `backend/app/config/settings.py`
+- `backend/app/core/vault.py`
+- `backend/app/core/rate_limit.py`
+- `backend/app/core/audit.py`
+- `backend/app/core/platform_adapters/base.py`
+- `backend/app/api/deps.py`
+- `backend/app/api/v1/auth.py`
+- `backend/app/api/v1/accounts.py`
+- `backend/app/api/v1/posts.py`
+- `backend/app/api/v1/content.py`
+- `backend/app/api/v1/analytics.py`
+- `backend/app/api/v1/growth.py`
+- `backend/app/api/v1/scheduling.py`
+- `backend/app/api/v1/strategy.py`
+- `backend/app/api/v1/intelligence.py`
+- `backend/app/api/v1/metrics.py`
+- `backend/app/api/v1/reply.py`
+- `backend/app/api/v1/models.py`
+- `backend/app/api/v1/comments.py`
+- `backend/app/api/v1/ai.py`
+- `backend/app/api/v1/platforms.py`
+- `backend/app/ai/growth/engine.py`
+- `backend/app/ai/scheduling/engine.py`
+- `backend/app/ai/reply/engine.py`
+- `backend/app/ai/hashtag/engine.py`
+- `backend/app/ai/caption/engine.py`
+- `backend/app/ai/evaluation/evaluator.py`
+- `backend/app/services/scheduling_service.py`
+- `backend/app/main.py`
+- `backend/alembic/versions/2a3f7b8c9d0e_add_auth_user_security_attributes.py`
+- `frontend/index.html`
+- `frontend/src/App.jsx`
+- `frontend/src/api/client.js`
+- `frontend/src/components/` (all 13 views)
+- `frontend/.env.development`, `frontend/.env.production`, `frontend/.env.example`
+- `docker-compose.yml`, `.env.docker.example`
+
+**Tests:**
+- Backend Test Suite: **216/216 passed (100%)**
+- Frontend Production Build: **SUCCESS (205ms, 0 errors)**
+
+**Current Status:** CLAUDE2 REMEDIATION & 13-SCREEN UI COMPLETE AND VERIFIED
+
+**NEXT ACTION:** Final documentation alignment and deployment preparation.
+
+**Git Commit:** pending
+
+**GitHub Push:** IN PROGRESS
