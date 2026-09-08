@@ -1,0 +1,29 @@
+name: AISMM checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: {POSTGRES_PASSWORD: test, POSTGRES_DB: aismm_test}
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 20
+    env:
+      ENVIRONMENT: development
+      SECRET_KEY: ci-only-not-a-production-secret-master
+      JWT_SECRET_KEY: ci-only-not-a-production-secret-signing
+      DATABASE_URL: postgresql+asyncpg://postgres:test@localhost:5432/aismm_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.13', cache: pip}
+      - uses: actions/setup-node@v4
+        with: {node-version: '24', cache: npm, cache-dependency-path: frontend/package-lock.json}
+      - run: pip install -r backend/requirements-dev.txt
+      - run: alembic -c backend/alembic.ini upgrade head
+      - run: pytest -q
+      - run: npm ci && npm run build && npm run lint
+        working-directory: frontend

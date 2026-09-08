@@ -1,0 +1,15 @@
+14 PostgreSQL-backed real HTTP checks passed
+PASS register
+PASS unverified gate
+PASS email verification
+PASS authenticated /accounts
+PASS authenticated /posts
+PASS authenticated /comments
+PASS authenticated /analytics/dashboard
+PASS profile persistence
+PASS 2fa setup
+PASS refresh rotation
+PASS refresh replay rejected
+PASS logout
+PASS revoked access rejected
+PASS revoked refresh rejected

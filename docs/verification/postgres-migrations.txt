@@ -1,0 +1,8 @@
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 1c2e5404a0b3, initial schema: users, social_accounts, posts, post_media, post_publications, comments, metrics, schedules, ml_models, model_predictions, sentiment_analyses
+INFO  [alembic.runtime.migration] Running upgrade 1c2e5404a0b3 -> 2a3f7b8c9d0e, add auth user security attributes: last_login_at, is_verified, is_superuser, is_active
+INFO  [alembic.runtime.migration] Running upgrade 2a3f7b8c9d0e -> 3b4c5d6e7f8a, add email verification fields to users table
+INFO  [alembic.runtime.migration] Running upgrade 3b4c5d6e7f8a -> 4c5d6e7f8a9b, add phone verification fields to users table
+INFO  [alembic.runtime.migration] Running upgrade 4c5d6e7f8a9b -> 5d6e7f8a9b0c, Durable sessions, OAuth state, recovery, and credential encryption.
+INFO  [alembic.runtime.migration] Running upgrade 5d6e7f8a9b0c -> 6e7f8a9b0c1d, Persist recommendation feedback scoped to user.

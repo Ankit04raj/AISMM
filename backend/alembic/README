@@ -1,0 +1,31 @@
+# Alembic Migrations
+
+This directory contains Alembic migration scripts for the AISMM database.
+
+## Commands
+
+```bash
+# Create a new migration (auto-generated from models)
+cd backend
+alembic revision --autogenerate -m "description"
+
+# Apply latest migration
+alembic upgrade head
+
+# Roll back one migration
+alembic downgrade -1
+
+# Stamp current DB as at latest revision (no migration run)
+alembic stamp head
+```
+
+## Configuration
+
+- `alembic.ini` — Alembic configuration
+- `env.py` — Migration environment, loads models from `backend.app.db.models`
+- `script.py.mako` — Template for new migration files
+- `versions/` — Generated migration scripts
+
+## Model Registry
+
+All SQLAlchemy models are registered in `backend/app/db/models.py` and imported in `env.py` so Alembic can detect schema changes automatically.

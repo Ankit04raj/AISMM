@@ -1,0 +1,172 @@
+# AISMM Model Configuration
+# Model selection and hyperparameters per AI engine
+
+models:
+  scheduling:
+    active_model: "random_forest_xgboost_voting"
+    platform_specific: true
+    ensemble_method: "hard_voting"
+    candidates:
+      - "random_forest"
+      - "xgboost"
+      - "lightgbm"
+    hyperparameters:
+      random_forest:
+        n_estimators: 100
+        max_depth: 10
+        min_samples_split: 5
+        min_samples_leaf: 2
+        random_state: 42
+      xgboost:
+        n_estimators: 100
+        max_depth: 6
+        learning_rate: 0.1
+        subsample: 0.8
+        colsample_bytree: 0.8
+        random_state: 42
+    feature_version: "v1"
+    dataset_version: "v1"
+
+  sentiment:
+    active_model: "vader_knn"
+    pre_post_method: "vader_knn"
+    post_post_method: "comment_aggregation"
+    thresholds:
+      very_positive: 0.50
+      positive: 0.05
+      neutral_low: -0.05
+      negative: -0.50
+      very_negative: -0.50
+    knn:
+      k: 5
+      enabled: true
+      distance_metric: "cosine"
+    dual_phase:
+      pre_post_weight: 0.4
+      post_post_weight: 0.6
+    temporal:
+      window_days: 30
+      min_samples: 5
+    feature_version: "v1"
+    dataset_version: "v1"
+
+  growth:
+    active_model: "random_forest_regressor"
+    platform_specific: true
+    candidates:
+      - "random_forest"
+      - "xgboost"
+      - "lstm"
+    hyperparameters:
+      random_forest:
+        n_estimators: 100
+        max_depth: 10
+        min_samples_split: 5
+        min_samples_leaf: 2
+        random_state: 42
+      xgboost:
+        n_estimators: 100
+        max_depth: 6
+        learning_rate: 0.1
+        subsample: 0.8
+        colsample_bytree: 0.8
+        random_state: 42
+    feature_version: "v1"
+    dataset_version: "v1"
+
+  reply:
+    active_model: "tfidf_logistic"
+    tfidf:
+      stop_words: "english"
+      ngram_range: [1, 2]
+      max_features: 10000
+      min_df: 2
+      max_df: 0.95
+    logistic:
+      multi_class: "multinomial"
+      max_iter: 1000
+      C: 1.0
+      solver: "lbfgs"
+      random_state: 42
+    confidence_thresholds:
+      auto_reply: 0.90
+      requires_approval: 0.70
+      manual: 0.70
+    categories:
+      - "question"
+      - "complaint"
+      - "compliment"
+      - "general"
+      - "spam"
+      - "urgent"
+    feature_version: "v1"
+    dataset_version: "v1"
+
+  caption:
+    platform_limits:
+      instagram:
+        caption_max_length: 2200
+        hashtag_max_count: 30
+      facebook:
+        caption_max_length: 63206
+        hashtag_max_count: 30
+      x:
+        caption_max_length: 280
+        hashtag_max_count: 10
+      linkedin:
+        caption_max_length: 3000
+        hashtag_max_count: 10
+      youtube:
+        caption_max_length: 5000
+        hashtag_max_count: 15
+    quality_weights:
+      length: 0.2
+      hashtag_usage: 0.15
+      mention_usage: 0.1
+      emoji_usage: 0.1
+      cta_presence: 0.2
+      readability: 0.15
+      engagement_prediction: 0.1
+    feature_version: "v1"
+    dataset_version: "v1"
+
+  hashtag:
+    top_k: 5
+    min_frequency: 3
+    trend_lookback_days: 7
+    performance_weight: 0.6
+    recency_weight: 0.2
+    relevance_weight: 0.2
+    feature_version: "v1"
+    dataset_version: "v1"
+
+  recommendation:
+    enabled_engines:
+      - "scheduling"
+      - "sentiment"
+      - "growth"
+      - "caption"
+      - "hashtag"
+    priority_weights:
+      scheduling: 0.25
+      sentiment: 0.15
+      growth: 0.20
+      caption: 0.15
+      hashtag: 0.15
+      platform_priority: 0.10
+    confidence_threshold: 0.7
+    feature_version: "v1"
+    dataset_version: "v1"
+
+  registry:
+    storage_path: "./ml/models"
+    mlflow_tracking_uri: "http://localhost:5000"
+    default_status: "development"
+    promotion_requirements:
+      staging:
+        min_accuracy: 0.75
+        min_samples: 100
+      production:
+        min_accuracy: 0.80
+        min_samples: 500
+        staging_days: 7

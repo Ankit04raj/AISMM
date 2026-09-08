@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body { @apply bg-obsidian-bg text-slate-100; }
+  button, a, input, select, textarea { touch-action: manipulation; }
+  button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: 2px solid #22D3EE; outline-offset: 3px;
+  }
+  input:not([type=checkbox]), select, textarea { min-height: 44px; }
+  button { min-height: 44px; }
+  input[type=checkbox] { accent-color: #7c3aed; }
+}
+@layer components {
+  .panel { @apply bg-obsidian-card border border-obsidian-border rounded-2xl p-6; }
+  .field { @apply w-full bg-obsidian-bg border border-slate-700 rounded-lg px-3 py-2 text-base text-white; }
+  .btn { @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed; }
+  .btn-secondary { @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-800 disabled:opacity-50; }
+  .notice { @apply p-4 rounded-lg border border-cyan-500/30 bg-cyan-950/20 text-cyan-200 text-sm; }
+  .error { @apply p-4 rounded-lg border border-rose-500/40 bg-rose-950/30 text-rose-200 text-sm; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+/* Clean Tailwind base reset */
+html, body, #root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background-color: #0b0f19;
+  color: #f3f4f6;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  box-sizing: border-box;
+}
+
+* {
+  box-sizing: border-box;
+}

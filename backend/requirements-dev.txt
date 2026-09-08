@@ -1,0 +1,5 @@
+-r requirements.txt
+pytest==8.3.5
+pytest-asyncio==0.23.8
+pytest-cov==7.1.0
+pyotp==2.10.0

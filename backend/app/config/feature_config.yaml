@@ -1,0 +1,160 @@
+# Feature Engineering Configuration
+# Defines feature extraction parameters for all AI engines
+
+features:
+  scheduling:
+    temporal:
+      - "hour"
+      - "day_of_week"
+      - "is_weekend"
+      - "month"
+      - "is_holiday"
+    content:
+      - "caption_length"
+      - "hashtag_count"
+      - "mention_count"
+      - "media_count"
+      - "media_type"
+      - "has_location"
+      - "has_poll"
+      - "language"
+    account:
+      - "follower_count"
+      - "following_count"
+      - "post_frequency_per_week"
+      - "avg_engagement_rate"
+      - "account_age_days"
+    historical:
+      - "historical_avg_engagement"
+      - "historical_best_hour"
+      - "historical_best_day"
+      - "engagement_trend_7d"
+      - "engagement_trend_30d"
+    platform_specific:
+      instagram:
+        - "is_reel"
+        - "is_story"
+        - "carousel_slide_count"
+      facebook:
+        - "is_shared_post"
+        - "has_link"
+      x:
+        - "is_thread"
+        - "thread_length"
+      linkedin:
+        - "is_article"
+        - "has_document"
+      youtube:
+        - "video_duration_category"
+        - "is_short"
+
+  sentiment:
+    vader:
+      - "compound"
+      - "positive"
+      - "negative"
+      - "neutral"
+    linguistic:
+      - "exclamation_count"
+      - "question_count"
+      - "uppercase_ratio"
+      - "word_count"
+      - "avg_word_length"
+      - "emoji_count"
+      - "emoji_sentiment"
+      - "hashtag_count"
+      - "mention_count"
+    contextual:
+      - "time_since_post"
+      - "reply_count"
+      - "engagement_rate"
+    knn_refinement:
+      - "enabled"
+      - "k: 5"
+      - "distance_metric: cosine"
+      - "feature_subset: [compound, positive, negative, exclamation_count, question_count]"
+
+  growth:
+    account:
+      - "current_followers"
+      - "follower_growth_rate_7d"
+      - "follower_growth_rate_30d"
+      - "post_count_7d"
+      - "post_count_30d"
+      - "avg_engagement_rate"
+      - "account_age_days"
+      - "verified_status"
+    content:
+      - "content_type_distribution"
+      - "media_type_distribution"
+      - "hashtag_diversity"
+      - "mention_network_size"
+    engagement:
+      - "total_engagement_7d"
+      - "total_engagement_30d"
+      - "engagement_per_post"
+      - "viral_post_count"
+    platform:
+      - "platform_algorithm_changes"
+      - "seasonal_factors"
+    temporal:
+      - "day_of_year"
+      - "week_of_year"
+      - "month"
+
+  reply:
+    tfidf:
+      - "ngram_range: [1, 2]"
+      - "max_features: 10000"
+      - "min_df: 2"
+      - "max_df: 0.95"
+    meta:
+      - "comment_length"
+      - "has_question"
+      - "has_exclamation"
+      - "author_verified"
+      - "author_follower_count"
+      - "time_since_post"
+      - "reply_depth"
+
+  caption:
+    structural:
+      - "length"
+      - "sentence_count"
+      - "avg_sentence_length"
+      - "paragraph_count"
+    engagement_signals:
+      - "hashtag_count"
+      - "mention_count"
+      - "emoji_count"
+      - "cta_present"
+      - "question_count"
+      - "link_present"
+    readability:
+      - "flesch_reading_ease"
+      - "gunning_fog_index"
+      - "avg_syllables_per_word"
+    platform_optimization:
+      - "within_length_limit"
+      - "hashtag_placement"
+      - "mention_placement"
+
+  hashtag:
+    extraction:
+      - "normalize_case: true"
+      - "remove_duplicates: true"
+      - "filter_stopwords: false"
+    performance:
+      - "avg_engagement"
+      - "usage_frequency"
+      - "trend_score"
+      - "platform_specificity"
+    recommendation:
+      - "content_similarity"
+      - "co_occurrence"
+      - "category_relevance"
+
+feature_store:
+  cache_ttl_seconds: 3600
+  max_cache_size: 10000
+  version: "v1.0"

@@ -1,0 +1,112 @@
+{
+  "results": [
+    {
+      "route": "landing",
+      "overflow": false
+    },
+    {
+      "test": "registration and email verification",
+      "passed": true
+    },
+    {
+      "route": "overview",
+      "mobileOverflow": false,
+      "overflow": false,
+      "error": false,
+      "text": "YOUR SOCIAL WORKSPACE\n\nA clearer view of your work.\n\nAccount activity and content, without the noise.\n\nCreate a post\nWelcome to your new workspace.\n\nNo connected accounts or audience data yet. Connect your first platform"
+    },
+    {
+      "route": "analytics",
+      "mobileOverflow": false,
+      "overflow": false,
+      "error": false,
+      "text": "Analytics\n\nReal account metrics. Missing data stays missing.\n\nReporting window\nLast 7 days\nLast 30 days\nLast 90 days\n\nReach\n\n0\n\nImpressions\n\n0\n\nEngagements\n\n0\n\nEngagement rate\n\n0%\n\nPlatform comparison\nPlatform\tReach\tImpr"
+    },
+    {
+      "route": "composer",
+      "mobileOverflow": false,
+      "overflow": false,
+      "error": false,
+      "text": "CREATE WITH INTENT\n\nContent composer\n\nOne draft. Your connected channels. You approve every publish.\n\nDraft saved in this browser tab\n\nConnect a platform before publishing. You can still write and save your draft.\n\nConne"
+    },
+    {
+      "route": "scheduling",
+      "mobileOverflow": false,
+      "overflow": false,
+      "error": false,
+      "text": "Experimental decision support. Current ML models use synthetic training/evaluation data; scores are not validated predictions of your real audience. Review recommendations before acting.\nIntelligent Scheduling & Calendar"
+    },
+    {
+      "route": "ai-engine",
+      "mobileOverflow": false,
+      "overflow": false,
+      "error": false,
+      "text": "AI Content Engine\n\nOptimize, adapt, enhance, and recommend hashtags with live multi-model NLP pipelines\n\nNLP Optimization Engine\nOptimize\nAdapt\nEnhance\nHashtags\nSOURCE DRAFT PAYLOAD\n111 chars\nTARGET ADAPTATION CHANNEL\nIn"
+    },
+    {
+      "route": "inbox",
+      "mobileOverflow": false,
+      "overflow": false,
+      "error": false,
+      "text": "Inbox & Engagement Hub\n\nUnified multi-platform comment stream with automated AI intent classification and assisted response dispatch\n\nSync platform comments\nAll\nMessages\nComments\nMentions\nImported comments (0)\nStored com"
+    },
+    {
+      "route": "growth",
+      "mobileOverflow": false,
+      "overflow": false,
+      "error": false,
+      "text": "Experimental decision support. Current ML models use synthetic training/evaluation data; scores are not validated predictions of your real audience. Review recommendations before acting.\nPredictive Growth Modeling & Fore"
+    },
+    {
+      "route": "platforms",
+      "mobileOverflow": false,
+      "overflow": false,
+      "error": false,
+      "text": "Platform Connection Hub\n\nManage authenticated platform adapters, OAuth tokens, and dynamic capability contracts\n\n5 Adapters Registered\nI\nInstagram\n\nInstagram Graph API v19.0\n\nStandby\nAccount:\nNot Connected\nSecurity Vault"
+    },
+    {
+      "route": "strategy",
+      "mobileOverflow": false,
+      "overflow": false,
+      "error": false,
+      "text": "AI strategy\n\nRecommendations to consider, not outcomes to promise.\n\nRefresh recommendations\nExperimental decision support. Models use synthetic training data and rule-based platform guidance. Impact estimates are not val"
+    },
+    {
+      "route": "reports",
+      "mobileOverflow": false,
+      "overflow": false,
+      "error": false,
+      "text": "Reports & Live Export Center\n\nGenerate live executive summaries, platform performance audits, and AI accuracy verification reports\n\nExecutive Performance Audit\n\nConsolidated KPIs, audience reach, net engagement, and publ"
+    },
+    {
+      "route": "models",
+      "mobileOverflow": false,
+      "overflow": false,
+      "error": false,
+      "text": "Experimental decision support. Current ML models use synthetic training/evaluation data; scores are not validated predictions of your real audience. Review recommendations before acting.\nModel Registry & Evaluation Bench"
+    },
+    {
+      "route": "settings",
+      "mobileOverflow": false,
+      "overflow": false,
+      "error": false,
+      "text": "YOUR WORKSPACE\n\nSettings\n\nManage your profile and protect your account.\n\nProfile\nSecurity & 2FA\nNotifications\nAPI keys\nYour profile\nFull name\n\nEmail address\n\nqa-1788896062140@example.com\n\nEmail verified\n\nSave profile"
+    },
+    {
+      "route": "security",
+      "mobileOverflow": false,
+      "overflow": false,
+      "error": false,
+      "text": "Security, Hardening & Health\n\nLive process and database probes. These are not a security certification.\n\nRefresh Probes\nLIVENESS PROBE\nAlive\n\nUptime: 1578.0s\n\nREADINESS PROBE\nReady\n\nDatabase: connected\n\nCREDENTIAL VAULT\n"
+    },
+    {
+      "test": "draft continuity",
+      "passed": true
+    },
+    {
+      "test": "logout and protected direct route",
+      "passed": true
+    }
+  ],
+  "errors": []
+}

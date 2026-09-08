@@ -1,0 +1,406 @@
+{
+  "source_repository": "https://github.com/Ankit04raj/AISMM",
+  "source_commit": "8df4694aea777b2e2da5e246713e6e3d87d925c3",
+  "files": [
+    {
+      "status": "M",
+      "path": ".env.docker.example"
+    },
+    {
+      "status": "M",
+      "path": ".env.example"
+    },
+    {
+      "status": "M",
+      "path": ".gitignore"
+    },
+    {
+      "status": "M",
+      "path": "CLAUDE.md"
+    },
+    {
+      "status": "M",
+      "path": "CLAUDE2.md"
+    },
+    {
+      "status": "M",
+      "path": "Dockerfile.backend"
+    },
+    {
+      "status": "M",
+      "path": "Dockerfile.frontend"
+    },
+    {
+      "status": "M",
+      "path": "Makefile"
+    },
+    {
+      "status": "M",
+      "path": "README.md"
+    },
+    {
+      "status": "M",
+      "path": "REQUIREMENT_MATRIX.md"
+    },
+    {
+      "status": "M",
+      "path": "backend/alembic.ini"
+    },
+    {
+      "status": "M",
+      "path": "backend/alembic/env.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/alembic/versions/1c2e5404a0b3_initial_schema.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/alembic/versions/4c5d6e7f8a9b_add_phone_verification_fields.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/ai/registry/model_registry.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/ai/sentiment/engine.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/api/deps.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/api/v1/auth.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/api/v1/comments.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/api/v1/models.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/api/v1/reply.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/api/v1/router.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/config/settings.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/core/rate_limit.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/core/schemas/analytics.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/core/schemas/auth.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/core/security.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/core/vault.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/db/models.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/db/session.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/main.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/services/account_service.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/services/analytics_service.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/services/growth_service.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/services/intelligence_service.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/services/metrics_service.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/services/post_service.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/services/scheduling_service.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/app/services/strategy_service.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/requirements.txt"
+    },
+    {
+      "status": "M",
+      "path": "backend/tests/test_ai_strategy_engine.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/tests/test_analytics_dashboard.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/tests/test_api_v1.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/tests/test_auth_and_scoping.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/tests/test_auto_reply.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/tests/test_content_management.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/tests/test_e2e_instagram.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/tests/test_growth_engine.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/tests/test_model_improvement.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/tests/test_post_intelligence.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/tests/test_scheduling_engine.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/tests/test_secrets_and_config.py"
+    },
+    {
+      "status": "M",
+      "path": "backend/tests/test_services.py"
+    },
+    {
+      "status": "M",
+      "path": "docker-compose.yml"
+    },
+    {
+      "status": "M",
+      "path": "frontend/.env.development"
+    },
+    {
+      "status": "M",
+      "path": "frontend/index.html"
+    },
+    {
+      "status": "M",
+      "path": "frontend/package-lock.json"
+    },
+    {
+      "status": "M",
+      "path": "frontend/package.json"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/App.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/api/client.js"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/AIEngineTab.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/AnalyticsTab.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/AuthView.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/ComposerTab.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/GrowthTab.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/InboxTab.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/LandingPage.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/ModelsTab.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/Navbar.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/OverviewTab.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/PlatformsTab.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/PrivacyPage.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/ReportsTab.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/SchedulingTab.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/SecurityTab.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/SettingsTab.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/Sidebar.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/StrategyTab.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/components/TermsPage.jsx"
+    },
+    {
+      "status": "M",
+      "path": "frontend/src/index.css"
+    },
+    {
+      "status": "M",
+      "path": "frontend/vite.config.js"
+    },
+    {
+      "status": "??",
+      "path": ".dockerignore"
+    },
+    {
+      "status": "??",
+      "path": ".github/workflows/ci.yml"
+    },
+    {
+      "status": "??",
+      "path": "AISMM_ORIGINAL_GAPS_FOR_CLAUDE.md"
+    },
+    {
+      "status": "??",
+      "path": "DEPLOYMENT.md"
+    },
+    {
+      "status": "??",
+      "path": "IMPLEMENTATION_REPORT.md"
+    },
+    {
+      "status": "??",
+      "path": "WORK_COMPLETED.md"
+    },
+    {
+      "status": "??",
+      "path": "backend/alembic/versions/5d6e7f8a9b0c_production_sessions.py"
+    },
+    {
+      "status": "??",
+      "path": "backend/alembic/versions/6e7f8a9b0c1d_strategy_feedback.py"
+    },
+    {
+      "status": "??",
+      "path": "backend/app/services/oauth_service.py"
+    },
+    {
+      "status": "??",
+      "path": "backend/app/services/owned_adapter.py"
+    },
+    {
+      "status": "??",
+      "path": "backend/app/services/session_service.py"
+    },
+    {
+      "status": "??",
+      "path": "backend/requirements-dev.txt"
+    },
+    {
+      "status": "??",
+      "path": "backend/tests/test_production_completion.py"
+    },
+    {
+      "status": "??",
+      "path": "deploy/nginx.conf"
+    },
+    {
+      "status": "??",
+      "path": "frontend/postcss.config.js"
+    },
+    {
+      "status": "??",
+      "path": "frontend/tailwind.config.js"
+    },
+    {
+      "status": "??",
+      "path": "scripts/init_local.py"
+    },
+    {
+      "status": "??",
+      "path": "scripts/verify_browser.cjs"
+    },
+    {
+      "status": "??",
+      "path": "scripts/verify_postgres.py"
+    }
+  ]
+}
