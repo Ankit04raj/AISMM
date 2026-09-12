@@ -111,17 +111,37 @@ def rate_limit_guard(max_requests: int = 60, window_seconds: int = 60):
     return dependency
 
 
+# Global pool for Redis rate limiting
+_redis_pool = None
+
+
+def get_redis_pool():
+    """Retrieve or initialize shared Redis connection pool."""
+    global _redis_pool
+    if _redis_pool is None:
+        import redis.asyncio as redis
+        from backend.app.config import get_settings
+        settings = get_settings()
+        _redis_pool = redis.ConnectionPool.from_url(
+            settings.REDIS_URL,
+            max_connections=getattr(settings, "REDIS_MAX_CONNECTIONS", 50),
+            socket_connect_timeout=2,
+            socket_timeout=2,
+        )
+    return _redis_pool
+
+
 async def redis_limit(key, maximum, window):
     """Atomic shared fixed-window throttle; fail closed when Redis is unavailable."""
     import redis.asyncio as redis
     import hashlib
-    from backend.app.config import get_settings
-    client = redis.from_url(get_settings().REDIS_URL, socket_connect_timeout=2, socket_timeout=2)
     script = """local n=redis.call('INCR',KEYS[1]); if n==1 then redis.call('EXPIRE',KEYS[1],ARGV[1]) end; return {n,redis.call('TTL',KEYS[1])}"""
     try:
-        count, ttl = await client.eval(script, 1, 'aismm:limit:'+hashlib.sha256(key.encode()).hexdigest(), window)
-        return count > maximum, max(0, maximum-count), max(1, ttl)
+        pool = get_redis_pool()
+        client = redis.Redis(connection_pool=pool)
+        count, ttl = await client.eval(script, 1, 'aismm:limit:' + hashlib.sha256(key.encode()).hexdigest(), window)
+        return count > maximum, max(0, maximum - count), max(1, ttl)
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(503, 'Security rate-limit service unavailable. Please retry later.')
-    finally:
-        await client.aclose()

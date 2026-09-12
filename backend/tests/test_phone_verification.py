@@ -53,7 +53,7 @@ def client(app_with_db):
     return TestClient(app_with_db)
 
 
-def _register(client, email, password="password123", full_name="Test User", phone_number=None, verification_method="email"):
+def _register(client, email, password="Password123!", full_name="Test User", phone_number=None, verification_method="email"):
     payload = {"email": email, "password": password, "full_name": full_name}
     if phone_number:
         payload["phone_number"] = phone_number

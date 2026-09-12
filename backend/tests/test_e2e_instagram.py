@@ -205,7 +205,7 @@ async def test_e2e_instagram_lifecycle():
 @pytest.fixture(autouse=True)
 def authenticated_adapter_unit_boundary(monkeypatch):
     """Isolate provider contract tests from SQL ownership; integration tests cover that boundary."""
-    async def resolve(db, user_id, platform):
+    async def resolve(db, user_id, platform, *args, **kwargs):
         return PlatformRegistry.get_adapter(platform)
     monkeypatch.setattr('backend.app.services.post_service.owned_adapter', resolve)
 

@@ -46,6 +46,7 @@ class CreatePostRequest(BaseModel):
 
 class PlatformCustomization(BaseModel):
     """Platform-specific override for a post."""
+    account_id: Optional[str] = Field(None, description="Optional target social account ID when multiple accounts are connected")
     caption: Optional[str] = None
     text: Optional[str] = None
     hashtags: Optional[List[str]] = None

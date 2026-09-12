@@ -108,7 +108,7 @@ class OAuthState(Base):
     user_id = Column(GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     platform = Column(String(32), nullable=False, index=True)
     state = Column(String(128), nullable=False, unique=True, index=True)
-    code_verifier = Column(Text, nullable=True)
+    code_verifier = Column(EncryptedText(), nullable=True)
     nonce = Column(String(128), nullable=True)
     redirect_uri = Column(Text, nullable=False)
     expires_at = Column(DateTime, nullable=False)
@@ -131,6 +131,7 @@ class User(Base):
     is_superuser = Column(Boolean, default=False, nullable=False)
     two_factor_enabled = Column(Boolean, default=False, nullable=False)
     two_factor_secret = Column(EncryptedText(), nullable=True)
+    two_factor_recovery_codes = Column(JSON, nullable=True, default=list)
 
     terms_accepted_at = Column(DateTime, nullable=True)
     password_reset_hash = Column(String(64), nullable=True, index=True)

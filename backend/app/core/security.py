@@ -1,7 +1,7 @@
 """Core security, JWT tokens, API keys, password hashing, and RFC 6238 TOTP 2FA utilities."""
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional, Union, Set
+from typing import Any, Dict, Optional, Union, Set, List, Tuple
 import secrets
 import hashlib
 import hmac
@@ -176,3 +176,31 @@ def verify_totp(secret: str, code: str, window: int = 1) -> bool:
         return False
     except Exception:
         return False
+
+
+def generate_recovery_codes(count: int = 8) -> List[str]:
+    """Generate cryptographically secure 2FA backup recovery codes in XXXX-XXXX format."""
+    codes = []
+    chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # unambiguous charset (no 0, O, 1, I)
+    for _ in range(count):
+        part1 = "".join(secrets.choice(chars) for _ in range(4))
+        part2 = "".join(secrets.choice(chars) for _ in range(4))
+        codes.append(f"{part1}-{part2}")
+    return codes
+
+
+def hash_recovery_code(code: str) -> str:
+    """Hash recovery code for secure database storage."""
+    normalized = code.strip().upper().replace(" ", "").replace("-", "")
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def verify_recovery_code(code: str, hashed_codes: List[str]) -> Tuple[bool, Optional[str]]:
+    """Verify if a code matches any stored hash and return (is_valid, matching_hash)."""
+    if not code or not hashed_codes:
+        return False, None
+    target_hash = hash_recovery_code(code)
+    for stored_hash in hashed_codes:
+        if hmac.compare_digest(target_hash, stored_hash):
+            return True, stored_hash
+    return False, None

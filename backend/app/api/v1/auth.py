@@ -24,6 +24,9 @@ from backend.app.core.security import (
     generate_totp_secret,
     generate_totp_uri,
     verify_totp,
+    generate_recovery_codes,
+    hash_recovery_code,
+    verify_recovery_code,
 )
 from backend.app.api.deps import get_current_user, get_current_verified_user
 from backend.app.core.rate_limit import rate_limit_guard
@@ -44,6 +47,9 @@ from backend.app.core.schemas.auth import (
     PhoneVerificationRequest,
     TwoFactorSetupResponse,
     TwoFactorVerifyRequest,
+    TwoFactorEnableResponse,
+    RegenerateRecoveryCodesRequest,
+    RegenerateRecoveryCodesResponse,
     LogoutRequest,
     OAuthInitRequest,
     OAuthInitResponse,
@@ -279,7 +285,7 @@ async def login_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # If 2FA is active, verify TOTP code
+    # If 2FA is active, verify TOTP code or backup recovery code
     if user.two_factor_enabled:
         if not request.two_factor_code:
             return UserLoginResponse(
@@ -299,8 +305,17 @@ async def login_user(
                     two_factor_enabled=True,
                 ),
             )
-        # Validate TOTP code
-        if not verify_totp(user.two_factor_secret or "", request.two_factor_code):
+        code_input = request.two_factor_code.strip()
+        is_totp = verify_totp(user.two_factor_secret or "", code_input)
+        is_recovery = False
+        matched_recovery_hash = None
+
+        if not is_totp and user.two_factor_recovery_codes:
+            is_recovery, matched_recovery_hash = verify_recovery_code(
+                code_input, user.two_factor_recovery_codes
+            )
+
+        if not is_totp and not is_recovery:
             default_audit_logger.log_event(
                 event_type=AuditEventType.AUTH_LOGIN_FAILED,
                 user_id=str(user.id),
@@ -310,24 +325,34 @@ async def login_user(
             )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid two-factor authentication code.",
+                detail="Invalid two-factor authentication code or recovery code.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-    if user.two_factor_enabled:
-        import pyotp
-        import time
-        current_step = int(time.time() // 30)
-        matched_step = next((step for step in range(current_step-1, current_step+2)
-            if secrets.compare_digest(pyotp.TOTP(user.two_factor_secret).at(step*30), request.two_factor_code.strip())), None)
-        if matched_step is None:
-            raise HTTPException(401, "Authenticator code expired. Try the next code.")
-        used = await db.execute(update(User).where(User.id==user.id,
-            (User.two_factor_last_step.is_(None)) | (User.two_factor_last_step < matched_step)
-        ).values(two_factor_last_step=matched_step))
-        if used.rowcount != 1:
-            await db.rollback()
-            raise HTTPException(401, "Authenticator code already used. Wait for the next code.")
+        if is_totp:
+            import pyotp
+            import time
+            current_step = int(time.time() // 30)
+            matched_step = next((step for step in range(current_step-1, current_step+2)
+                if secrets.compare_digest(pyotp.TOTP(user.two_factor_secret).at(step*30), code_input)), None)
+            if matched_step is None:
+                raise HTTPException(401, "Authenticator code expired. Try the next code.")
+            used = await db.execute(update(User).where(User.id==user.id,
+                (User.two_factor_last_step.is_(None)) | (User.two_factor_last_step < matched_step)
+            ).values(two_factor_last_step=matched_step))
+            if used.rowcount != 1:
+                await db.rollback()
+                raise HTTPException(401, "Authenticator code already used. Wait for the next code.")
+        elif is_recovery and matched_recovery_hash:
+            # Single-use consumption of recovery code
+            updated_codes = [h for h in (user.two_factor_recovery_codes or []) if h != matched_recovery_hash]
+            user.two_factor_recovery_codes = updated_codes
+            default_audit_logger.log_event(
+                event_type=AuditEventType.SETTINGS_UPDATED,
+                user_id=str(user.id),
+                action="2FA_RECOVERY_CODE_CONSUMED",
+                status="SUCCESS",
+            )
 
     # Update last login timestamp
     user.last_login_at = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -769,13 +794,13 @@ async def setup_two_factor_auth(
     return TwoFactorSetupResponse(secret=secret, otpauth_url=otpauth_url)
 
 
-@router.post("/2fa/enable", dependencies=[Depends(rate_limit_guard(max_requests=5, window_seconds=60))])
+@router.post("/2fa/enable", response_model=TwoFactorEnableResponse, dependencies=[Depends(rate_limit_guard(max_requests=5, window_seconds=60))])
 async def enable_two_factor_auth(
     request: TwoFactorVerifyRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Verify initial TOTP code and enable 2FA on account."""
+    """Verify initial TOTP code and enable 2FA on account, generating backup recovery codes."""
     if not current_user.two_factor_secret:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -788,7 +813,11 @@ async def enable_two_factor_auth(
             detail="Invalid two-factor authentication verification code.",
         )
 
+    recovery_codes = generate_recovery_codes(count=8)
+    hashed_codes = [hash_recovery_code(code) for code in recovery_codes]
+
     current_user.two_factor_enabled = True
+    current_user.two_factor_recovery_codes = hashed_codes
     await db.commit()
     await db.refresh(current_user)
 
@@ -798,7 +827,42 @@ async def enable_two_factor_auth(
         action="2FA_ENABLED_ON_ACCOUNT",
         status="SUCCESS",
     )
-    return {"two_factor_enabled": True}
+    return TwoFactorEnableResponse(two_factor_enabled=True, recovery_codes=recovery_codes)
+
+
+@router.post("/2fa/recovery-codes", response_model=RegenerateRecoveryCodesResponse, dependencies=[Depends(rate_limit_guard(max_requests=5, window_seconds=60))])
+async def regenerate_recovery_codes(
+    request: RegenerateRecoveryCodesRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Regenerate a fresh set of 2FA backup recovery codes using active TOTP code."""
+    if not current_user.two_factor_enabled or not current_user.two_factor_secret:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="2FA is not currently enabled on this account.",
+        )
+
+    if not verify_totp(current_user.two_factor_secret, request.code):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid two-factor authentication code.",
+        )
+
+    recovery_codes = generate_recovery_codes(count=8)
+    hashed_codes = [hash_recovery_code(code) for code in recovery_codes]
+
+    current_user.two_factor_recovery_codes = hashed_codes
+    await db.commit()
+    await db.refresh(current_user)
+
+    default_audit_logger.log_event(
+        event_type=AuditEventType.SETTINGS_UPDATED,
+        user_id=str(current_user.id),
+        action="2FA_RECOVERY_CODES_REGENERATED",
+        status="SUCCESS",
+    )
+    return RegenerateRecoveryCodesResponse(recovery_codes=recovery_codes)
 
 
 @router.post("/2fa/disable", dependencies=[Depends(rate_limit_guard(max_requests=5, window_seconds=60))])

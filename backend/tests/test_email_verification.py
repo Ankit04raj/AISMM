@@ -53,7 +53,7 @@ def client(app_with_db):
     return TestClient(app_with_db)
 
 
-def _register(client, email, password="password123", full_name="Test User"):
+def _register(client, email, password="Password123!", full_name="Test User"):
     return client.post(
         "/api/v1/auth/register",
         json={"email": email, "password": password, "full_name": full_name},
