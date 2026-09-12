@@ -5385,7 +5385,49 @@ The historical project notes follow; they are background, not a claim that live 
 
 **NEXT ACTION:** Production cloud deployment and provider developer app registration.
 
-**Git Commit:** d331b5a
+**Git Commit:** a1651a0
+
+**GitHub Push:** VERIFIED
+
+---
+
+### SESSION-029 — 2026-09-12 14:15
+
+**Phase:** DEMO SEED SCRIPT ENVIRONMENT GUARD & PRE-GO-LIVE DATABASE PURGE
+
+**Objective:** Guard demo seed script (`scripts/seed_live_demo.py`) from ever touching staging/production databases, provide standalone database cleanup utility (`scripts/cleanup_demo_data.py`), and document pre-go-live database purge procedures.
+
+**Completed:**
+- **Environment Safety Guard on Demo Seed**:
+  - Added top-level guard in `scripts/seed_live_demo.py` checking `os.getenv("ENVIRONMENT")` before importing database models or configuration.
+  - Refuses execution and exits with code 1 if `ENVIRONMENT` is not `development`, `dev`, `local`, or `test`.
+  - Added `--purge` / `--clean` support to `scripts/seed_live_demo.py`.
+- **Standalone Pre-Go-Live Cleanup Tool (`scripts/cleanup_demo_data.py`)**:
+  - Built standalone utility providing `execute_cleanup(db, dry_run)` and CLI `--dry-run` to identify and delete demo seed users and placeholder direct social accounts prior to production launch.
+- **Deployment Runbook Documentation (`docs/DEPLOYMENT_RUNBOOK.md`)**:
+  - Added Step 3b: "Pre-Go-Live Database Audit & Demo Data Purge" explaining the environment guard and providing dry-run/real purge commands.
+- **Unit & Regression Testing (`backend/tests/test_seed_guard.py`)**:
+  - Added tests verifying `seed_live_demo.py` exits with code 1 under `production` and `staging` environments and testing `execute_cleanup`.
+
+**Files Created:**
+- `scripts/cleanup_demo_data.py`
+- `backend/tests/test_seed_guard.py`
+
+**Files Modified:**
+- `scripts/seed_live_demo.py`
+- `docs/DEPLOYMENT_RUNBOOK.md`
+- `CLAUDE.md`
+
+**Tests:**
+- Backend Suite: **266 passed (100%)**
+- Frontend Tests: **4 passed (100%)**
+- Frontend Build: **SUCCESS (1.21s, 0 errors)**
+
+**Current Status:** DEMO SEED ENVIRONMENT GUARD & PRE-GO-LIVE PURGE COMPLETE AND VERIFIED
+
+**NEXT ACTION:** Multi-agent verification passes and production readiness acceptance.
+
+**Git Commit:** bfcbc89
 
 **GitHub Push:** VERIFIED
 

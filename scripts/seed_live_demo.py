@@ -13,11 +13,26 @@ from uuid import uuid4
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# =============================================================================
+# ENVIRONMENT SAFETY GUARD: NEVER RUN AGAINST STAGING OR PRODUCTION DATABASES
+# =============================================================================
+_raw_env = (os.getenv("ENVIRONMENT") or "development").strip().lower()
+if _raw_env not in {"development", "dev", "local", "test"}:
+    sys.stderr.write(
+        f"\n[FATAL ERROR] Refusing to execute demo seed script in '{_raw_env}' environment!\n"
+        f"This script creates placeholder mock social accounts and dummy data.\n"
+        f"It is strictly restricted to development environments (ENVIRONMENT=development).\n"
+        f"If you need to seed data for testing, set ENVIRONMENT=development in your environment.\n\n"
+    )
+    sys.exit(1)
+
+from backend.app.config.settings import get_settings
+_settings = get_settings()
+
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select
+from sqlalchemy import select, delete
 
-from backend.app.config.settings import settings
 from backend.app.core.security import get_password_hash
 from backend.app.db.models import (
     Base, User, SocialAccount, Post, PostMedia, PostPublication,
@@ -25,9 +40,23 @@ from backend.app.db.models import (
     SentimentAnalysis
 )
 
-DATABASE_URL = settings.DATABASE_URL
+DATABASE_URL = _settings.DATABASE_URL
 engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+
+async def purge_demo_data():
+    """Purge demo users and associated social accounts before taking backups or go-live."""
+    demo_emails = ["rishideoraj4@gmail.com", "demo@aismm.ai", "ankit.freelance04@gmail.com"]
+    async with AsyncSessionLocal() as db:
+        print("🧹 Purging demo-seeded users and connected accounts...")
+        for email in demo_emails:
+            user = await db.scalar(select(User).where(User.email == email))
+            if user:
+                await db.delete(user)
+                print(f"  ✓ Deleted demo user: {email} (and cascaded social accounts/posts)")
+        await db.commit()
+        print("✨ Demo data cleanup complete.")
 
 
 async def seed():
@@ -335,4 +364,7 @@ async def seed():
 
 
 if __name__ == "__main__":
-    asyncio.run(seed())
+    if "--purge" in sys.argv or "--clean" in sys.argv:
+        asyncio.run(purge_demo_data())
+    else:
+        asyncio.run(seed())
