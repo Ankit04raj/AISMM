@@ -25,6 +25,16 @@ class ConnectAccountRequest(BaseModel):
     permissions: Optional[List[str]] = Field(default=[], description="Requested permissions")
 
 
+class DirectConnectAccountRequest(BaseModel):
+    """Request to securely connect a social account via Handle, Profile URL, ID, or Token."""
+    platform: str = Field(..., description="Platform: instagram, facebook, x, linkedin, youtube")
+    identifier: str = Field(..., min_length=1, max_length=500, description="Username (@handle), Profile URL, or Channel ID")
+    display_name: Optional[str] = Field(None, description="Custom display name")
+    access_token: Optional[str] = Field(None, description="Optional OAuth Access Token or API Key")
+    refresh_token: Optional[str] = Field(None, description="Optional Refresh Token")
+
+
+
 class SocialAccountResponse(SocialAccountBase):
     """Response schema for social account."""
     id: str = Field(..., description="Internal account ID")

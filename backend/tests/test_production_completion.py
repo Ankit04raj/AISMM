@@ -207,3 +207,56 @@ async def test_analytics_use_latest_owned_snapshot_without_estimates(client,asyn
     comparison=client.get('/api/v1/analytics/comparison',headers=headers)
     assert comparison.status_code==200,comparison.text
     assert comparison.json()['platforms'][0]['impressions']==150
+
+
+def test_media_url_ssrf_and_credential_protection(client):
+    _, headers = register(client)
+    # 1. Non-HTTPS URL
+    bad_http = client.post('/api/v1/content/publish-multi', headers=headers, json={
+        'platforms': ['x'], 'text': 'SSRF test', 'publish_now': True,
+        'media': [{'type': 'image', 'url': 'http://example.com/pic.jpg'}]
+    })
+    assert bad_http.status_code in {400, 422}
+    assert 'HTTPS' in bad_http.text
+
+    # 2. Embedded credentials
+    bad_cred = client.post('/api/v1/content/publish-multi', headers=headers, json={
+        'platforms': ['x'], 'text': 'SSRF test', 'publish_now': True,
+        'media': [{'type': 'image', 'url': 'https://admin:pass@example.com/pic.jpg'}]
+    })
+    assert bad_cred.status_code in {400, 422}
+
+    # 3. Localhost and loopback
+    bad_loopback = client.post('/api/v1/content/publish-multi', headers=headers, json={
+        'platforms': ['x'], 'text': 'SSRF test', 'publish_now': True,
+        'media': [{'type': 'image', 'url': 'https://127.0.0.1/secret.jpg'}]
+    })
+    assert bad_loopback.status_code in {400, 422}
+
+    # 4. Cloud metadata / private RFC1918
+    bad_meta = client.post('/api/v1/content/publish-multi', headers=headers, json={
+        'platforms': ['x'], 'text': 'SSRF test', 'publish_now': True,
+        'media': [{'type': 'image', 'url': 'https://169.254.169.254/latest/meta-data'}]
+    })
+    assert bad_meta.status_code in {400, 422}
+
+
+@pytest.mark.asyncio
+async def test_post_and_account_ownership_isolation(client, async_test_db):
+    first, h1 = register(client)
+    second, h2 = register(client, 'user2@example.com')
+    owner = UUID(first['user']['id'])
+
+    post = Post(user_id=owner, content_type=ContentTypeEnum.POST, text="Private Post", status=PostStatusEnum.DRAFT)
+    account = SocialAccount(user_id=owner, platform='x', platform_user_id='x_owner', access_token='token')
+    async_test_db.add_all([post, account])
+    await async_test_db.commit()
+
+    # User 2 cannot read, edit, or delete User 1's post
+    assert client.get(f'/api/v1/posts/{post.id}', headers=h2).status_code == 404
+    assert client.delete(f'/api/v1/posts/{post.id}', headers=h2).status_code == 404
+
+    # User 2 cannot read or disconnect User 1's social account
+    assert client.delete(f'/api/v1/accounts/{account.id}', headers=h2).status_code == 404
+    assert client.get(f'/api/v1/accounts/{account.id}', headers=h2).status_code == 404
+
