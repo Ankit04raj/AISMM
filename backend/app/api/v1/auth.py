@@ -234,7 +234,7 @@ async def register_user(
     # Development mode ONLY: include verification token in response when email/SMS is disabled
     # In production or staging, this token is strictly NEVER returned in the API response under any circumstances.
     env_clean = str(settings.ENVIRONMENT or "").strip().lower()
-    is_development_env = env_clean in {"development", "dev", "local", "test"} and settings.DEBUG is not False
+    is_development_env = env_clean in {"development", "dev", "local", "test"}
 
     if is_development_env and not (settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST) and verification_method == "email":
         response_data.verification_token = verification_token
