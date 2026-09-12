@@ -39,6 +39,57 @@ def validate_redirect_uri(redirect_uri: str) -> str:
     return redirect_uri
 
 
+def get_platform_oauth_status() -> dict:
+    """Return dictionary of all supported platforms and their configuration status."""
+    settings = get_settings()
+    platforms = ["x", "linkedin", "youtube", "facebook", "instagram"]
+    status_map = {}
+    for p in platforms:
+        client_id = getattr(settings, f"{p.upper()}_CLIENT_ID", None)
+        client_secret = getattr(settings, f"{p.upper()}_CLIENT_SECRET", None)
+        is_placeholder = bool(
+            (client_id and client_id.startswith("your_")) or
+            (client_secret and client_secret.startswith("your_"))
+        )
+        is_configured = bool(client_id and client_secret and not is_placeholder and client_id.strip() and client_secret.strip())
+        status_map[p] = {
+            "configured": is_configured,
+            "has_client_id": bool(client_id and not client_id.startswith("your_") and client_id.strip()),
+            "has_client_secret": bool(client_secret and not client_secret.startswith("your_") and client_secret.strip()),
+            "client_id_preview": f"{client_id[:4]}...{client_id[-4:]}" if client_id and len(client_id) > 8 and not is_placeholder else ("placeholder" if is_placeholder else "missing"),
+        }
+    return status_map
+
+
+def log_startup_oauth_status():
+    """Log clear, high-visibility startup diagnostics showing platform OAuth readiness."""
+    import logging
+    logger = logging.getLogger("aismm.oauth")
+    settings = get_settings()
+    status_map = get_platform_oauth_status()
+
+    logger.info("================================================================")
+    logger.info("AISMM PLATFORM OAUTH CONFIGURATION STATUS (%s mode)", settings.ENVIRONMENT.upper())
+    logger.info("================================================================")
+
+    configured_count = 0
+    for platform, info in status_map.items():
+        name = {"x": "X (Twitter)", "linkedin": "LinkedIn", "youtube": "YouTube", "facebook": "Facebook Pages", "instagram": "Instagram Business"}.get(platform, platform.capitalize())
+        if info["configured"]:
+            configured_count += 1
+            logger.info("  ✓ %-22s: CONFIGURED (Client ID: %s)", name, info["client_id_preview"])
+        else:
+            if settings.ENVIRONMENT == "development":
+                logger.info("  ⚠ %-22s: NOT CONFIGURED (Dev fallback enabled)", name)
+            else:
+                logger.warning("  ✗ %-22s: NOT CONFIGURED (Missing credentials -> OAuth will return 503)", name)
+
+    logger.info("----------------------------------------------------------------")
+    logger.info("OAuth Readiness: %d/%d platforms configured", configured_count, len(status_map))
+    logger.info("Redirect URI Base: %s/oauth/callback", settings.FRONTEND_URL.rstrip('/'))
+    logger.info("================================================================")
+
+
 def configured_adapter(platform: str, redirect_uri: str):
     """Retrieve platform adapter with configured or development fallback credentials."""
     settings = get_settings()
@@ -52,8 +103,17 @@ def configured_adapter(platform: str, redirect_uri: str):
     client_id = getattr(settings, f'{platform_key.upper()}_CLIENT_ID', None)
     client_secret = getattr(settings, f'{platform_key.upper()}_CLIENT_SECRET', None)
 
+    is_unconfigured = (
+        not client_id or
+        not client_secret or
+        not str(client_id).strip() or
+        not str(client_secret).strip() or
+        str(client_id).startswith("your_") or
+        str(client_secret).startswith("your_")
+    )
+
     # In development mode, provide fallback mock credentials if real OAuth app is not configured
-    if not client_id or not client_secret:
+    if is_unconfigured:
         if settings.ENVIRONMENT == "development" or settings.DEBUG:
             client_id = f"dev_{platform_key}_client_id"
             client_secret = f"dev_{platform_key}_secret"

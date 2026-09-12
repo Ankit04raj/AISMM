@@ -5346,8 +5346,47 @@ The historical project notes follow; they are background, not a claim that live 
 
 **NEXT ACTION:** Production cloud deployment and provider developer app registration.
 
-**Git Commit:** d88ec52
+**Git Commit:** cf3286c
 
 **GitHub Push:** VERIFIED
+
+---
+
+### SESSION-028 — 2026-09-12 13:30
+
+**Phase:** FAIL-LOUD OAUTH CREDENTIAL CONFIGURATION & STARTUP DIAGNOSTICS (GATE G-09)
+
+**Objective:** Implement startup-time OAuth readiness diagnostic logging and enforce consistent HTTP 503 fail-loud behavior for unconfigured/placeholder provider credentials in production.
+
+**Completed:**
+- **Startup Diagnostics (`log_startup_oauth_status`)**:
+  - Added `get_platform_oauth_status()` and `log_startup_oauth_status()` in `backend/app/services/oauth_service.py`.
+  - Wired into `lifespan` in `backend/app/main.py` to output a clear visual diagnostic on application boot indicating which social platforms have valid configured credentials and which are unconfigured or using placeholders.
+- **Production Fail-Loud Enforcement (`configured_adapter`)**:
+  - Enhanced `configured_adapter` in `backend/app/services/oauth_service.py` to consistently reject empty, whitespace-only, missing, or placeholder (`your_*`) credentials with `HTTPException(503, "{platform} OAuth credentials are not configured by the operator.")` when in staging/production environments.
+- **Automated Tests**:
+  - Added tests in `backend/tests/test_oauth_system.py`:
+    - `test_unconfigured_platform_raises_503_in_production`
+    - `test_placeholder_credentials_raise_503_in_production`
+    - `test_platform_oauth_status_and_startup_logging`
+
+**Files Modified:**
+- `backend/app/main.py`
+- `backend/app/services/oauth_service.py`
+- `backend/tests/test_oauth_system.py`
+- `CLAUDE.md`
+
+**Tests:**
+- Backend Suite: **263 passed (100%)**
+- Frontend Tests: **4 passed (100%)**
+- Frontend Build: **SUCCESS (1.21s, 0 errors)**
+
+**Current Status:** OAUTH STARTUP DIAGNOSTICS & FAIL-LOUD CREDENTIAL ENFORCEMENT VERIFIED
+
+**NEXT ACTION:** Production cloud deployment and provider developer app registration.
+
+**Git Commit:** pending
+
+**GitHub Push:** IN PROGRESS
 
   
