@@ -117,7 +117,7 @@ async def initiate(db, user_id, platform, redirect_uri):
     return {'authorization_url': url, 'state': state, 'expires_at': expiry}
 
 
-async def exchange(db, user_id, platform, code, state, redirect_uri):
+async def exchange(db, user_id, platform, code, state, redirect_uri, page_id: str = None):
     """Verify state and exchange authorization code for platform credentials and profile."""
     if not state:
         raise HTTPException(400, 'OAuth state is required. Start a new connection.')
@@ -187,7 +187,20 @@ async def exchange(db, user_id, platform, code, state, redirect_uri):
         else:
             tokens = await adapter.auth.exchange_code(code=code, redirect_uri=valid_redirect)
 
-        if platform_key == 'youtube':
+        if platform_key == 'facebook':
+            page_info = await adapter.auth.get_page_access_token(tokens['access_token'], page_id=page_id)
+            page_token = page_info.get('page_access_token', tokens['access_token'])
+            profile = await adapter.auth.get_user_profile(page_token, page_id=page_info.get('page_id'))
+            tokens['access_token'] = page_token
+            tokens['page_id'] = page_info.get('page_id')
+        elif platform_key == 'instagram':
+            ig_info = await adapter.auth.get_instagram_business_account(tokens['access_token'], page_id=page_id)
+            profile = ig_info
+            if ig_info.get('page_access_token'):
+                tokens['access_token'] = ig_info['page_access_token']
+            tokens['ig_user_id'] = ig_info.get('id')
+            tokens['linked_page_id'] = ig_info.get('linked_page_id')
+        elif platform_key == 'youtube':
             import httpx
             async with httpx.AsyncClient(timeout=20) as client:
                 response = await client.get(
@@ -198,13 +211,15 @@ async def exchange(db, user_id, platform, code, state, redirect_uri):
                 response.raise_for_status()
                 items = response.json().get('items', [])
                 if not items:
-                    raise ValueError('No YouTube channel available')
+                    raise ValueError('No YouTube channel available for this account.')
                 channel = items[0]
                 profile = {
                     'id': channel['id'],
                     'username': channel['snippet']['title'],
                     'name': channel['snippet']['title'],
-                    'profile_picture_url': channel['snippet'].get('thumbnails', {}).get('default', {}).get('url')
+                    'display_name': channel['snippet']['title'],
+                    'profile_picture_url': channel['snippet'].get('thumbnails', {}).get('default', {}).get('url'),
+                    'account_type': 'creator',
                 }
         else:
             profile = await adapter.auth.get_user_profile(tokens['access_token'])
@@ -216,5 +231,11 @@ async def exchange(db, user_id, platform, code, state, redirect_uri):
     except HTTPException:
         raise
     except Exception as e:
+        error_msg = str(e)
+        from backend.app.core.errors import ValidationError as AISMMValidationError, AuthenticationError as AISMMAuthError
+        if isinstance(e, (AISMMValidationError, AISMMAuthError)):
+            raise HTTPException(400, error_msg)
+        if "No Facebook Pages found" in error_msg or "No Instagram Business Account linked" in error_msg or "not found" in error_msg:
+            raise HTTPException(400, error_msg)
         # Never surface raw provider bodies (they can include credentials).
-        raise HTTPException(502, f'Platform authorization failed. Check app permissions and start a new connection.')
+        raise HTTPException(502, f'Platform authorization failed: {error_msg}')

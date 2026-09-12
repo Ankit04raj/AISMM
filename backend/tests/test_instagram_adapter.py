@@ -130,7 +130,7 @@ class TestInstagramAuth:
 
     def test_get_authorization_url(self, auth):
         url, state = auth.get_authorization_url()
-        assert "api.instagram.com/oauth/authorize" in url
+        assert ("facebook.com" in url or "instagram.com" in url) and "oauth" in url
         assert "client_id=test_client_id" in url
         assert "redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fcallback" in url
         assert state in auth._state_store

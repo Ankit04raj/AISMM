@@ -26,6 +26,7 @@ class OAuthCallbackRequest(BaseModel):
     code: str = Field(..., description="Authorization code")
     state: Optional[str] = Field(None, description="State parameter")
     redirect_uri: str = Field(..., description="Redirect URI used")
+    page_id: Optional[str] = Field(None, description="Selected Facebook Page ID or Instagram Business Page ID")
 
 
 class OAuthTokenResponse(BaseModel):

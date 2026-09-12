@@ -22,7 +22,23 @@ class ConnectAccountRequest(BaseModel):
     authorization_code: str = Field(..., description="OAuth authorization code")
     redirect_uri: str = Field(..., description="OAuth redirect URI")
     state: Optional[str] = Field(None, description="OAuth state parameter")
+    page_id: Optional[str] = Field(None, description="Selected Facebook Page ID or linked Instagram Business Page ID")
     permissions: Optional[List[str]] = Field(default=[], description="Requested permissions")
+
+
+class MetaPageInfo(BaseModel):
+    """Metadata for a Facebook Page and any linked Instagram Business account."""
+    id: str = Field(..., description="Facebook Page ID")
+    name: str = Field(..., description="Facebook Page Name")
+    category: Optional[str] = None
+    access_token: Optional[str] = None
+    instagram_business_account: Optional[Dict[str, Any]] = None
+
+
+class MetaPagesListResponse(BaseModel):
+    """List of available Pages and linked Instagram accounts for user selection."""
+    pages: List[MetaPageInfo] = Field(default_factory=list)
+    total: int = 0
 
 
 class DirectConnectAccountRequest(BaseModel):

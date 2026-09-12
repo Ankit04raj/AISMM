@@ -1,7 +1,7 @@
 """Facebook OAuth2.0 Authentication Flow for Pages."""
 
 import secrets
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from urllib.parse import urlencode
 from datetime import datetime, timedelta, timezone
 import httpx
@@ -13,9 +13,10 @@ from ...errors import AuthenticationError, ValidationError
 class FacebookAuth:
     """Handles Facebook OAuth2.0 and Page Access Token flows."""
 
-    AUTH_URL = "https://www.facebook.com/v19.0/dialog/oauth"
-    TOKEN_URL = "https://graph.facebook.com/v19.0/oauth/access_token"
-    GRAPH_BASE_URL = "https://graph.facebook.com/v19.0"
+    API_VERSION = "v20.0"
+    AUTH_URL = f"https://www.facebook.com/{API_VERSION}/dialog/oauth"
+    TOKEN_URL = f"https://graph.facebook.com/{API_VERSION}/oauth/access_token"
+    GRAPH_BASE_URL = f"https://graph.facebook.com/{API_VERSION}"
 
     def __init__(self, config: FacebookAuthConfig):
         self.config = config
@@ -45,7 +46,7 @@ class FacebookAuth:
             return False
         entry = self._state_store[state]
         created = entry["created_at"]
-        if datetime.now(timezone.utc) - created > timedelta(minutes=10):
+        if datetime.now(timezone.utc) - created > timedelta(minutes=15):
             del self._state_store[state]
             return False
         return True
@@ -82,49 +83,64 @@ class FacebookAuth:
                 "token_type": "Bearer",
             }
 
-    async def get_page_access_token(self, user_access_token: str, page_id: Optional[str] = None) -> Dict[str, Any]:
-        """Get Facebook Page access token from user accounts."""
+    async def get_available_pages(self, user_access_token: str) -> List[Dict[str, Any]]:
+        """Fetch all Facebook Pages managed by the user."""
         headers = {"Authorization": f"Bearer {user_access_token}"}
         async with httpx.AsyncClient(base_url=self.GRAPH_BASE_URL) as client:
-            resp = await client.get("/me/accounts", headers=headers)
+            resp = await client.get(
+                "/me/accounts",
+                headers=headers,
+                params={"fields": "id,name,category,access_token,tasks,instagram_business_account{id,username,name,profile_picture_url}"},
+            )
             if resp.status_code != 200:
                 raise AuthenticationError(f"Failed to fetch Facebook pages: {resp.text}", platform="facebook")
+            return resp.json().get("data", [])
 
-            data = resp.json().get("data", [])
-            if not data:
-                raise AuthenticationError("No Facebook Pages found for user", platform="facebook")
+    async def get_page_access_token(self, user_access_token: str, page_id: Optional[str] = None) -> Dict[str, Any]:
+        """Get Facebook Page access token from user accounts with explicit Page selection support."""
+        pages = await self.get_available_pages(user_access_token)
+        if not pages:
+            raise ValidationError("No Facebook Pages found. You must manage at least one Facebook Page to connect.", platform="facebook")
 
-            target_page = None
-            if page_id:
-                for page in data:
-                    if page.get("id") == str(page_id):
-                        target_page = page
-                        break
+        target_page = None
+        if page_id:
+            for page in pages:
+                if str(page.get("id")) == str(page_id):
+                    target_page = page
+                    break
             if not target_page:
-                target_page = data[0]
+                raise ValidationError(f"Facebook Page ID '{page_id}' not found among your managed Pages.", platform="facebook")
+        else:
+            # Auto-select the single page or first page
+            target_page = pages[0]
 
-            return {
-                "page_id": target_page["id"],
-                "page_name": target_page.get("name"),
-                "page_access_token": target_page["access_token"],
-                "category": target_page.get("category"),
-            }
+        return {
+            "page_id": target_page["id"],
+            "page_name": target_page.get("name"),
+            "page_access_token": target_page.get("access_token", user_access_token),
+            "category": target_page.get("category"),
+            "available_pages_count": len(pages),
+        }
 
-    async def get_user_profile(self, access_token: str) -> Dict[str, Any]:
+    async def get_user_profile(self, access_token: str, page_id: Optional[str] = None) -> Dict[str, Any]:
         """Get profile info for user/page."""
+        target = page_id or "me"
         headers = {"Authorization": f"Bearer {access_token}"}
         async with httpx.AsyncClient(base_url=self.GRAPH_BASE_URL) as client:
-            resp = await client.get("/me", headers=headers, params={"fields": "id,name,picture"})
+            resp = await client.get(f"/{target}", headers=headers, params={"fields": "id,name,picture,fan_count,category,about"})
             if resp.status_code == 200:
                 data = resp.json()
                 return {
                     "id": data.get("id"),
-                    "username": data.get("name", "facebook_user"),
+                    "username": data.get("name", "facebook_page"),
                     "name": data.get("name"),
+                    "display_name": data.get("name"),
                     "profile_picture_url": data.get("picture", {}).get("data", {}).get("url"),
                     "account_type": "page",
+                    "category": data.get("category"),
+                    "followers_count": data.get("fan_count", 0),
                 }
-            return {"id": "fb_user", "username": "facebook_user", "name": "Facebook Page"}
+            return {"id": page_id or "fb_page", "username": "facebook_page", "name": "Facebook Page"}
 
     async def revoke_token(self, access_token: str) -> bool:
         headers = {"Authorization": f"Bearer {access_token}"}

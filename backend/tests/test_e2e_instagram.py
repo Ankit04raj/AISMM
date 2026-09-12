@@ -213,8 +213,8 @@ def authenticated_adapter_unit_boundary(monkeypatch):
 @pytest.fixture(autouse=True)
 def oauth_provider_contract_boundary(monkeypatch):
     """This historical test mocks provider transport, not a live OAuth acceptance test."""
-    async def exchange(db,user_id,platform,code,state,redirect_uri):
-        auth=PlatformRegistry.get_adapter(platform).auth
-        tokens=await auth.exchange_code(code=code,redirect_uri=redirect_uri)
-        return tokens,await auth.get_user_profile(tokens['access_token'])
-    monkeypatch.setattr('backend.app.services.oauth_service.exchange',exchange)
+    async def exchange(db, user_id, platform, code, state, redirect_uri, *args, **kwargs):
+        auth = PlatformRegistry.get_adapter(platform).auth
+        tokens = await auth.exchange_code(code=code, redirect_uri=redirect_uri)
+        return tokens, await auth.get_user_profile(tokens['access_token'])
+    monkeypatch.setattr('backend.app.services.oauth_service.exchange', exchange)

@@ -124,8 +124,15 @@ class AccountService:
     ) -> SocialAccountResponse:
         """Connect a social account via OAuth."""
         from backend.app.services.oauth_service import exchange
-        token_response, profile = await exchange(self.db, user_id, request.platform,
-            request.authorization_code, request.state, request.redirect_uri)
+        token_response, profile = await exchange(
+            self.db,
+            user_id,
+            request.platform,
+            request.authorization_code,
+            request.state,
+            request.redirect_uri,
+            page_id=request.page_id,
+        )
 
         expires_in = token_response.get("expires_in")
         expiry_dt = None

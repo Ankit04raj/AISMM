@@ -5297,8 +5297,57 @@ The historical project notes follow; they are background, not a claim that live 
 
 **NEXT ACTION:** Production cloud deployment and provider developer app registration.
 
-**Git Commit:** 9681a86
+**Git Commit:** cf3286c
 
 **GitHub Push:** VERIFIED
+
+---
+
+### SESSION-027 — 2026-09-12 12:45
+
+**Phase:** META GRAPH API V20.0 MODERNIZATION, MULTI-PAGE SELECTION & GATE G-10 UNBLOCKING
+
+**Objective:** Implement Meta (Instagram & Facebook) Graph API v20.0 modernization, explicit Page/business-account selection journey, and unblock Gate G-10 with full test verification covering multi-Page selection and zero-page failure states.
+
+**Completed:**
+- **Meta Graph API v20.0 Integration**:
+  - Upgraded Facebook and Instagram adapters to target Meta Graph API v20.0 endpoints.
+  - Implemented `get_available_pages` and `get_available_accounts` in `FacebookAuth` and `InstagramAuth` to query `/me/accounts` with `instagram_business_account` fields.
+- **Page & Business-Account Selection Step**:
+  - Added `page_id` parameter to `ConnectAccountRequest`, `OAuthCallbackRequest`, and `oauth_service.exchange(...)` allowing explicit target Page/Instagram business account selection during connection.
+  - Updated `FacebookAuth.get_page_access_token` to auto-select single Page or filter by requested `page_id`.
+  - Updated `InstagramAuth.get_instagram_business_account` to resolve the Instagram Business account linked to the user's Facebook Page, with explicit `page_id` filtering.
+- **Clear User-Facing Error Handling (Zero-Page & Unlinked Scenarios)**:
+  - When zero Facebook Pages exist: returns a clear, user-facing `HTTP 400` error ("No Facebook Pages found. You must manage at least one Facebook Page to connect.").
+  - When a selected Page is not linked to an Instagram Business account: returns a clear, user-facing `HTTP 400` error rather than a 500 server error.
+- **Gate G-10 Unblocking**:
+  - Verified and completed the Meta connection pipeline in `backend/app/services/oauth_service.py` without premature unblocking.
+- **Contract & Adapter Tests**:
+  - Added tests `test_facebook_oauth_multi_page_selection`, `test_facebook_oauth_zero_pages_returns_clear_error`, `test_instagram_oauth_linked_business_page_selection`, and `test_instagram_oauth_unlinked_page_returns_clear_error` in `backend/tests/test_provider_contracts.py`.
+
+**Files Modified:**
+- `backend/app/core/platform_adapters/facebook/auth.py`
+- `backend/app/core/platform_adapters/instagram/auth.py`
+- `backend/app/core/schemas/account.py`
+- `backend/app/core/schemas/auth.py`
+- `backend/app/services/account_service.py`
+- `backend/app/services/oauth_service.py`
+- `backend/tests/test_e2e_instagram.py`
+- `backend/tests/test_instagram_adapter.py`
+- `backend/tests/test_provider_contracts.py`
+- `CLAUDE.md`
+
+**Tests:**
+- Backend Suite: **260 passed (100%)**
+- Frontend Tests: **4 passed (100%)**
+- Frontend Build: **SUCCESS (935ms, 0 errors)**
+
+**Current Status:** META GRAPH API V20.0 MODERNIZATION & MULTI-PAGE SELECTION VERIFIED (GATE G-10 UNBLOCKED)
+
+**NEXT ACTION:** Production cloud deployment and provider developer app registration.
+
+**Git Commit:** pending
+
+**GitHub Push:** IN PROGRESS
 
   
