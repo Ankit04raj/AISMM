@@ -928,7 +928,7 @@ async def oauth_callback(request: OAuthCallbackRequest, current_user: User = Dep
     from backend.app.services.account_service import AccountService
     from backend.app.core.schemas.account import ConnectAccountRequest
     return await AccountService(db).connect_account(current_user.id, ConnectAccountRequest(
-        platform=request.platform, authorization_code=request.code, state=request.state, redirect_uri=request.redirect_uri))
+        platform=request.platform, authorization_code=request.code, state=request.state, redirect_uri=request.redirect_uri, page_id=request.page_id))
 
 
 @router.post(
