@@ -5297,7 +5297,7 @@ The historical project notes follow; they are background, not a claim that live 
 
 **NEXT ACTION:** Production cloud deployment and provider developer app registration.
 
-**Git Commit:** 8978d9f
+**Git Commit:** 9681a86
 
 **GitHub Push:** VERIFIED
 
