@@ -869,6 +869,71 @@ async def oauth_refresh(request: RefreshTokenRequest, current_user: User = Depen
     raise HTTPException(410, 'Use /accounts/{account_id}/refresh; platform credentials are never returned to the browser.')
 
 
+@router.get(
+    "/{provider}/connect",
+    response_model=OAuthInitResponse,
+    dependencies=[Depends(rate_limit_guard(max_requests=20, window_seconds=60))],
+)
+async def provider_connect(
+    provider: str,
+    redirect_uri: Optional[str] = None,
+    current_user: User = Depends(get_current_verified_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Convenience endpoint to initiate OAuth connection for a specific provider."""
+    from backend.app.services.oauth_service import initiate
+    settings = get_settings()
+    target_redirect = redirect_uri or (settings.FRONTEND_URL.rstrip('/') + '/oauth/callback')
+    return await initiate(db, current_user.id, provider.lower(), target_redirect)
+
+
+@router.get(
+    "/{provider}/callback",
+    dependencies=[Depends(rate_limit_guard(max_requests=20, window_seconds=60))],
+)
+async def provider_callback_get(
+    provider: str,
+    code: str,
+    state: str,
+    redirect_uri: Optional[str] = None,
+    current_user: User = Depends(get_current_verified_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """GET callback handler for OAuth providers redirecting directly to backend."""
+    from backend.app.services.account_service import AccountService
+    from backend.app.core.schemas.account import ConnectAccountRequest
+    settings = get_settings()
+    target_redirect = redirect_uri or (settings.FRONTEND_URL.rstrip('/') + '/oauth/callback')
+    return await AccountService(db).connect_account(
+        current_user.id,
+        ConnectAccountRequest(
+            platform=provider.lower(),
+            authorization_code=code,
+            state=state,
+            redirect_uri=target_redirect,
+        ),
+    )
+
+
+@router.post(
+    "/{provider}/disconnect",
+    dependencies=[Depends(rate_limit_guard(max_requests=20, window_seconds=60))],
+)
+async def provider_disconnect(
+    provider: str,
+    current_user: User = Depends(get_current_verified_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Disconnect a social account by provider name."""
+    from backend.app.services.account_service import AccountService
+    service = AccountService(db)
+    accounts = await service.get_accounts(current_user.id, platform=provider.lower())
+    if not accounts:
+        raise HTTPException(status_code=404, detail=f"No connected {provider} account found.")
+    account = accounts[0]
+    return await service.disconnect_account(account.id, current_user.id)
+
+
 @router.patch('/me', response_model=UserProfile)
 async def update_profile(request: ProfileUpdate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     current_user.full_name = request.full_name.strip()

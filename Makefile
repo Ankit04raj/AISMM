@@ -6,7 +6,8 @@ install:
 migrate:
 	.venv/bin/alembic -c backend/alembic.ini upgrade head
 test:
-	.venv/bin/pytest -q
+	PYTHONPATH=. .venv/bin/pytest backend/tests -q
+	npm --prefix frontend test
 run-backend:
 	.venv/bin/uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
 run-frontend:

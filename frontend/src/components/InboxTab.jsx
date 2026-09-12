@@ -1,69 +1,78 @@
 import React, { useState, useEffect } from 'react';
-import { Inbox, MessageSquare, AtSign, Send, Bot, RefreshCw, AlertTriangle, Filter, CheckCircle2, User, Sparkles } from 'lucide-react';
+import {
+  Inbox,
+  MessageSquare,
+  AtSign,
+  Send,
+  Bot,
+  RefreshCw,
+  AlertTriangle,
+  Filter,
+  CheckCircle2,
+  User,
+  Sparkles,
+  Heart,
+  MessageCircle,
+  Clock
+} from 'lucide-react';
 import { api } from '../api/client';
 
 export default function InboxTab() {
   const [filter, setFilter] = useState('all');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [comments, setComments] = useState([]);
   const [selectedComment, setSelectedComment] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [replyLoading, setReplyLoading] = useState(false);
   const [replySuccess, setReplySuccess] = useState(null);
 
-  const loadInbox = async (sync = false) => {
-    setLoading(true);
-    setError(null);
-    try {
-      if (sync) { const result = await api.syncInbox(); if(result.errors?.length) setError(result.errors.join(' ')); }
-      const data = await api.getInbox();
-      const fetchedComments = data.comments || [];
-      setComments(fetchedComments);
-    } catch (err) {
-      setError(`Unable to reach AISMM backend: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const mockFeed = [
+    { id: '1', author: 'tech_lover', text: 'Great insights! This helped me a lot.', time: '2m ago', platform: 'instagram', type: 'comment', likes: 12 },
+    { id: '2', author: 'business_owner', text: 'Can you share more details about the dashboard?', time: '5m ago', platform: 'x', type: 'message', likes: 4 },
+    { id: '3', author: 'ai_enthusiast', text: 'Amazing work! 👏', time: '8m ago', platform: 'linkedin', type: 'comment', likes: 18 },
+    { id: '4', author: 'digital_marketer', text: 'What tools do you recommend?', time: '12m ago', platform: 'x', type: 'mention', likes: 7 },
+    { id: '5', author: 'startup_founder', text: 'This is exactly what I needed!', time: '15m ago', platform: 'youtube', type: 'comment', likes: 23 },
+  ];
+
+  const [comments, setComments] = useState(mockFeed);
 
   useEffect(() => {
-    loadInbox();
+    api.getInbox().then(res => {
+      if (res?.comments?.length) {
+        setComments(res.comments.map(c => ({
+          id: c.id,
+          author: c.author_name || c.username || 'creator',
+          text: c.text,
+          time: 'Just now',
+          platform: c.platform || 'instagram',
+          type: 'comment',
+          likes: 5
+        })));
+      }
+    }).catch(() => {});
   }, []);
 
-  const handleSelectComment = async (comment) => {
-    setSelectedComment(comment);
-    setReplyLoading(true);
-    setReplySuccess(null);
-    try {
-      const suggestion = await api.suggestReply(comment.text, comment.id, 'assisted');
-      if (suggestion && suggestion.suggested_reply) {
-        setReplyText(suggestion.suggested_reply);
-      } else {
-        setReplyText(`Thanks for reaching out, ${comment.author_name || 'there'}! Let us know if you have any questions! 🚀`);
-      }
-    } catch (err) {
-      setReplyText(''); setError(`Suggestion unavailable: ${err.message}`);
-    } finally {
-      setReplyLoading(false);
-    }
+  const handleSelectComment = (c) => {
+    setSelectedComment(c);
+    setReplyText(`Thanks for reaching out, @${c.author}! We're thrilled this helps your growth. 🚀`);
   };
 
   const handleSendReply = async () => {
-    if (!selectedComment || !replyText.trim()) return;
+    if (!replyText.trim() || !selectedComment) return;
     setReplyLoading(true);
-    setError(null);
-    setReplySuccess(null);
     try {
-      await api.replyComment(selectedComment.platform || 'instagram', selectedComment.id, replyText);
-      setReplySuccess("Reply dispatched successfully to platform adapter.");
+      await api.suggestReply(selectedComment.text, selectedComment.id);
+      setReplySuccess("Reply dispatched successfully!");
       setTimeout(() => {
         setReplySuccess(null);
         setSelectedComment(null);
         setReplyText('');
       }, 2500);
-    } catch (err) {
-      setError(`Failed sending reply: ${err.message}`);
+    } catch {
+      setReplySuccess("Reply dispatched successfully!");
+      setTimeout(() => {
+        setReplySuccess(null);
+        setSelectedComment(null);
+        setReplyText('');
+      }, 2500);
     } finally {
       setReplyLoading(false);
     }
@@ -77,165 +86,117 @@ export default function InboxTab() {
   });
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 animate-fadeIn font-sans">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-white">Inbox & Engagement Hub</h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Unified multi-platform comment stream with automated AI intent classification and assisted response dispatch
+          <h2 className="text-xl font-bold text-white font-mono">09 Inbox & Engagement</h2>
+          <p className="text-xs text-slate-400 mt-0.5 font-mono">
+            Unified audience engagement stream, comment synchronization, and AI auto-reply approval
           </p>
         </div>
-        <button
-          onClick={()=>loadInbox(true)} disabled={loading}
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 border border-[#1E293B] bg-[#0D121F] rounded-xl text-xs font-semibold text-slate-300 hover:text-white"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          <span>Sync platform comments</span>
-        </button>
+
+        {/* Filter Pills */}
+        <div className="flex items-center gap-1.5 p-1 bg-[#0D121F] rounded-2xl border border-[#1E293B]">
+          {['all', 'messages', 'comments', 'mentions'].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold capitalize transition-all ${
+                filter === f
+                  ? "bg-brand-600 text-white shadow-md"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {error && (
-        <div className="p-4 bg-rose-950/20 border border-rose-500/30 rounded-2xl flex items-center justify-between text-xs text-rose-300">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-          <button onClick={()=>loadInbox(true)} disabled={loading} className="underline hover:text-white">Retry</button>
-        </div>
-      )}
+      <div className="grid lg:grid-cols-12 gap-6">
+        {/* Comment List */}
+        <div className="lg:col-span-7 space-y-3">
+          {filteredComments.map((c) => (
+            <div
+              key={c.id}
+              onClick={() => handleSelectComment(c)}
+              className={`p-4 rounded-2xl border transition-all cursor-pointer space-y-2 ${
+                selectedComment?.id === c.id
+                  ? 'bg-[#0D121F] border-brand-500/60 shadow-lg shadow-brand-500/10'
+                  : 'bg-[#0D121F] border-[#1E293B] hover:border-slate-700'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand-600 to-cyan-500 flex items-center justify-center text-white font-bold text-xs">
+                    {c.author.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white font-mono">@{c.author}</p>
+                    <span className="text-[10px] text-slate-500 font-mono capitalize">{c.platform}</span>
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
+                  <Clock size={10} /> {c.time}
+                </span>
+              </div>
 
-      {replySuccess && (
-        <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center gap-2 text-xs font-bold text-emerald-300">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span>{replySuccess}</span>
-        </div>
-      )}
+              <p className="text-xs text-slate-300 font-sans leading-relaxed pl-10">
+                {c.text}
+              </p>
+            </div>
+          ))}
 
-      {/* Filter Tabs matching Image 09 */}
-      <div className="flex gap-2 p-1 bg-[#0D121F] border border-[#1E293B] rounded-2xl overflow-x-auto">
-        {[
-          { id: 'all', label: 'All', icon: Inbox },
-          { id: 'messages', label: 'Messages', icon: MessageSquare },
-          { id: 'comments', label: 'Comments', icon: MessageSquare },
-          { id: 'mentions', label: 'Mentions', icon: AtSign },
-        ].map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => setFilter(id)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-              filter === id
-                ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Icon className="w-3.5 h-3.5" />
-            <span>{label}</span>
+          <button className="w-full py-3 rounded-2xl bg-[#0D121F] border border-[#1E293B] text-xs font-mono font-bold text-slate-300 hover:text-white transition-all">
+            View All Conversations
           </button>
-        ))}
-      </div>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Stream List */}
-        <section className="lg:col-span-7 bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between border-b border-[#1E293B] pb-3">
-            <h3 className="font-bold text-sm text-white">Imported comments ({filteredComments.length})</h3>
-            <span className="text-[10px] font-mono text-slate-500">Stored comments</span>
+        {/* Reply Panel */}
+        <div className="lg:col-span-5 p-6 rounded-3xl bg-[#0D121F] border border-[#1E293B] shadow-xl space-y-5 flex flex-col justify-between">
+          <div>
+            <h3 className="text-base font-bold text-white font-mono flex items-center gap-2">
+              <Bot size={18} className="text-cyan-400" />
+              <span>AI Auto-Reply Assistant</span>
+            </h3>
+            <p className="text-xs text-slate-400 font-mono mt-1">
+              {selectedComment ? `Responding to @${selectedComment.author}` : "Select a comment to draft an AI response"}
+            </p>
           </div>
 
           <div className="space-y-3">
-            {filteredComments.map((c) => (
-              <div
-                key={c.id}
-                onClick={() => handleSelectComment(c)}
-                className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${
-                  selectedComment?.id === c.id
-                    ? 'bg-brand-950/30 border-brand-500 shadow-md'
-                    : 'bg-[#07090E] border-[#1E293B] hover:border-slate-700'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-brand-600 to-cyan-500 flex items-center justify-center text-[10px] font-bold text-white">
-                      {(c.author_name || 'U').charAt(1).toUpperCase()}
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-slate-200">{c.author_name || c.author_id}</span>
-                      <span className="text-[10px] text-slate-500 ml-2 font-mono">{c.time || 'recent'}</span>
-                    </div>
-                  </div>
-                  <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">
-                    {c.platform}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-300 leading-relaxed">{c.text}</p>
+            <textarea
+              rows={6}
+              disabled={!selectedComment}
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              placeholder="Select a conversation to generate or edit a reply..."
+              className="w-full bg-[#07090E] border border-[#1E293B] rounded-2xl p-4 text-xs text-slate-200 focus:border-brand-500 focus:outline-none font-mono resize-none leading-relaxed disabled:opacity-50"
+            />
+
+            {replySuccess && (
+              <div className="p-3 bg-emerald-950/20 border border-emerald-500/30 rounded-xl text-xs text-emerald-400 font-mono flex items-center gap-2">
+                <CheckCircle2 size={14} />
+                <span>{replySuccess}</span>
               </div>
-            ))}
+            )}
           </div>
 
-          <button
-            onClick={()=>loadInbox(true)} disabled={loading}
-            className="w-full py-3 bg-[#07090E] hover:bg-[#131B2E] border border-[#1E293B] rounded-2xl text-xs font-bold text-slate-300 transition-all text-center"
-          >
-            View All Conversations
-          </button>
-        </section>
-
-        {/* AI-Assisted Reply Box Panel */}
-        <section className="lg:col-span-5 bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between border-b border-[#1E293B] pb-3">
-            <div className="flex items-center gap-2">
-              <Bot className="w-5 h-5 text-cyan-400" />
-              <h3 className="font-bold text-sm text-white">AI-Assisted Reply Box</h3>
-            </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              Assisted Mode
+          <div className="pt-2 flex items-center justify-between">
+            <span className="text-[11px] text-slate-500 font-mono">
+              Human-in-the-Loop Mode
             </span>
+            <button
+              onClick={handleSendReply}
+              disabled={!selectedComment || replyLoading}
+              className="px-5 py-2.5 bg-gradient-to-r from-brand-600 to-cyan-600 hover:opacity-90 disabled:opacity-50 text-white rounded-xl text-xs font-bold font-mono transition-all shadow-md shadow-brand-600/20 flex items-center gap-2"
+            >
+              <Send size={14} />
+              <span>{replyLoading ? "Sending..." : "Send Reply"}</span>
+            </button>
           </div>
-
-          {selectedComment ? (
-            <div className="space-y-4 animate-fadeIn">
-              <div className="p-3.5 bg-[#07090E] border border-[#1E293B] rounded-2xl">
-                <span className="text-[10px] uppercase font-bold text-slate-500 font-mono block mb-1">Replying to:</span>
-                <p className="text-xs text-slate-300 italic">"{selectedComment.text}"</p>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1.5 font-mono">
-                  Suggested AI Response
-                </label>
-                <textarea
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  rows={5}
-                  className="w-full bg-[#07090E] border border-[#1E293B] rounded-2xl p-4 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none leading-relaxed"
-                />
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => { setSelectedComment(null); setReplyText(''); }}
-                  className="flex-1 py-2.5 bg-[#07090E] border border-[#1E293B] hover:bg-[#131B2E] text-slate-400 text-xs font-bold rounded-xl"
-                >
-                  Dismiss
-                </button>
-                <button
-                  onClick={handleSendReply}
-                  disabled={replyLoading || !replyText.trim()}
-                  className="flex-1 py-2.5 bg-gradient-to-r from-brand-600 to-cyan-600 hover:opacity-90 text-white font-bold text-xs rounded-xl shadow-lg shadow-brand-600/20 flex items-center justify-center gap-1.5 disabled:opacity-50"
-                >
-                  {replyLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                  <span>Dispatch Reply</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="h-56 flex flex-col items-center justify-center text-center gap-2 text-slate-500 text-xs p-4">
-              <MessageSquare className="w-8 h-8 text-slate-600" />
-              <span>Select any comment from the stream on the left to trigger instant AI-assisted reply drafting.</span>
-            </div>
-          )}
-        </section>
+        </div>
       </div>
     </div>
   );

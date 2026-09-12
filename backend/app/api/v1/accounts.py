@@ -11,6 +11,7 @@ from backend.app.api.deps import get_current_user, get_current_verified_user
 from backend.app.services.account_service import AccountService
 from backend.app.core.schemas.account import (
     ConnectAccountRequest,
+    DirectConnectAccountRequest,
     SocialAccountResponse,
     SocialAccountListResponse,
     UpdateAccountRequest,
@@ -28,9 +29,21 @@ async def connect_account(
     current_user: User = Depends(get_current_verified_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Connect a social account for the authenticated user."""
+    """Connect a social account for the authenticated user via OAuth."""
     service = AccountService(db)
     return await service.connect_account(current_user.id, request)
+
+
+@router.post("/direct-connect", response_model=SocialAccountResponse, status_code=status.HTTP_201_CREATED)
+async def direct_connect_account(
+    request: DirectConnectAccountRequest,
+    current_user: User = Depends(get_current_verified_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Connect a social account directly by Username, Profile URL, Channel ID, or Custom API Token."""
+    service = AccountService(db)
+    return await service.direct_connect_account(current_user.id, request)
+
 
 
 @router.get("", response_model=SocialAccountListResponse)
@@ -123,3 +136,18 @@ async def get_account_profile(
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not available")
     return profile
+
+
+@router.post("/{account_id}/sync")
+async def sync_account(
+    account_id: str,
+    current_user: User = Depends(get_current_verified_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Synchronize live platform profile data and analytics metrics."""
+    service = AccountService(db)
+    try:
+        return await service.sync_account(UUID(account_id), current_user.id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to synchronize account: {str(e)}")
+

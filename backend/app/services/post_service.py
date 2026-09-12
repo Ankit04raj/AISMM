@@ -62,6 +62,7 @@ class PostService:
             if not PlatformRegistry.is_registered(p):
                 raise ValidationError(f"Unsupported platform: {p}")
 
+        import ipaddress
         from urllib.parse import urlparse
         from backend.app.config import get_settings
         settings = get_settings()
@@ -72,7 +73,18 @@ class PostService:
             parsed = urlparse(media.url)
             if parsed.scheme != 'https' or parsed.username or parsed.password:
                 raise ValidationError('Media URLs must use HTTPS without embedded credentials')
-            if settings.ENVIRONMENT != 'development' and parsed.hostname not in settings.MEDIA_ALLOWED_HOSTS:
+            host = (parsed.hostname or '').lower()
+            if not host:
+                raise ValidationError('Media URL must contain a valid hostname')
+            if host in {'localhost', '127.0.0.1', '::1', '0.0.0.0'}:
+                raise ValidationError('Media URL cannot target localhost or loopback addresses')
+            try:
+                ip = ipaddress.ip_address(host)
+                if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+                    raise ValidationError('Media URL cannot target private or internal network addresses')
+            except ValueError:
+                pass
+            if settings.ENVIRONMENT != 'development' and host not in settings.MEDIA_ALLOWED_HOSTS:
                 raise ValidationError('Media host is not in the operator-approved allowlist')
         adapters = {platform: await owned_adapter(self.db, user_id, platform) for platform in request.platforms}
         if not request.text and not request.caption and not request.media:

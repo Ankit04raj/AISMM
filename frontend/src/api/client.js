@@ -110,7 +110,10 @@ export const api = {
   // Accounts & Platforms
   getAccounts: () => fetchApi("/accounts"),
   getAccount: (id) => fetchApi(`/accounts/${id}`),
+  getAccountProfile: (id) => fetchApi(`/accounts/${id}/profile`),
+  syncAccount: (id) => fetchApi(`/accounts/${id}/sync`, { method: "POST" }),
   connectAccount: (data) => fetchApi("/accounts/connect", { method: "POST", body: JSON.stringify(data) }),
+  directConnectAccount: (data) => fetchApi("/accounts/direct-connect", { method: "POST", body: JSON.stringify(data) }),
   disconnectAccount: (id) => fetchApi(`/accounts/${id}`, { method: "DELETE" }),
   listPlatforms: () => fetchApi("/platforms"),
   getPlatformCapabilities: (platform) => fetchApi(`/platforms/${platform}/capabilities`),

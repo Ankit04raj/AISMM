@@ -1,9 +1,9 @@
-"""Email service for sending verification emails and notifications."""
+"""Email service for sending verification emails, OTP codes, and security notifications."""
 
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from typing import Optional
+from typing import Optional, Dict, Any
 import logging
 
 from backend.app.config.settings import settings
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class EmailService:
-    """Service for sending emails via SMTP."""
+    """Service for sending transactional emails and OTP codes via SMTP."""
 
     def __init__(self):
         """Initialize email service with SMTP configuration from settings."""
@@ -22,6 +22,35 @@ class EmailService:
         self.smtp_password = settings.SMTP_PASSWORD
         self.from_email = settings.FROM_EMAIL
         self.from_name = settings.FROM_NAME
+
+    def verify_connection(self) -> Dict[str, Any]:
+        """Verify SMTP connectivity and credentials. Returns diagnostic dict."""
+        if not all([self.smtp_host, self.smtp_port, self.smtp_user, self.smtp_password]):
+            return {
+                "success": False,
+                "error": "Incomplete SMTP configuration. Check SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD in .env",
+                "host": self.smtp_host,
+                "port": self.smtp_port,
+            }
+
+        try:
+            with self._get_smtp_connection() as server:
+                server.noop()
+            return {
+                "success": True,
+                "message": "SMTP Connection Successful! Ready to send emails.",
+                "host": self.smtp_host,
+                "port": self.smtp_port,
+                "mode": "SSL (Port 465)" if self.smtp_port == 465 else "STARTTLS (Port 587/25)",
+            }
+        except Exception as e:
+            logger.error(f"SMTP verification failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "host": self.smtp_host,
+                "port": self.smtp_port,
+            }
 
     def _get_smtp_connection(self):
         """Create and return authenticated SMTP connection."""
@@ -36,76 +65,176 @@ class EmailService:
                 server = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=10)
             else:
                 server = smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=10)
+                server.ehlo()
                 server.starttls()
+                server.ehlo()
 
             server.login(self.smtp_user, self.smtp_password)
             return server
         except Exception as e:
-            logger.error(f"Failed to connect to SMTP server: {e}")
+            logger.error(f"Failed to connect to SMTP server ({self.smtp_host}:{self.smtp_port}): {e}")
             raise
+
+    def send_otp_email(
+        self,
+        to_email: str,
+        otp_code: str,
+        purpose: str = "signup",
+        user_name: Optional[str] = None,
+        expires_in_minutes: int = 10,
+    ) -> bool:
+        """
+        Send a high-visibility 6-digit numeric OTP email for signup, login 2FA, or password reset.
+
+        Args:
+            to_email: Recipient email address
+            otp_code: 6-digit verification code
+            purpose: One of 'signup', 'login', 'reset'
+            user_name: Optional user's name
+            expires_in_minutes: TTL in minutes (default 10)
+
+        Returns:
+            True if sent successfully, False otherwise
+        """
+        try:
+            greeting = f"Hi {user_name}," if user_name else "Hi,"
+
+            if purpose == "signup":
+                subject = f"Your AISMM Verification Code: {otp_code} (Expires in {expires_in_minutes} minutes)"
+                title = "Verify Your Account"
+                intro = f"Thank you for signing up for AISMM. Please use the 6-digit verification code below to confirm your account:"
+            elif purpose == "login":
+                subject = f"Your AISMM Login Code: {otp_code}"
+                title = "Sign-In Verification"
+                intro = f"A sign-in attempt requires two-factor verification. Enter the code below to complete your login:"
+            elif purpose == "reset":
+                subject = f"Your Password Reset OTP: {otp_code}"
+                title = "Reset Your Password"
+                intro = f"We received a request to reset your AISMM account password. Use the verification code below to proceed:"
+            else:
+                subject = f"Your AISMM Security Code: {otp_code}"
+                title = "Security Verification"
+                intro = f"Please use the verification code below to authorize this action:"
+
+            html_body = f"""
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="utf-8"></head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; background-color: #07090e; margin: 0; padding: 24px;">
+                <div style="max-width: 540px; margin: 0 auto; background: #0d121f; border: 1px solid #1e293b; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+                    <div style="background: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%); padding: 32px 24px; text-align: center;">
+                        <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px;">AISMM</h1>
+                        <p style="color: rgba(255,255,255,0.9); margin: 6px 0 0 0; font-size: 13px; font-weight: 500;">AI-Powered Social Media Management</p>
+                    </div>
+                    <div style="padding: 36px 30px; background: #0d121f; color: #cbd5e1;">
+                        <h2 style="color: #ffffff; margin-top: 0; font-size: 20px; font-weight: 700;">{title}</h2>
+                        <p style="color: #94a3b8; font-size: 15px; margin-bottom: 20px;">{greeting}</p>
+                        <p style="color: #94a3b8; font-size: 15px; margin-bottom: 28px;">{intro}</p>
+
+                        <div style="background: #07090e; border: 1px solid #334155; border-radius: 14px; padding: 22px; text-align: center; margin: 28px 0;">
+                            <span style="font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #38bdf8; text-shadow: 0 0 12px rgba(56,189,248,0.4);">{otp_code}</span>
+                            <p style="color: #64748b; font-size: 12px; margin: 8px 0 0 0; text-transform: uppercase; letter-spacing: 1px;">Single-Use Security Code</p>
+                        </div>
+
+                        <p style="color: #64748b; font-size: 13px; margin-top: 24px; padding-top: 20px; border-top: 1px solid #1e293b;">
+                            ⏱️ This code will expire in <strong>{expires_in_minutes} minutes</strong>. If you did not request this code, please ignore this email or update your password.
+                        </p>
+                    </div>
+                    <div style="background: #07090e; padding: 18px; text-align: center; border-top: 1px solid #1e293b; color: #64748b; font-size: 11px;">
+                        <p style="margin: 0;">© 2026 AISMM. Protected by AISMM Security Engine.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+
+            text_body = f"""
+{greeting}
+
+{intro}
+
+----------------------------------------
+YOUR VERIFICATION CODE: {otp_code}
+----------------------------------------
+
+This code will expire in {expires_in_minutes} minutes.
+
+If you did not request this code, please safely ignore this email.
+
+---
+AISMM - AI-Powered Social Media Management
+© 2026 AISMM. All rights reserved.
+            """
+
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = f"{self.from_name} <{self.from_email}>"
+            msg["To"] = to_email
+
+            part1 = MIMEText(text_body, "plain")
+            part2 = MIMEText(html_body, "html")
+            msg.attach(part1)
+            msg.attach(part2)
+
+            with self._get_smtp_connection() as server:
+                server.send_message(msg)
+
+            logger.info(f"OTP ({purpose}) email sent successfully to {to_email}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to send OTP email to {to_email}: {e}")
+            return False
 
     def send_verification_email(
         self, to_email: str, verification_token: str, user_name: Optional[str] = None
     ) -> bool:
-        """
-        Send email verification link to user.
-
-        Args:
-            to_email: Recipient email address
-            verification_token: Unique verification token
-            user_name: Optional user's name for personalization
-
-        Returns:
-            True if email sent successfully, False otherwise
-        """
+        """Send email verification link and OTP token to user."""
         try:
             # Create verification link
             verification_link = f"{settings.FRONTEND_URL}/verify-email?token={verification_token}"
-
-            # Compose email
-            subject = "Verify your AISMM account"
             greeting = f"Hi {user_name}," if user_name else "Hi,"
+            subject = "Verify your AISMM account"
 
             html_body = f"""
+            <!DOCTYPE html>
             <html>
-            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <div style="background: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                    <h1 style="color: white; margin: 0; font-size: 28px;">AISMM</h1>
-                    <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">AI-Powered Social Media Management</p>
-                </div>
-                <div style="background: #ffffff; padding: 40px 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 10px 10px;">
-                    <h2 style="color: #1e293b; margin-top: 0;">Verify Your Email Address</h2>
-                    <p style="color: #64748b; font-size: 16px;">{greeting}</p>
-                    <p style="color: #64748b; font-size: 16px; margin: 20px 0;">
-                        Thank you for creating an AISMM account! To get started with managing your social media presence,
-                        please verify your email address by clicking the button below:
-                    </p>
-                    <div style="text-align: center; margin: 35px 0;">
-                        <a href="{verification_link}"
-                           style="background: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%);
-                                  color: white;
-                                  padding: 14px 40px;
-                                  text-decoration: none;
-                                  border-radius: 8px;
-                                  font-weight: 600;
-                                  font-size: 16px;
-                                  display: inline-block;">
-                            Verify Email Address
-                        </a>
+            <head><meta charset="utf-8"></head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #cbd5e1; background-color: #07090e; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: #0d121f; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden;">
+                    <div style="background: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%); padding: 30px; text-align: center;">
+                        <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 800;">AISMM</h1>
+                        <p style="color: rgba(255,255,255,0.9); margin: 6px 0 0 0; font-size: 14px;">AI-Powered Social Media Management</p>
                     </div>
-                    <p style="color: #64748b; font-size: 14px; margin-top: 30px;">
-                        Or copy and paste this link into your browser:
-                    </p>
-                    <p style="color: #7c3aed; font-size: 13px; word-break: break-all; background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                        {verification_link}
-                    </p>
-                    <p style="color: #94a3b8; font-size: 13px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
-                        This verification link will expire in 30 minutes. If you didn't create an AISMM account, you can safely ignore this email.
-                    </p>
-                </div>
-                <div style="text-align: center; margin-top: 20px; padding: 20px; color: #94a3b8; font-size: 12px;">
-                    <p style="margin: 5px 0;">© 2026 AISMM. All rights reserved.</p>
-                    <p style="margin: 5px 0;">AI-Powered Social Media Management Platform</p>
+                    <div style="padding: 36px 30px; background: #0d121f;">
+                        <h2 style="color: #ffffff; margin-top: 0; font-size: 20px;">Verify Your Email Address</h2>
+                        <p style="color: #94a3b8; font-size: 15px;">{greeting}</p>
+                        <p style="color: #94a3b8; font-size: 15px; margin: 20px 0;">
+                            Thank you for creating an AISMM account! Click the button below to verify your email address and activate your workspace:
+                        </p>
+                        <div style="text-align: center; margin: 32px 0;">
+                            <a href="{verification_link}"
+                               style="background: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%);
+                                      color: white;
+                                      padding: 14px 36px;
+                                      text-decoration: none;
+                                      border-radius: 10px;
+                                      font-weight: 700;
+                                      font-size: 15px;
+                                      display: inline-block;">
+                                Verify Email Address
+                            </a>
+                        </div>
+                        <p style="color: #64748b; font-size: 13px; margin-top: 24px;">
+                            Or copy and paste this link into your browser:
+                        </p>
+                        <p style="color: #38bdf8; font-size: 12px; word-break: break-all; background: #07090e; padding: 12px; border-radius: 8px; border: 1px solid #1e293b; font-family: monospace;">
+                            {verification_link}
+                        </p>
+                        <p style="color: #64748b; font-size: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #1e293b;">
+                            This verification link will expire in 30 minutes. If you didn't create an AISMM account, you can safely ignore this email.
+                        </p>
+                    </div>
                 </div>
             </body>
             </html>
@@ -116,7 +245,7 @@ class EmailService:
 
 Thank you for creating an AISMM account!
 
-To get started with managing your social media presence, please verify your email address by clicking the link below:
+To get started, please verify your email address by visiting the link below:
 
 {verification_link}
 
@@ -129,19 +258,16 @@ AISMM - AI-Powered Social Media Management
 © 2026 AISMM. All rights reserved.
             """
 
-            # Create message
             msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
             msg["From"] = f"{self.from_name} <{self.from_email}>"
             msg["To"] = to_email
 
-            # Attach both plain text and HTML versions
             part1 = MIMEText(text_body, "plain")
             part2 = MIMEText(html_body, "html")
             msg.attach(part1)
             msg.attach(part2)
 
-            # Send email
             with self._get_smtp_connection() as server:
                 server.send_message(msg)
 
@@ -155,64 +281,51 @@ AISMM - AI-Powered Social Media Management
     def send_password_reset_email(
         self, to_email: str, reset_token: str, user_name: Optional[str] = None
     ) -> bool:
-        """
-        Send password reset link to user.
-
-        Args:
-            to_email: Recipient email address
-            reset_token: Unique reset token
-            user_name: Optional user's name for personalization
-
-        Returns:
-            True if email sent successfully, False otherwise
-        """
+        """Send password reset link and token to user."""
         try:
-            # Create reset link
             reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
-
-            # Compose email
-            subject = "Reset your AISMM password"
             greeting = f"Hi {user_name}," if user_name else "Hi,"
+            subject = "Reset your AISMM password"
 
             html_body = f"""
+            <!DOCTYPE html>
             <html>
-            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <div style="background: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                    <h1 style="color: white; margin: 0; font-size: 28px;">AISMM</h1>
-                    <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">AI-Powered Social Media Management</p>
-                </div>
-                <div style="background: #ffffff; padding: 40px 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 10px 10px;">
-                    <h2 style="color: #1e293b; margin-top: 0;">Password Reset Request</h2>
-                    <p style="color: #64748b; font-size: 16px;">{greeting}</p>
-                    <p style="color: #64748b; font-size: 16px; margin: 20px 0;">
-                        We received a request to reset your AISMM account password. Click the button below to create a new password:
-                    </p>
-                    <div style="text-align: center; margin: 35px 0;">
-                        <a href="{reset_link}"
-                           style="background: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%);
-                                  color: white;
-                                  padding: 14px 40px;
-                                  text-decoration: none;
-                                  border-radius: 8px;
-                                  font-weight: 600;
-                                  font-size: 16px;
-                                  display: inline-block;">
-                            Reset Password
-                        </a>
+            <head><meta charset="utf-8"></head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #cbd5e1; background-color: #07090e; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: #0d121f; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden;">
+                    <div style="background: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%); padding: 30px; text-align: center;">
+                        <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 800;">AISMM</h1>
+                        <p style="color: rgba(255,255,255,0.9); margin: 6px 0 0 0; font-size: 14px;">AI-Powered Social Media Management</p>
                     </div>
-                    <p style="color: #64748b; font-size: 14px; margin-top: 30px;">
-                        Or copy and paste this link into your browser:
-                    </p>
-                    <p style="color: #7c3aed; font-size: 13px; word-break: break-all; background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                        {reset_link}
-                    </p>
-                    <p style="color: #94a3b8; font-size: 13px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
-                        This password reset link will expire in 1 hour. If you didn't request a password reset, you can safely ignore this email.
-                    </p>
-                </div>
-                <div style="text-align: center; margin-top: 20px; padding: 20px; color: #94a3b8; font-size: 12px;">
-                    <p style="margin: 5px 0;">© 2026 AISMM. All rights reserved.</p>
-                    <p style="margin: 5px 0;">AI-Powered Social Media Management Platform</p>
+                    <div style="padding: 36px 30px; background: #0d121f;">
+                        <h2 style="color: #ffffff; margin-top: 0; font-size: 20px;">Password Reset Request</h2>
+                        <p style="color: #94a3b8; font-size: 15px;">{greeting}</p>
+                        <p style="color: #94a3b8; font-size: 15px; margin: 20px 0;">
+                            We received a request to reset your AISMM account password. Click the button below to create a new password:
+                        </p>
+                        <div style="text-align: center; margin: 32px 0;">
+                            <a href="{reset_link}"
+                               style="background: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%);
+                                      color: white;
+                                      padding: 14px 36px;
+                                      text-decoration: none;
+                                      border-radius: 10px;
+                                      font-weight: 700;
+                                      font-size: 15px;
+                                      display: inline-block;">
+                                Reset Password
+                            </a>
+                        </div>
+                        <p style="color: #64748b; font-size: 13px; margin-top: 24px;">
+                            Or copy and paste this link into your browser:
+                        </p>
+                        <p style="color: #38bdf8; font-size: 12px; word-break: break-all; background: #07090e; padding: 12px; border-radius: 8px; border: 1px solid #1e293b; font-family: monospace;">
+                            {reset_link}
+                        </p>
+                        <p style="color: #64748b; font-size: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #1e293b;">
+                            This password reset link will expire in 1 hour. If you didn't request a password reset, you can safely ignore this email.
+                        </p>
+                    </div>
                 </div>
             </body>
             </html>
@@ -236,19 +349,16 @@ AISMM - AI-Powered Social Media Management
 © 2026 AISMM. All rights reserved.
             """
 
-            # Create message
             msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
             msg["From"] = f"{self.from_name} <{self.from_email}>"
             msg["To"] = to_email
 
-            # Attach both plain text and HTML versions
             part1 = MIMEText(text_body, "plain")
             part2 = MIMEText(html_body, "html")
             msg.attach(part1)
             msg.attach(part2)
 
-            # Send email
             with self._get_smtp_connection() as server:
                 server.send_message(msg)
 

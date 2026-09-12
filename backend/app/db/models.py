@@ -100,6 +100,22 @@ class OAuthAttempt(Base):
     consumed = Column(Boolean, nullable=False, default=False)
 
 
+class OAuthState(Base):
+    """Persistent OAuth state — replaces in-memory _state_store across adapters."""
+    __tablename__ = "oauth_states"
+
+    id = Column(GUID(), primary_key=True, default=uuid4)
+    user_id = Column(GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    platform = Column(String(32), nullable=False, index=True)
+    state = Column(String(128), nullable=False, unique=True, index=True)
+    code_verifier = Column(Text, nullable=True)
+    nonce = Column(String(128), nullable=True)
+    redirect_uri = Column(Text, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    consumed = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC).replace(tzinfo=None), nullable=False)
+
+
 class User(Base):
     """User model."""
 

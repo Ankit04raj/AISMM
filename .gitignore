@@ -45,3 +45,5 @@ artifacts/
 playwright-report/
 test-results/
 *.zip
+omniroute-proxy.js
+

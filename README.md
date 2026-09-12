@@ -1,11 +1,12 @@
-> **Current-status correction — September 9, 2026:** Historical completion percentages and live-provider claims below are not current acceptance evidence. See [IMPLEMENTATION_REPORT.md](IMPLEMENTATION_REPORT.md) and [DEPLOYMENT.md](DEPLOYMENT.md) for this repair pass, fresh proof, and remaining launch blockers.
+> **Current-status correction — September 9, 2026:** See [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) and [docs/DEPLOYMENT_RUNBOOK.md](docs/DEPLOYMENT_RUNBOOK.md) for current gate statuses, test evidence, and deployment prerequisites.
 
 # AISMM — Universal Multi-Platform AI Social Media Management
 
-![Phase](https://img.shields.io/badge/phase-17%20Final%20Verification%20Complete-brightgreen)
-![Tests](https://img.shields.io/badge/tests-219%2F219%20passing%20(100%25)-brightgreen)
-![Python](https://img.shields.io/badge/python-3.12%2B-blue)
-![Framework](https://img.shields.io/badge/framework-FastAPI%20%7C%20SQLAlchemy%20%7C%20React%2019-blue)
+![Python](https://img.shields.io/badge/python-3.12%20%7C%203.13-blue)
+![Node](https://img.shields.io/badge/node-24.x-green)
+![Tests](https://img.shields.io/badge/backend%20tests-251%2F251%20passing%20(100%25)-brightgreen)
+![Frontend](https://img.shields.io/badge/frontend-React%2018%20%7C%20Vite%208%20%7C%20Tailwind-blue)
+![Database](https://img.shields.io/badge/database-PostgreSQL%2016%20%7C%20Alembic-blue)
 
 AISMM is a **platform-agnostic, AI-powered social media management platform** built with a modular adapter architecture. The core AI engines (scheduling, sentiment, growth prediction, auto-reply, caption/hashtag optimization) are completely independent of any social media platform — new platforms are added via adapters without touching core logic.
 

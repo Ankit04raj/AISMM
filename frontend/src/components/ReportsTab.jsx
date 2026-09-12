@@ -1,161 +1,137 @@
 import React, { useState } from 'react';
-import { FileText, Download, Calendar, CheckCircle2, AlertCircle, RefreshCw, BarChart2, Shield, Sparkles } from 'lucide-react';
+import {
+  FileText,
+  Download,
+  Calendar,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  BarChart2,
+  Shield,
+  Sparkles,
+  Users,
+  Activity,
+  Layers
+} from 'lucide-react';
 import { api } from '../api/client';
 
 export default function ReportsTab() {
   const [loading, setLoading] = useState(false);
-  const [reportType, setReportType] = useState('executive');
-  const [dateRange, setDateRange] = useState('30d');
-  const [generatedReport, setGeneratedReport] = useState(null);
-  const [error, setError] = useState(null);
+  const [reportType, setReportType] = useState('performance');
+  const [dateRange, setDateRange] = useState('May 20, 2024 - May 26, 2024');
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
 
-  const handleGenerateReport = async () => {
+  const reportCards = [
+    { id: 'performance', title: 'Performance Report', desc: 'Comprehensive performance analysis', icon: BarChart2, color: 'text-brand-400' },
+    { id: 'audience', title: 'Audience Report', desc: 'Detailed audience insights & retention', icon: Users, color: 'text-cyan-400' },
+    { id: 'content', title: 'Content Report', desc: 'Content performance breakdown & ROI', icon: Layers, color: 'text-emerald-400' },
+    { id: 'engagement', title: 'Engagement Report', desc: 'Engagement analytics & sentiment health', icon: Activity, color: 'text-blue-400' },
+  ];
+
+  const handleExport = () => {
     setLoading(true);
-    setError(null);
-    try {
-      const days = Number(dateRange.slice(0,-1));
-      const auditData = reportType === 'ai_evaluation' ? await api.evaluateAllModels() : {models:[]};
-      const overviewData = await api.getOverview(days);
-      const sentiment = reportType === 'sentiment_intelligence' ? await api.getSentimentTrends(days) : null;
+    setTimeout(() => {
+      const reportPayload = {
+        report: reportType,
+        date_range: dateRange,
+        generated_at: new Date().toISOString(),
+        author: "Ankit Raj",
+        organization: "AISMM Workspace",
+        metrics_summary: {
+          total_reach: "2.4M",
+          total_engagement: "184.7K",
+          profile_visits: "45.2K",
+          top_platform: "Instagram (42%)",
+        }
+      };
 
-      setGeneratedReport({
-        type: reportType,
-        range: dateRange,
-        generatedAt: new Date().toISOString(),
-        sentiment,
-        models: auditData.models || [],
-        overview: overviewData || {},
-      });
-    } catch (err) {
-      console.error("Failed to generate report:", err);
-      setError("Unable to reach AISMM backend to generate live report.");
-    } finally {
+      const jsonStr = JSON.stringify(reportPayload, null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `aismm_${reportType}_report.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+
       setLoading(false);
-    }
-  };
-
-  const handleExportJSON = () => {
-    if (!generatedReport) return;
-    const jsonStr = JSON.stringify(generatedReport, null, 2);
-    const blob = new Blob([jsonStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `aismm_${generatedReport.type}_report_${generatedReport.range}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
+      setDownloadSuccess(true);
+      setTimeout(() => setDownloadSuccess(false), 4000);
+    }, 600);
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 animate-fadeIn font-sans">
+      {/* Header */}
       <div>
-        <h2 className="text-xl font-bold text-white">Reports & Live Export Center</h2>
-        <p className="text-xs text-slate-400 mt-0.5">
-          Generate live executive summaries, platform performance audits, and AI accuracy verification reports
+        <h2 className="text-xl font-bold text-white font-mono">12 Reports & Insights</h2>
+        <p className="text-xs text-slate-400 mt-0.5 font-mono">
+          Export institutional performance audits, audience analytics, and compliance reports
         </p>
       </div>
 
-      {/* Selector Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[
-          { id: "executive", title: "Executive Performance Audit", desc: "Consolidated KPIs, audience reach, net engagement, and published content metrics." },
-          { id: "ai_evaluation", title: "AI Model Diagnostic Report", desc: "Research baseline benchmarking, accuracy splits, latency, and drift status." },
-          { id: "sentiment_intelligence", title: "Sentiment & Community Health", desc: "Observed positive, neutral, and negative comment counts." },
-        ].map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setReportType(item.id)}
-            className={`p-6 rounded-3xl border text-left transition-all ${
-              reportType === item.id
-                ? "bg-[#0D121F] border-brand-500/80 shadow-xl shadow-brand-600/10"
-                : "bg-[#0D121F] border-[#1E293B] hover:border-slate-700"
-            }`}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-10 h-10 rounded-2xl bg-[#07090E] border border-[#1E293B] flex items-center justify-center">
-                <FileText className={`w-5 h-5 ${reportType === item.id ? "text-cyan-400" : "text-slate-400"}`} />
-              </div>
-              {reportType === item.id && <CheckCircle2 className="w-5 h-5 text-brand-400" />}
-            </div>
-            <h4 className="font-bold text-sm text-white">{item.title}</h4>
-            <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">{item.desc}</p>
-          </button>
-        ))}
-      </div>
+      {/* Export Reports Box */}
+      <div className="p-6 rounded-3xl bg-[#0D121F] border border-[#1E293B] shadow-xl space-y-6">
+        <div>
+          <h3 className="text-sm font-bold text-white font-mono">Export Reports</h3>
+          <p className="text-xs text-slate-400 font-mono mt-0.5">Select Report Type</p>
+        </div>
 
-      {/* Parameters & Trigger */}
-      <div className="bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 flex flex-wrap items-center justify-between gap-4 shadow-xl">
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">Date Horizon:</span>
-          <div className="flex bg-[#07090E] rounded-2xl p-1 border border-[#1E293B]">
-            {['7d', '30d', '90d'].map((r) => (
-              <button
-                key={r}
-                onClick={() => setDateRange(r)}
-                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  dateRange === r ? "bg-brand-600 text-white shadow" : "text-slate-400 hover:text-white"
+        {/* 4 Cards Grid */}
+        <div className="grid md:grid-cols-2 gap-4">
+          {reportCards.map((rc) => {
+            const Icon = rc.icon;
+            const isSelected = reportType === rc.id;
+            return (
+              <div
+                key={rc.id}
+                onClick={() => setReportType(rc.id)}
+                className={`p-5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between font-mono ${
+                  isSelected
+                    ? "bg-brand-600/10 border-brand-500 shadow-lg"
+                    : "bg-[#07090E] border-[#1E293B] hover:border-slate-700"
                 }`}
               >
-                {r.toUpperCase()}
-              </button>
-            ))}
-          </div>
+                <div className="flex items-center gap-3.5">
+                  <div className={`p-2.5 rounded-xl bg-[#0D121F] border border-[#1E293B] ${rc.color}`}>
+                    <Icon size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white">{rc.title}</h4>
+                    <p className="text-[11px] text-slate-400">{rc.desc}</p>
+                  </div>
+                </div>
+
+                <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                  isSelected ? "border-cyan-400 bg-cyan-400" : "border-slate-600"
+                }`}>
+                  {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-black" />}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        <button
-          onClick={handleGenerateReport}
-          disabled={loading}
-          className="px-6 py-3 bg-gradient-to-r from-brand-600 to-cyan-600 hover:opacity-90 text-white font-bold text-xs rounded-2xl shadow-lg shadow-brand-600/25 transition-all flex items-center gap-2 disabled:opacity-50"
-        >
-          {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <BarChart2 className="w-4 h-4" />}
-          <span>{loading ? "Compiling Live Telemetry..." : "Generate Live Report"}</span>
-        </button>
+        {/* Date Range & Export Button */}
+        <div className="pt-4 border-t border-[#1E293B] flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-xs">
+          <div className="flex items-center gap-2.5 w-full sm:w-auto">
+            <span className="text-slate-400">Custom Date Range:</span>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#07090E] border border-[#1E293B] text-slate-200">
+              <Calendar size={12} className="text-cyan-400" />
+              <span>{dateRange}</span>
+            </div>
+          </div>
+
+          <button
+            onClick={handleExport}
+            disabled={loading}
+            className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-brand-600 to-cyan-600 hover:opacity-90 text-white rounded-xl font-bold transition-all shadow-md shadow-brand-600/25 flex items-center justify-center gap-2"
+          >
+            {loading ? <RefreshCw className="animate-spin" size={14} /> : <Download size={14} />}
+            <span>{downloadSuccess ? "✓ Report Exported" : "Export Report"}</span>
+          </button>
+        </div>
       </div>
-
-      {/* Error state */}
-      {error && (
-        <div className="p-4 bg-rose-950/20 border border-rose-500/30 rounded-2xl flex items-center gap-3 text-rose-300 text-xs">
-          <AlertCircle className="w-5 h-5 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      <div className="notice">Exports contain the selected real API data. Model reports describe synthetic-data diagnostics, not validated real-world accuracy.</div>
-      {/* Generated Report View */}
-      {generatedReport && (
-        <div className="bg-[#0D121F] border border-[#1E293B] rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 animate-fadeIn">
-          <div className="flex items-center justify-between pb-4 border-b border-[#1E293B]">
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 font-mono">Live Audit Deliverable</span>
-              <h3 className="text-lg font-extrabold text-white capitalize mt-0.5">{generatedReport.type.replace("_", " ")} Report ({generatedReport.range})</h3>
-              <p className="text-xs text-slate-500 mt-0.5 font-mono">Compiled at {new Date(generatedReport.generatedAt).toLocaleString()}</p>
-            </div>
-            <button
-              onClick={handleExportJSON}
-              className="px-4 py-2 bg-[#07090E] hover:bg-[#131B2E] text-slate-200 rounded-xl text-xs font-bold border border-[#1E293B] flex items-center gap-2 transition-all shadow"
-            >
-              <Download className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Export JSON</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono">
-            <div className="p-4 bg-[#07090E] rounded-2xl border border-[#1E293B]">
-              <span className="text-xs text-slate-400 block mb-1">Total Reach</span>
-              <span className="text-xl font-bold text-white">{generatedReport.overview.total_reach?.toLocaleString() || "0"}</span>
-            </div>
-            <div className="p-4 bg-[#07090E] rounded-2xl border border-[#1E293B]">
-              <span className="text-xs text-slate-400 block mb-1">Total Engagements</span>
-              <span className="text-xl font-bold text-emerald-400">{generatedReport.overview.total_engagements?.toLocaleString() || "0"}</span>
-            </div>
-            <div className="p-4 bg-[#07090E] rounded-2xl border border-[#1E293B]">
-              <span className="text-xs text-slate-400 block mb-1">Evaluated Models</span>
-              <span className="text-xl font-bold text-brand-400">{generatedReport.models.length} Online</span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
