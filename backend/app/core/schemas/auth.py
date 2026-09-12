@@ -2,7 +2,7 @@
 
 from typing import Optional, Dict, Any, List
 from datetime import datetime
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, field_validator
 
 
 class OAuthInitRequest(BaseModel):
@@ -117,6 +117,21 @@ class RegisterRequest(BaseModel):
     accept_terms: bool = False
     verification_method: str = Field(default="email", description="Verification method: 'email' or 'phone'")
 
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError("Password exceeds 72 UTF-8 bytes limit")
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not any(c.islower() for c in v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not any(c.isdigit() or not c.isalnum() for c in v):
+            raise ValueError("Password must contain at least one digit or special character")
+        return v
+
 
 class PhoneVerificationRequest(BaseModel):
     """Request to verify phone number via SMS OTP."""
@@ -151,7 +166,23 @@ class TwoFactorSetupResponse(BaseModel):
 
 class TwoFactorVerifyRequest(BaseModel):
     """Request to verify or toggle 2FA."""
-    code: str = Field(..., min_length=6, max_length=6, description="6-digit TOTP code")
+    code: str = Field(..., min_length=6, max_length=16, description="6-digit TOTP code or backup recovery code")
+
+
+class TwoFactorEnableResponse(BaseModel):
+    """Response when 2FA is enabled, containing backup recovery codes."""
+    two_factor_enabled: bool = True
+    recovery_codes: List[str] = Field(default_factory=list, description="Backup recovery codes to save securely")
+
+
+class RegenerateRecoveryCodesRequest(BaseModel):
+    """Request to regenerate 2FA recovery codes."""
+    code: str = Field(..., min_length=6, max_length=16, description="Active 6-digit TOTP code")
+
+
+class RegenerateRecoveryCodesResponse(BaseModel):
+    """Response containing fresh backup recovery codes."""
+    recovery_codes: List[str] = Field(..., description="New backup recovery codes")
 
 
 class LogoutRequest(BaseModel):
@@ -169,6 +200,21 @@ class PasswordResetConfirm(BaseModel):
     token: str = Field(..., description="Reset token")
     password: str = Field(..., min_length=8, description="New password")
 
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError("Password exceeds 72 UTF-8 bytes limit")
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not any(c.islower() for c in v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not any(c.isdigit() or not c.isalnum() for c in v):
+            raise ValueError("Password must contain at least one digit or special character")
+        return v
+
 
 class ProfileUpdate(BaseModel):
     full_name: str = Field(min_length=1, max_length=100)
@@ -178,3 +224,18 @@ class PasswordChange(BaseModel):
     current_password: str
     password: str = Field(min_length=8, max_length=72)
     two_factor_code: Optional[str] = None
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError("Password exceeds 72 UTF-8 bytes limit")
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not any(c.islower() for c in v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not any(c.isdigit() or not c.isalnum() for c in v):
+            raise ValueError("Password must contain at least one digit or special character")
+        return v

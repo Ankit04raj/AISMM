@@ -18,7 +18,7 @@ from backend.app.core.schemas.post import (
 )
 from backend.app.services.preview_service import PreviewService
 from backend.app.services.post_service import PostService
-from backend.app.db.models import Post, PostPublication, PostStatusEnum, ContentTypeEnum
+from backend.app.db.models import Post, PostPublication, PostStatusEnum, ContentTypeEnum, SocialAccount
 
 client = TestClient(app)
 
@@ -196,10 +196,43 @@ class TestMultiPlatformPublishing:
                 assert fb_pub.error_message is None
                 assert mock_db.commit.called
 
+    @pytest.mark.asyncio
+    async def test_multi_account_explicit_selection_support(self):
+        """Test that multi-account selection operates with specific account_id parameter."""
+        from backend.app.services.owned_adapter import owned_adapter
+        from fastapi import HTTPException
+        mock_db = AsyncMock()
+        user_id = uuid4()
+        acc1_id = uuid4()
+        acc2_id = uuid4()
+
+        acc1 = SocialAccount(id=acc1_id, user_id=user_id, platform="x", platform_user_id="u1", access_token="tok1", is_active=True)
+        acc2 = SocialAccount(id=acc2_id, user_id=user_id, platform="x", platform_user_id="u2", access_token="tok2", is_active=True)
+
+        mock_res_both = MagicMock()
+        mock_res_both.scalars.return_value.all.return_value = [acc1, acc2]
+
+        mock_res_acc1 = MagicMock()
+        mock_res_acc1.scalars.return_value.all.return_value = [acc1]
+
+        mock_db.execute = AsyncMock(return_value=mock_res_both)
+
+        # 1. Calling without account_id when 2 accounts exist raises 409
+        with pytest.raises(HTTPException) as exc_info:
+            await owned_adapter(mock_db, user_id, "x")
+        assert exc_info.value.status_code == 409
+        assert "Multiple active accounts" in exc_info.value.detail
+
+        # 2. Calling with specific account_id succeeds
+        mock_db.execute = AsyncMock(return_value=mock_res_acc1)
+        adapter = await owned_adapter(mock_db, user_id, "x", account_id=acc1_id)
+        assert adapter is not None
+        assert adapter.platform_name == "x"
+
 
 @pytest.fixture(autouse=True)
 def authenticated_adapter_unit_boundary(monkeypatch):
     """Isolate provider contract tests from SQL ownership; integration tests cover that boundary."""
-    async def resolve(db, user_id, platform):
+    async def resolve(db, user_id, platform, *args, **kwargs):
         return PlatformRegistry.get_adapter(platform)
     monkeypatch.setattr('backend.app.services.post_service.owned_adapter', resolve)

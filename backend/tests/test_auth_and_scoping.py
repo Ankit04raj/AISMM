@@ -316,11 +316,14 @@ class TestAuthAndUserScoping:
         assert "otpauth://" in setup_resp.json()["otpauth_url"]
         assert len(secret) >= 16
 
-        # 2. Enable 2FA with computed TOTP code
+        # 2. Enable 2FA with computed TOTP code -> returns backup recovery codes
         totp_code = compute_current_totp_code(secret)
         enable_resp = client.post("/api/v1/auth/2fa/enable", headers=headers, json={"code": totp_code})
         assert enable_resp.status_code == 200
         assert enable_resp.json()["two_factor_enabled"] is True
+        recovery_codes = enable_resp.json().get("recovery_codes", [])
+        assert len(recovery_codes) == 8
+        assert all("-" in code for code in recovery_codes)
 
         # Invalid code rejected
         bad_enable = client.post("/api/v1/auth/2fa/enable", headers=headers, json={"code": "000000"})
@@ -333,16 +336,32 @@ class TestAuthAndUserScoping:
         assert login_resp.json()["requires_2fa"] is True
         assert login_resp.json()["access_token"] == ""
 
-        # 3b. Login with valid 2FA code returns full JWT access token
-        valid_totp_code = compute_current_totp_code(secret)
-        login_with_2fa = client.post("/api/v1/auth/login", json={
+        # 3b. Login with backup recovery code succeeds and single-use consumes it
+        first_recovery_code = recovery_codes[0]
+        login_with_recovery = client.post("/api/v1/auth/login", json={
             "email": "totp_user@aismm.io",
             "password": "SecurePassword123!",
-            "two_factor_code": valid_totp_code,
+            "two_factor_code": first_recovery_code,
         })
-        assert login_with_2fa.status_code == 200
-        assert login_with_2fa.json()["requires_2fa"] is False
-        assert login_with_2fa.json()["access_token"] != ""
+        assert login_with_recovery.status_code == 200
+        assert login_with_recovery.json()["requires_2fa"] is False
+        assert login_with_recovery.json()["access_token"] != ""
+
+        # 3c. Reusing the same recovery code is rejected
+        login_reuse_recovery = client.post("/api/v1/auth/login", json={
+            "email": "totp_user@aismm.io",
+            "password": "SecurePassword123!",
+            "two_factor_code": first_recovery_code,
+        })
+        assert login_reuse_recovery.status_code == 401
+
+        # 3d. Regenerate recovery codes with active TOTP code
+        valid_totp_for_regen = compute_current_totp_code(secret)
+        regen_resp = client.post("/api/v1/auth/2fa/recovery-codes", headers=headers, json={"code": valid_totp_for_regen})
+        assert regen_resp.status_code == 200
+        fresh_codes = regen_resp.json().get("recovery_codes", [])
+        assert len(fresh_codes) == 8
+        assert fresh_codes != recovery_codes
 
     def test_server_side_logout_token_revocation(self, client):
         """Proof 2.2: Logout blacklists/revokes JWT tokens server-side."""

@@ -5246,7 +5246,58 @@ The historical project notes follow; they are background, not a claim that live 
 
 **NEXT ACTION:** Production cloud deployment and provider developer app registration.
 
-**Git Commit:** 6d037d2
+**Git Commit:** 98e6b16
+
+**GitHub Push:** VERIFIED
+
+---
+
+### SESSION-026 — 2026-09-12 11:30
+
+**Phase:** AUTH HARDENING, 2FA RECOVERY CODES & MULTI-ACCOUNT PUBLISHING RESOLUTION
+
+**Objective:** Implement missing 2FA backup recovery codes subsystem, support explicit multi-account selection during multi-platform publishing, enforce password complexity rules, and optimize Redis rate-limiter connection lifecycle.
+
+**Completed:**
+- **2FA Backup Recovery Codes Subsystem**:
+  - Implemented `generate_recovery_codes`, `hash_recovery_code`, and `verify_recovery_code` in `backend/app/core/security.py`.
+  - Added `two_factor_recovery_codes` JSON field in `User` model (`backend/app/db/models.py`).
+  - Updated `/auth/2fa/enable` to generate and return 8 alphanumeric backup codes formatted as `XXXX-XXXX`.
+  - Updated `login_user` (`POST /api/v1/auth/login`) to accept either active 6-digit TOTP code or a single-use backup recovery code with atomic consumption.
+  - Added `POST /api/v1/auth/2fa/recovery-codes` to regenerate recovery codes using an active TOTP code.
+- **Multi-Account Publishing Resolution**:
+  - Updated `owned_adapter` (`backend/app/services/owned_adapter.py`) to accept optional `account_id` parameter, allowing users with multiple active accounts on the same platform to target a specific account without triggering HTTP 409 conflicts.
+  - Updated `PlatformCustomization` (`backend/app/core/schemas/post.py`) and `PostService.create_multi_platform_post` to route platform customizations to the specified account.
+- **Password Complexity Validation**:
+  - Added field validator in `backend/app/core/schemas/auth.py` for `RegisterRequest`, `PasswordChange`, and `PasswordResetConfirm` requiring &ge; 8 characters, &le; 72 UTF-8 bytes, with uppercase, lowercase, and numeric/special characters.
+- **Redis Connection Pool Lifecycle Optimization**:
+  - Implemented `get_redis_pool()` in `backend/app/core/rate_limit.py` to reuse an asynchronous `redis.ConnectionPool` across rate-limited requests instead of opening and closing connections per request.
+
+**Files Modified:**
+- `backend/app/api/v1/auth.py`
+- `backend/app/core/security.py`
+- `backend/app/core/schemas/auth.py`
+- `backend/app/core/schemas/post.py`
+- `backend/app/core/rate_limit.py`
+- `backend/app/db/models.py`
+- `backend/app/services/owned_adapter.py`
+- `backend/app/services/post_service.py`
+- `backend/tests/test_auth_and_scoping.py`
+- `backend/tests/test_content_management.py`
+- `backend/tests/test_email_verification.py`
+- `backend/tests/test_phone_verification.py`
+- `CLAUDE.md`
+
+**Tests:**
+- Backend Suite: **256 passed (100%)**
+- Frontend Tests: **4 passed (100%)**
+- Frontend Build: **SUCCESS (806ms, 0 errors)**
+
+**Current Status:** AUTH HARDENING, 2FA RECOVERY CODES & MULTI-ACCOUNT PUBLISHING VERIFIED
+
+**NEXT ACTION:** Production cloud deployment and provider developer app registration.
+
+**Git Commit:** 8978d9f
 
 **GitHub Push:** VERIFIED
 

@@ -86,7 +86,12 @@ class PostService:
                 pass
             if settings.ENVIRONMENT != 'development' and host not in settings.MEDIA_ALLOWED_HOSTS:
                 raise ValidationError('Media host is not in the operator-approved allowlist')
-        adapters = {platform: await owned_adapter(self.db, user_id, platform) for platform in request.platforms}
+        adapters = {}
+        for platform in request.platforms:
+            p_key = platform.lower()
+            custom = request.customizations.get(p_key, PlatformCustomization())
+            target_acc_id = getattr(custom, "account_id", None) or (custom.options or {}).get("account_id")
+            adapters[p_key] = await owned_adapter(self.db, user_id, p_key, account_id=target_acc_id)
         if not request.text and not request.caption and not request.media:
             raise ValidationError('Post content is required')
         if request.scheduled_at:

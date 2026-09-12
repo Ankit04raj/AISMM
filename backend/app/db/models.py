@@ -131,6 +131,7 @@ class User(Base):
     is_superuser = Column(Boolean, default=False, nullable=False)
     two_factor_enabled = Column(Boolean, default=False, nullable=False)
     two_factor_secret = Column(EncryptedText(), nullable=True)
+    two_factor_recovery_codes = Column(JSON, nullable=True, default=list)
 
     terms_accepted_at = Column(DateTime, nullable=True)
     password_reset_hash = Column(String(64), nullable=True, index=True)
