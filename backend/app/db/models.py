@@ -108,7 +108,7 @@ class OAuthState(Base):
     user_id = Column(GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     platform = Column(String(32), nullable=False, index=True)
     state = Column(String(128), nullable=False, unique=True, index=True)
-    code_verifier = Column(Text, nullable=True)
+    code_verifier = Column(EncryptedText(), nullable=True)
     nonce = Column(String(128), nullable=True)
     redirect_uri = Column(Text, nullable=False)
     expires_at = Column(DateTime, nullable=False)
