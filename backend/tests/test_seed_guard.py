@@ -108,3 +108,36 @@ async def test_cleanup_demo_data_script_execution(async_test_db):
 
     remaining_real = await async_test_db.scalar(select(User).where(User.email == "genuine.customer@company.com"))
     assert remaining_real is not None
+
+
+@pytest.mark.asyncio
+async def test_cleanup_removes_mock_account_on_non_demo_user(async_test_db):
+    from scripts.cleanup_demo_data import execute_cleanup
+    from sqlalchemy import select
+
+    real_user = User(
+        id=uuid4(),
+        email="real@company.com",
+        hashed_password="pw",
+        full_name="Real User",
+        is_active=True,
+        is_verified=True,
+    )
+    mock_acc = SocialAccount(
+        id=uuid4(),
+        user_id=real_user.id,
+        platform="x",
+        platform_user_id="tw_real",
+        username="real_handle",
+        access_token="dev_access_token_x_real",
+        account_metadata={"connected_via": "direct_url_or_handle"},
+    )
+    async_test_db.add(real_user)
+    async_test_db.add(mock_acc)
+    await async_test_db.commit()
+
+    res = await execute_cleanup(async_test_db, dry_run=False)
+    assert res["deleted_mock_accounts_count"] >= 1
+
+    acc_rem = await async_test_db.scalar(select(SocialAccount).where(SocialAccount.username == "real_handle"))
+    assert acc_rem is None

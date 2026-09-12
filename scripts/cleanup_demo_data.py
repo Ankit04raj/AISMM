@@ -48,8 +48,9 @@ async def execute_cleanup(db: AsyncSession, dry_run: bool = False) -> dict:
         or (acc.access_token and "dev_access_token" in acc.access_token)
     ]
     deleted_accs_count = len(mock_accs)
+    demo_user_ids = {u.id for u in demo_users}
     for a in mock_accs:
-        if not dry_run and a not in [u.social_accounts for u in demo_users if u.social_accounts]:
+        if not dry_run and a.user_id not in demo_user_ids:
             await db.delete(a)
 
     if not dry_run:
