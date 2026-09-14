@@ -7,12 +7,12 @@ class InstagramEndpoint(str, Enum):
     """Instagram Graph API endpoints."""
 
     # Base
-    BASE = "https://graph.facebook.com/v19.0"
+    BASE = "https://graph.facebook.com/v20.0"
 
     # OAuth
     AUTHORIZE = "https://api.instagram.com/oauth/authorize"
     ACCESS_TOKEN = "https://api.instagram.com/oauth/access_token"
-    REFRESH_TOKEN = "https://graph.facebook.com/v19.0/oauth/access_token"
+    REFRESH_TOKEN = "https://graph.facebook.com/v20.0/oauth/access_token"
 
     # User/Account
     ME = "/me"

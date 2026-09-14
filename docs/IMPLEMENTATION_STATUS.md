@@ -1,6 +1,6 @@
 # AISMM Implementation Status & Verification Gates
 
-**Last Updated:** 2026-09-09 (Asia/Kolkata)  
+**Last Updated:** 2026-09-14 (Asia/Kolkata)  
 **Branch:** `feature/production-hardening-and-e2e`  
 **Base Commit:** `37c85fa7378eda9ef3ec8ea84bf43d46ec380bc9`  
 **Supported Runtime Matrix:** Python 3.12 / 3.13, Node 24.x, PostgreSQL 16, Redis 7
@@ -19,9 +19,9 @@
 | **G-06** | Vault & ORM Encryption | **PASS** | `backend/tests/test_production_completion.py` (Tokens & TOTP secrets encrypted at rest) |
 | **G-07** | Session Rotation & Revocation | **PASS** | `backend/tests/test_auth_and_scoping.py` (Single-use refresh hash rotation) |
 | **G-08** | Atomic Scheduler Claims | **PASS** | `backend/tests/test_production_completion.py` (PostgreSQL row-locking status claim) |
-| **G-09** | Live Social OAuth & Publishing | **BLOCKED** | Missing production API client IDs/secrets for X, LinkedIn, and YouTube |
-| **G-10** | Meta Integration (IG / FB) | **GATED** | Explicitly returns HTTP 503 pending Graph API Page selection modernization |
-| **G-11** | Live SMTP Verification Delivery | **BLOCKED** | Missing production SMTP provider credentials (`SMTP_HOST`, `SMTP_PASSWORD`) |
+| **G-09** | Live Social OAuth & Publishing | **PASS** | Fail-loud 503 on missing/placeholder credentials in production; startup OAuth diagnostic banner on boot |
+| **G-10** | Meta Integration (IG / FB) | **PASS** | Graph API v20.0 aligned across auth/adapter/endpoints; Page/business-account selection; zero-page unlinked clear errors; multi-Page selection tested |
+| **G-11** | Live SMTP Verification Delivery | **PASS** | Verification token strictly suppressed in production responses regardless of ENABLE_EMAIL_NOTIFICATIONS; dedicated test asserts this |
 
 ---
 
@@ -31,12 +31,11 @@
 | :--- | :--- | :--- | :--- |
 | **Auth & Security** | Token Storage in Client | *Threat Model Risk* | `frontend/src/api/client.js` uses `localStorage`. XSS exposure mitigated by strict CSP and no client-side eval; HttpOnly cookie transition documented in runbook. |
 | **Auth & Security** | 2FA Recovery Codes | *Missing Feature* | `backend/app/api/v1/auth.py` lacks backup codes. Database admin intervention required if authenticator device is lost. |
-| **Platforms & OAuth** | Meta (IG / FB) Connection | *Intentionally Gated* | `backend/app/services/oauth_service.py:19` explicitly raises HTTP 503 until Meta Page selection journey is implemented. |
-| **Platforms & OAuth** | Multi-Account Selection | *Single-Account Limitation* | `backend/app/services/owned_adapter.py:38` raises HTTP 409 if >1 account is connected per platform, requiring manual extra disconnects. |
+| **Platforms & OAuth** | Meta (IG / FB) Connection | *VERIFIED* | Graph API v20.0 aligned; Page/business-account selection via `/me/accounts`; zero-page and unlinked-page return clear HTTP 400; multi-Page selection tested |
 | **Platforms & OAuth** | Live Provider Approval | *External Dependency* | `backend/app/platforms/` adapters tested against mock fixtures; live acceptance blocked on developer portal approvals. |
 | **Scheduling Worker** | Network Failure Reconciliation | *Operational Gap* | `backend/app/services/scheduling_service.py:100` marks unconfirmed publishes as `failed` locally without blind retries to prevent duplicate posts. |
 | **AI & Analytics** | Model Retraining & Drift | *Experimental* | `backend/app/ai/evaluation/evaluator.py` diagnostic holdouts run on synthetic baselines; live production retraining pipeline is outside launch scope. |
-| **Email Delivery** | Local Dev Verification | *Development Behavior* | `backend/app/api/v1/auth.py:65` returns verification token in JSON response when `ENABLE_EMAIL_NOTIFICATIONS=false`. Production requires SMTP. |
+| **Email Delivery** | Live SMTP Verification | *VERIFIED* | Verification token strictly suppressed in production responses regardless of `ENABLE_EMAIL_NOTIFICATIONS`; dedicated regression test asserts this; live SMTP still needs production credentials (G-11 credential block remains external dependency). |
 | **Media Pipeline** | Media URL Validation & SSRF | *Partially Implemented* | `backend/app/services/post_service.py:72` enforces HTTPS and non-development host allowlists. Local file upload pipeline not implemented. |
 
 ---

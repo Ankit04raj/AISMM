@@ -42,7 +42,7 @@ class TestInstagramAdapter:
     @pytest.mark.asyncio
     async def test_adapter_initialization(self, adapter):
         assert adapter.PLATFORM_NAME == "instagram"
-        assert adapter.BASE_URL == "https://graph.facebook.com/v19.0"
+        assert adapter.BASE_URL == "https://graph.facebook.com/v20.0"
         assert adapter.client_id == "test_client_id"
         assert adapter.client_secret == "test_client_secret"
 

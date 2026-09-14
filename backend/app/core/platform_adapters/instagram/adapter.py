@@ -35,10 +35,10 @@ class InstagramAdapter(BasePlatformAdapter):
     """Instagram Graph API adapter implementing BasePlatformAdapter contract."""
 
     PLATFORM_NAME = "instagram"
-    BASE_URL = "https://graph.facebook.com/v19.0"
+    BASE_URL = "https://graph.facebook.com/v20.0"
     AUTH_URL = "https://api.instagram.com/oauth/authorize"
     TOKEN_URL = "https://api.instagram.com/oauth/access_token"
-    REFRESH_URL = "https://graph.facebook.com/v19.0/oauth/access_token"
+    REFRESH_URL = "https://graph.facebook.com/v20.0/oauth/access_token"
 
     # Capability matrix for Instagram (ADR-003)
     SUPPORTED_CAPABILITIES = {
