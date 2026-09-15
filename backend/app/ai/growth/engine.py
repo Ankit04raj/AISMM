@@ -74,6 +74,12 @@ class GrowthEngine:
         self.heldout_test_data: Dict[str, Tuple[List[List[float]], List[float]]] = {}
         self._initialize_platform_models()
 
+    def train_from_follower_snapshots(self, snapshots: List[Any]) -> None:
+        """Phase 2: train on real (features -> 30d follower delta) pairs from profile snapshots."""
+        # Placeholder until snapshot collection pipeline (2.1) feeds real data.
+        # Fallback: existing synthetic model remains active.
+        pass
+
     def _initialize_platform_models(self) -> None:
         """Train Random Forest Regressors on train split and evaluate on held-out test split."""
         np.random.seed(42)

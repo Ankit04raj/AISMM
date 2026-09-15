@@ -65,6 +65,13 @@ class SchedulingEngine:
         self._is_trained = False
         self._initialize_baseline_model()
 
+    def train_from_engagement(self, posts: List[Any]) -> None:
+        """Train on real post analytics (Phase 2). Keeps synthetic model as cold-start fallback."""
+        # Phase 2 placeholder: when PostEngagementMetrics exists, feed (hour, dow, platform,
+        # content_type, hashtag_count, media_type, engagement_rate) -> label (above median = 1)
+        # For now, preserves synthetic baseline until real data collected.
+        pass
+
     def _initialize_baseline_model(self) -> None:
         """Train ensemble model with calibrated dataset and evaluate on held-out test split."""
         np.random.seed(42)

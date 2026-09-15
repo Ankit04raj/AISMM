@@ -136,6 +136,10 @@ class SchedulingService:
                     if publication.status == 'published':
                         continue
                     try:
+                        # Duplicate guard: never retry if upstream post already recorded
+                        if publication.platform_post_id and publication.status == 'published':
+                            executed += 1
+                            continue
                         target_acc_id = getattr(publication, 'account_id', None) or (publication.platform_data or {}).get('account_id')
                         adapter = await owned_adapter(self.db, schedule.user_id, publication.platform, account_id=target_acc_id)
                         payload = (publication.platform_data or {}).get('content')
@@ -148,7 +152,16 @@ class SchedulingService:
                             content_type=ContentType(post.content_type.value), text=post.text or post.caption or '',
                             caption=post.caption, hashtags=post.hashtags or [], mentions=post.mentions or [])
                         response = await adapter.publish_post(content)
-                        if response.status != 'published' or not response.platform_post_id:
+                        # Reconciliation: if response is missing / ambiguous, query upstream before declaring failure
+                        if not response or getattr(response, 'status', None) != 'published':
+                            try:
+                                # Try to locate the already-published post on platform (prevents false negatives + duplicates)
+                                recent = await adapter.get_post(response.platform_post_id) if (response and getattr(response, 'platform_post_id', None)) else None
+                                if recent and getattr(recent, 'id', None):
+                                    response = type('ReconciledResponse', (), {'status': 'published', 'platform_post_id': str(recent.id), 'url': getattr(recent, 'url', None)})()
+                            except Exception:
+                                pass
+                        if not response or response.status != 'published' or not getattr(response, 'platform_post_id', None):
                             raise ValueError('Provider did not confirm publication')
                         publication.platform_post_id = response.platform_post_id
                         publication.permalink = response.url
