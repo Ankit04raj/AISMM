@@ -253,7 +253,7 @@ class AccountService:
         if not account:
             raise NotFoundError("Account not found")
 
-        adapter = await owned_adapter(self.db, user_id, account.platform)
+        adapter = await owned_adapter(self.db, user_id, account.platform, account_id=account.id)
         if adapter and hasattr(adapter, "auth") and account.access_token:
             try:
                 await adapter.auth.revoke_token(account.access_token)
@@ -278,7 +278,7 @@ class AccountService:
         if not account or not account.refresh_token:
             return False
 
-        adapter = await owned_adapter(self.db, user_id, account.platform)
+        adapter = await owned_adapter(self.db, user_id, account.platform, account_id=account.id)
         if not adapter or not hasattr(adapter, "auth"):
             return False
 
@@ -306,7 +306,7 @@ class AccountService:
         if not account or not account.is_active:
             return None
 
-        adapter = await owned_adapter(self.db, user_id, account.platform)
+        adapter = await owned_adapter(self.db, user_id, account.platform, account_id=account.id)
         if not adapter:
             return None
 
@@ -340,7 +340,7 @@ class AccountService:
         if not account:
             return None
 
-        adapter = await owned_adapter(self.db, user_id, account.platform)
+        adapter = await owned_adapter(self.db, user_id, account.platform, account_id=account.id)
         if not adapter:
             return self._to_profile(account)
 

@@ -219,6 +219,6 @@ class TestIntelligenceAPIEndpoints:
 
 @pytest.fixture(autouse=True)
 def provider_contract_boundary(monkeypatch):
-    async def resolve(db,user_id,platform):
+    async def resolve(db, user_id, platform, *args, **kwargs):
         return PlatformRegistry.get_adapter(platform)
-    monkeypatch.setattr('backend.app.services.intelligence_service.owned_adapter',resolve)
+    monkeypatch.setattr('backend.app.services.intelligence_service.owned_adapter', resolve)
