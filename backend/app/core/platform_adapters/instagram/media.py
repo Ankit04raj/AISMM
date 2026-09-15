@@ -32,7 +32,7 @@ class InstagramMediaUploader:
     CHUNK_SIZE = 4 * 1024 * 1024  # 4MB chunks
     MAX_SINGLE_UPLOAD = 100 * 1024 * 1024  # 100MB direct upload limit
 
-    def __init__(self, access_token: str, ig_user_id: str, base_url: str = "https://graph.facebook.com/v19.0"):
+    def __init__(self, access_token: str, ig_user_id: str, base_url: str = "https://graph.facebook.com/v20.0"):
         self.access_token = access_token
         self.ig_user_id = ig_user_id
         self.base_url = base_url

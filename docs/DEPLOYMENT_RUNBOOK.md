@@ -105,6 +105,22 @@ Running upgrade -> 1c2e5404a0b3
 Running upgrade 5d6e7f8a9b0c -> 6e7f8a9b0c1d (head)
 ```
 
+### Step 3b: Pre-Go-Live Database Audit & Demo Data Purge
+**CRITICAL:** Ensure no local development mock accounts or demo seed data exist in the production database:
+1. `scripts/seed_live_demo.py` is hard-guarded with an environment check and will immediately fail with exit code 1 if run against any non-development database (`ENVIRONMENT!=development`).
+2. Run the cleanup audit script to purge any development artifacts:
+   ```bash
+   # Dry-run audit (read-only):
+   python scripts/cleanup_demo_data.py --dry-run
+
+   # Execute cleanup purge:
+   python scripts/cleanup_demo_data.py
+   ```
+3. Confirm database contains 0 unverified mock accounts:
+   ```sql
+   SELECT COUNT(*) FROM social_accounts WHERE account_metadata->>'connected_via' = 'direct_url_or_handle';
+   ```
+
 ### Step 4: Build and Start Containers
 ```bash
 docker compose build --no-cache

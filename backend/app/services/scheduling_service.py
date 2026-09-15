@@ -136,7 +136,8 @@ class SchedulingService:
                     if publication.status == 'published':
                         continue
                     try:
-                        adapter = await owned_adapter(self.db, schedule.user_id, publication.platform)
+                        target_acc_id = (publication.platform_data or {}).get('account_id')
+                        adapter = await owned_adapter(self.db, schedule.user_id, publication.platform, account_id=target_acc_id)
                         payload = (publication.platform_data or {}).get('content')
                         if payload:
                             from backend.app.core.normalization import ContentNormalizer

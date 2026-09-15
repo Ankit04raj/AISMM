@@ -39,6 +39,57 @@ def validate_redirect_uri(redirect_uri: str) -> str:
     return redirect_uri
 
 
+def get_platform_oauth_status() -> dict:
+    """Return dictionary of all supported platforms and their configuration status."""
+    settings = get_settings()
+    platforms = ["x", "linkedin", "youtube", "facebook", "instagram"]
+    status_map = {}
+    for p in platforms:
+        client_id = getattr(settings, f"{p.upper()}_CLIENT_ID", None)
+        client_secret = getattr(settings, f"{p.upper()}_CLIENT_SECRET", None)
+        is_placeholder = bool(
+            (client_id and client_id.startswith("your_")) or
+            (client_secret and client_secret.startswith("your_"))
+        )
+        is_configured = bool(client_id and client_secret and not is_placeholder and client_id.strip() and client_secret.strip())
+        status_map[p] = {
+            "configured": is_configured,
+            "has_client_id": bool(client_id and not client_id.startswith("your_") and client_id.strip()),
+            "has_client_secret": bool(client_secret and not client_secret.startswith("your_") and client_secret.strip()),
+            "client_id_preview": f"{client_id[:4]}...{client_id[-4:]}" if client_id and len(client_id) > 8 and not is_placeholder else ("placeholder" if is_placeholder else "missing"),
+        }
+    return status_map
+
+
+def log_startup_oauth_status():
+    """Log clear, high-visibility startup diagnostics showing platform OAuth readiness."""
+    import logging
+    logger = logging.getLogger("aismm.oauth")
+    settings = get_settings()
+    status_map = get_platform_oauth_status()
+
+    logger.info("================================================================")
+    logger.info("AISMM PLATFORM OAUTH CONFIGURATION STATUS (%s mode)", settings.ENVIRONMENT.upper())
+    logger.info("================================================================")
+
+    configured_count = 0
+    for platform, info in status_map.items():
+        name = {"x": "X (Twitter)", "linkedin": "LinkedIn", "youtube": "YouTube", "facebook": "Facebook Pages", "instagram": "Instagram Business"}.get(platform, platform.capitalize())
+        if info["configured"]:
+            configured_count += 1
+            logger.info("  ✓ %-22s: CONFIGURED (Client ID: %s)", name, info["client_id_preview"])
+        else:
+            if settings.ENVIRONMENT == "development":
+                logger.info("  ⚠ %-22s: NOT CONFIGURED (Dev fallback enabled)", name)
+            else:
+                logger.warning("  ✗ %-22s: NOT CONFIGURED (Missing credentials -> OAuth will return 503)", name)
+
+    logger.info("----------------------------------------------------------------")
+    logger.info("OAuth Readiness: %d/%d platforms configured", configured_count, len(status_map))
+    logger.info("Redirect URI Base: %s/oauth/callback", settings.FRONTEND_URL.rstrip('/'))
+    logger.info("================================================================")
+
+
 def configured_adapter(platform: str, redirect_uri: str):
     """Retrieve platform adapter with configured or development fallback credentials."""
     settings = get_settings()
@@ -52,8 +103,17 @@ def configured_adapter(platform: str, redirect_uri: str):
     client_id = getattr(settings, f'{platform_key.upper()}_CLIENT_ID', None)
     client_secret = getattr(settings, f'{platform_key.upper()}_CLIENT_SECRET', None)
 
+    is_unconfigured = (
+        not client_id or
+        not client_secret or
+        not str(client_id).strip() or
+        not str(client_secret).strip() or
+        str(client_id).startswith("your_") or
+        str(client_secret).startswith("your_")
+    )
+
     # In development mode, provide fallback mock credentials if real OAuth app is not configured
-    if not client_id or not client_secret:
+    if is_unconfigured:
         if settings.ENVIRONMENT == "development" or settings.DEBUG:
             client_id = f"dev_{platform_key}_client_id"
             client_secret = f"dev_{platform_key}_secret"
@@ -117,7 +177,7 @@ async def initiate(db, user_id, platform, redirect_uri):
     return {'authorization_url': url, 'state': state, 'expires_at': expiry}
 
 
-async def exchange(db, user_id, platform, code, state, redirect_uri):
+async def exchange(db, user_id, platform, code, state, redirect_uri, page_id: str = None):
     """Verify state and exchange authorization code for platform credentials and profile."""
     if not state:
         raise HTTPException(400, 'OAuth state is required. Start a new connection.')
@@ -187,7 +247,20 @@ async def exchange(db, user_id, platform, code, state, redirect_uri):
         else:
             tokens = await adapter.auth.exchange_code(code=code, redirect_uri=valid_redirect)
 
-        if platform_key == 'youtube':
+        if platform_key == 'facebook':
+            page_info = await adapter.auth.get_page_access_token(tokens['access_token'], page_id=page_id)
+            page_token = page_info.get('page_access_token', tokens['access_token'])
+            profile = await adapter.auth.get_user_profile(page_token, page_id=page_info.get('page_id'))
+            tokens['access_token'] = page_token
+            tokens['page_id'] = page_info.get('page_id')
+        elif platform_key == 'instagram':
+            ig_info = await adapter.auth.get_instagram_business_account(tokens['access_token'], page_id=page_id)
+            profile = ig_info
+            if ig_info.get('page_access_token'):
+                tokens['access_token'] = ig_info['page_access_token']
+            tokens['ig_user_id'] = ig_info.get('id')
+            tokens['linked_page_id'] = ig_info.get('linked_page_id')
+        elif platform_key == 'youtube':
             import httpx
             async with httpx.AsyncClient(timeout=20) as client:
                 response = await client.get(
@@ -198,13 +271,15 @@ async def exchange(db, user_id, platform, code, state, redirect_uri):
                 response.raise_for_status()
                 items = response.json().get('items', [])
                 if not items:
-                    raise ValueError('No YouTube channel available')
+                    raise ValueError('No YouTube channel available for this account.')
                 channel = items[0]
                 profile = {
                     'id': channel['id'],
                     'username': channel['snippet']['title'],
                     'name': channel['snippet']['title'],
-                    'profile_picture_url': channel['snippet'].get('thumbnails', {}).get('default', {}).get('url')
+                    'display_name': channel['snippet']['title'],
+                    'profile_picture_url': channel['snippet'].get('thumbnails', {}).get('default', {}).get('url'),
+                    'account_type': 'creator',
                 }
         else:
             profile = await adapter.auth.get_user_profile(tokens['access_token'])
@@ -216,5 +291,11 @@ async def exchange(db, user_id, platform, code, state, redirect_uri):
     except HTTPException:
         raise
     except Exception as e:
+        error_msg = str(e)
+        from backend.app.core.errors import ValidationError as AISMMValidationError, AuthenticationError as AISMMAuthError
+        if isinstance(e, (AISMMValidationError, AISMMAuthError)):
+            raise HTTPException(400, error_msg)
+        if "No Facebook Pages found" in error_msg or "No Instagram Business Account linked" in error_msg or "not found" in error_msg:
+            raise HTTPException(400, error_msg)
         # Never surface raw provider bodies (they can include credentials).
-        raise HTTPException(502, f'Platform authorization failed. Check app permissions and start a new connection.')
+        raise HTTPException(502, f'Platform authorization failed: {error_msg}')

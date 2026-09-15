@@ -231,12 +231,18 @@ async def register_user(
         user=profile,
     )
 
-    # Development mode: include verification token in response when email/SMS is disabled
-    # This allows the verification flow to be tested without real SMTP/SMS credentials.
-    if settings.ENVIRONMENT == "development" and not (settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST) and verification_method == "email":
+    # Development mode ONLY: include verification token in response when email/SMS is disabled
+    # In production or staging, this token is strictly NEVER returned in the API response under any circumstances.
+    env_clean = str(settings.ENVIRONMENT or "").strip().lower()
+    is_development_env = env_clean in {"development", "dev", "local", "test"}
+
+    if is_development_env and not (settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST) and verification_method == "email":
         response_data.verification_token = verification_token
-    if settings.ENVIRONMENT == "development" and not (settings.ENABLE_PHONE_VERIFICATION and settings.SMS_PROVIDER) and verification_method == "phone" and phone_otp:
+    elif is_development_env and not (settings.ENABLE_PHONE_VERIFICATION and settings.SMS_PROVIDER) and verification_method == "phone" and phone_otp:
         response_data.verification_token = phone_otp
+    else:
+        # Guaranteed None in all production and staging environments
+        response_data.verification_token = None
 
     return response_data
 
@@ -922,7 +928,7 @@ async def oauth_callback(request: OAuthCallbackRequest, current_user: User = Dep
     from backend.app.services.account_service import AccountService
     from backend.app.core.schemas.account import ConnectAccountRequest
     return await AccountService(db).connect_account(current_user.id, ConnectAccountRequest(
-        platform=request.platform, authorization_code=request.code, state=request.state, redirect_uri=request.redirect_uri))
+        platform=request.platform, authorization_code=request.code, state=request.state, redirect_uri=request.redirect_uri, page_id=request.page_id))
 
 
 @router.post(

@@ -47,3 +47,10 @@ test-results/
 *.zip
 omniroute-proxy.js
 
+# Local tool / session noise (never commit)
+nohup.out
+.x_*
+rbh_*.txt
+/package-lock.json
+node_modules/
+

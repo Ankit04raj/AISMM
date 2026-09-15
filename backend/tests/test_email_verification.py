@@ -53,10 +53,10 @@ def client(app_with_db):
     return TestClient(app_with_db)
 
 
-def _register(client, email, password="Password123!", full_name="Test User"):
+def _register(client, email, password="Password123!", full_name="Test User", accept_terms=True):
     return client.post(
         "/api/v1/auth/register",
-        json={"email": email, "password": password, "full_name": full_name},
+        json={"email": email, "password": password, "full_name": full_name, "accept_terms": accept_terms},
     )
 
 
@@ -194,3 +194,23 @@ class TestEmailVerification:
         assert user.email_verification_token is not None
         # Token should be rotated (a new random token)
         assert user.email_verification_token != original_token
+
+    def test_verification_token_never_present_in_production_response(self, client, monkeypatch):
+        """Proof for Gate G-11: verification_token is strictly NEVER included in registration response in production."""
+        from backend.app.config import get_settings
+        settings = get_settings()
+
+        monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+        monkeypatch.setattr(settings, "DEBUG", False)
+        monkeypatch.setattr(settings, "ENABLE_EMAIL_NOTIFICATIONS", False)
+
+        # Mock Redis rate limiter for isolated unit test
+        from unittest.mock import AsyncMock, patch
+        with patch("backend.app.core.rate_limit.redis_limit", new=AsyncMock(return_value=(False, 10, 60))):
+            resp = _register(client, "prod.user@example.com")
+            assert resp.status_code == 201
+            data = resp.json()
+
+            # Hard assertion: verification_token is None / not returned
+            assert data.get("verification_token") is None
+            assert "verification_token" not in data or data["verification_token"] is None

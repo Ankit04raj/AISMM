@@ -36,7 +36,7 @@ class FacebookAdapter(BasePlatformAdapter):
     """Facebook Graph API adapter for Pages."""
 
     PLATFORM_NAME = "facebook"
-    BASE_URL = "https://graph.facebook.com/v19.0"
+    BASE_URL = "https://graph.facebook.com/v20.0"
 
     SUPPORTED_CAPABILITIES = {
         PlatformCapability.POST_TEXT,

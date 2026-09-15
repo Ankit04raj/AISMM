@@ -6,9 +6,9 @@ from enum import Enum
 class FacebookEndpoint(str, Enum):
     """Facebook Graph API endpoints."""
 
-    BASE = "https://graph.facebook.com/v19.0"
-    AUTHORIZE = "https://www.facebook.com/v19.0/dialog/oauth"
-    ACCESS_TOKEN = "https://graph.facebook.com/v19.0/oauth/access_token"
+    BASE = "https://graph.facebook.com/v20.0"
+    AUTHORIZE = "https://www.facebook.com/v20.0/dialog/oauth"
+    ACCESS_TOKEN = "https://graph.facebook.com/v20.0/oauth/access_token"
 
     # User & Pages
     ME = "/me"

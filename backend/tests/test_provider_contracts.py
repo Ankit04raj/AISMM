@@ -172,3 +172,172 @@ def test_meta_oauth_is_active_and_connectable(client, monkeypatch):
         assert cb_resp.status_code == 200, cb_resp.text
         assert cb_resp.json()["platform"] == platform
 
+
+@pytest.mark.asyncio
+async def test_facebook_oauth_multi_page_selection(client, async_test_db, monkeypatch):
+    """Test Facebook OAuth with explicit Page selection among multiple managed Pages."""
+    data, headers = register_user(client, "fb_multi_page@example.com")
+    settings = get_settings()
+
+    monkeypatch.setattr(settings, "FRONTEND_URL", "http://localhost:3000")
+    monkeypatch.setattr(settings, "FACEBOOK_CLIENT_ID", "mock_fb_client_id")
+    monkeypatch.setattr(settings, "FACEBOOK_CLIENT_SECRET", "mock_fb_client_secret")
+
+    # 1. Init
+    init_resp = client.post("/api/v1/auth/oauth/init", headers=headers, json={
+        "platform": "facebook",
+        "redirect_uri": "http://localhost:3000/oauth/callback"
+    })
+    assert init_resp.status_code == 200
+    state = init_resp.json()["state"]
+
+    # 2. Mock Facebook adapter with 2 pages
+    mock_adapter = MagicMock()
+    mock_adapter.auth.exchange_code = AsyncMock(return_value={
+        "access_token": "user_short_lived_token_123",
+        "expires_in": 5184000,
+    })
+    mock_adapter.auth.get_page_access_token = AsyncMock(return_value={
+        "page_id": "page_202",
+        "page_name": "Secondary Business Hub",
+        "page_access_token": "page_token_202",
+        "category": "Brand",
+        "available_pages_count": 2,
+    })
+    mock_adapter.auth.get_user_profile = AsyncMock(return_value={
+        "id": "page_202",
+        "username": "Secondary Business Hub",
+        "name": "Secondary Business Hub",
+        "category": "Brand",
+        "followers_count": 8900,
+    })
+
+    with patch("backend.app.services.oauth_service.configured_adapter", return_value=mock_adapter):
+        cb_resp = client.post("/api/v1/auth/oauth/callback", headers=headers, json={
+            "platform": "facebook",
+            "code": "real_fb_auth_code_xyz",
+            "state": state,
+            "redirect_uri": "http://localhost:3000/oauth/callback",
+            "page_id": "page_202"
+        })
+        assert cb_resp.status_code == 200, cb_resp.text
+        account_data = cb_resp.json()
+        assert account_data["platform"] == "facebook"
+        assert account_data["platform_user_id"] == "page_202"
+        assert account_data["username"] == "Secondary Business Hub"
+
+
+@pytest.mark.asyncio
+async def test_facebook_oauth_zero_pages_returns_clear_error(client, async_test_db, monkeypatch):
+    """When user manages zero Facebook pages, callback should return a clear 400 error, not 500."""
+    data, headers = register_user(client, "fb_zero_pages@example.com")
+    settings = get_settings()
+
+    monkeypatch.setattr(settings, "FRONTEND_URL", "http://localhost:3000")
+    monkeypatch.setattr(settings, "FACEBOOK_CLIENT_ID", "mock_fb_client_id")
+    monkeypatch.setattr(settings, "FACEBOOK_CLIENT_SECRET", "mock_fb_client_secret")
+
+    init_resp = client.post("/api/v1/auth/oauth/init", headers=headers, json={
+        "platform": "facebook",
+        "redirect_uri": "http://localhost:3000/oauth/callback"
+    })
+    state = init_resp.json()["state"]
+
+    from backend.app.core.errors import ValidationError as AISMMValidationError
+    mock_adapter = MagicMock()
+    mock_adapter.auth.exchange_code = AsyncMock(return_value={"access_token": "token_123"})
+    mock_adapter.auth.get_page_access_token = AsyncMock(side_effect=AISMMValidationError("No Facebook Pages found. You must manage at least one Facebook Page to connect."))
+
+    with patch("backend.app.services.oauth_service.configured_adapter", return_value=mock_adapter):
+        cb_resp = client.post("/api/v1/auth/oauth/callback", headers=headers, json={
+            "platform": "facebook",
+            "code": "real_fb_auth_code_xyz",
+            "state": state,
+            "redirect_uri": "http://localhost:3000/oauth/callback"
+        })
+        assert cb_resp.status_code == 400
+        assert "No Facebook Pages found" in cb_resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_instagram_oauth_linked_business_page_selection(client, async_test_db, monkeypatch):
+    """Test Instagram OAuth resolving linked Instagram Business Account through specific Facebook Page."""
+    data, headers = register_user(client, "ig_linked_page@example.com")
+    settings = get_settings()
+
+    monkeypatch.setattr(settings, "FRONTEND_URL", "http://localhost:3000")
+    monkeypatch.setattr(settings, "INSTAGRAM_CLIENT_ID", "mock_ig_client_id")
+    monkeypatch.setattr(settings, "INSTAGRAM_CLIENT_SECRET", "mock_ig_client_secret")
+
+    init_resp = client.post("/api/v1/auth/oauth/init", headers=headers, json={
+        "platform": "instagram",
+        "redirect_uri": "http://localhost:3000/oauth/callback"
+    })
+    state = init_resp.json()["state"]
+
+    mock_adapter = MagicMock()
+    mock_adapter.auth.exchange_code = AsyncMock(return_value={"access_token": "token_ig_123"})
+    mock_adapter.auth.get_instagram_business_account = AsyncMock(return_value={
+        "id": "ig_biz_9999",
+        "username": "verified_ig_brand",
+        "name": "Verified Instagram Brand",
+        "display_name": "Verified Instagram Brand",
+        "profile_picture_url": "https://example.com/ig_avatar.jpg",
+        "account_type": "business",
+        "followers_count": 48200,
+        "media_count": 130,
+        "linked_page_id": "page_303",
+        "linked_page_name": "Brand Official Page",
+        "page_access_token": "page_token_303",
+    })
+
+    with patch("backend.app.services.oauth_service.configured_adapter", return_value=mock_adapter):
+        cb_resp = client.post("/api/v1/auth/oauth/callback", headers=headers, json={
+            "platform": "instagram",
+            "code": "real_ig_auth_code_xyz",
+            "state": state,
+            "redirect_uri": "http://localhost:3000/oauth/callback",
+            "page_id": "page_303"
+        })
+        assert cb_resp.status_code == 200, cb_resp.text
+        account_data = cb_resp.json()
+        assert account_data["platform"] == "instagram"
+        assert account_data["platform_user_id"] == "ig_biz_9999"
+        assert account_data["username"] == "verified_ig_brand"
+
+
+@pytest.mark.asyncio
+async def test_instagram_oauth_unlinked_page_returns_clear_error(client, async_test_db, monkeypatch):
+    """When the selected Facebook Page is not linked to an Instagram Business account, return a clear 400 error."""
+    data, headers = register_user(client, "ig_unlinked@example.com")
+    settings = get_settings()
+
+    monkeypatch.setattr(settings, "FRONTEND_URL", "http://localhost:3000")
+    monkeypatch.setattr(settings, "INSTAGRAM_CLIENT_ID", "mock_ig_client_id")
+    monkeypatch.setattr(settings, "INSTAGRAM_CLIENT_SECRET", "mock_ig_client_secret")
+
+    init_resp = client.post("/api/v1/auth/oauth/init", headers=headers, json={
+        "platform": "instagram",
+        "redirect_uri": "http://localhost:3000/oauth/callback"
+    })
+    state = init_resp.json()["state"]
+
+    from backend.app.core.errors import ValidationError as AISMMValidationError
+    mock_adapter = MagicMock()
+    mock_adapter.auth.exchange_code = AsyncMock(return_value={"access_token": "token_ig_123"})
+    mock_adapter.auth.get_instagram_business_account = AsyncMock(
+        side_effect=AISMMValidationError("Facebook Page 'Test Page' is not linked to an Instagram Business account.")
+    )
+
+    with patch("backend.app.services.oauth_service.configured_adapter", return_value=mock_adapter):
+        cb_resp = client.post("/api/v1/auth/oauth/callback", headers=headers, json={
+            "platform": "instagram",
+            "code": "real_ig_auth_code_xyz",
+            "state": state,
+            "redirect_uri": "http://localhost:3000/oauth/callback",
+            "page_id": "page_empty_ig"
+        })
+        assert cb_resp.status_code == 400
+        assert "not linked to an Instagram Business account" in cb_resp.json()["detail"]
+
+

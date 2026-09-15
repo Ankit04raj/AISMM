@@ -55,7 +55,8 @@ class IntelligenceService:
             if not pub.platform_post_id:
                 continue
 
-            adapter = await owned_adapter(self.db, user_id, pub.platform)
+            target_acc_id = (pub.platform_data or {}).get("account_id")
+            adapter = await owned_adapter(self.db, user_id, pub.platform, account_id=target_acc_id)
             if not adapter:
                 continue
 

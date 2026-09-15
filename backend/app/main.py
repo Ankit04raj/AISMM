@@ -38,6 +38,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if not await check_db_connection():
         raise RuntimeError("Database unavailable; refusing startup")
 
+    # Log clear startup diagnostic of platform OAuth readiness
+    from backend.app.services.oauth_service import log_startup_oauth_status
+    log_startup_oauth_status()
+
     # Start automated scheduled-post background execution loop
     scheduler_task = asyncio.create_task(run_scheduler_background_worker(interval_seconds=10.0))
     try:

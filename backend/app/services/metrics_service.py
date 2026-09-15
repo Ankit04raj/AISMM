@@ -105,7 +105,7 @@ class MetricsService:
         if not account or not account.is_active:
             return None
 
-        adapter = await owned_adapter(self.db, user_id, account.platform)
+        adapter = await owned_adapter(self.db, user_id, account.platform, account_id=account.id)
         if not adapter:
             return None
 
@@ -175,7 +175,7 @@ class MetricsService:
         }
 
         for account in accounts:
-            adapter = await owned_adapter(self.db, user_id, account.platform)
+            adapter = await owned_adapter(self.db, user_id, account.platform, account_id=account.id)
             if not adapter:
                 continue
 

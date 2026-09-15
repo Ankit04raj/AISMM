@@ -200,3 +200,61 @@ def test_provider_connect_and_disconnect_endpoints(client, monkeypatch):
     # 2. Attempt disconnect on unconnected platform returns 404
     dc_resp = client.post("/api/v1/auth/x/disconnect", headers=headers)
     assert dc_resp.status_code == 404
+
+
+def test_unconfigured_platform_raises_503_in_production(monkeypatch):
+    """In production mode, attempting OAuth with unconfigured credentials must raise HTTP 503."""
+    from backend.app.services.oauth_service import configured_adapter
+    from fastapi import HTTPException
+    settings = get_settings()
+
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(settings, "DEBUG", False)
+    monkeypatch.setattr(settings, "FRONTEND_URL", "http://localhost:3000")
+    monkeypatch.setattr(settings, "X_CLIENT_ID", None)
+    monkeypatch.setattr(settings, "X_CLIENT_SECRET", None)
+
+    with pytest.raises(HTTPException) as exc_info:
+        configured_adapter("x", "http://localhost:3000/oauth/callback")
+    assert exc_info.value.status_code == 503
+    assert "OAuth credentials are not configured" in exc_info.value.detail
+
+
+def test_placeholder_credentials_raise_503_in_production(monkeypatch):
+    """In production mode, placeholder 'your_...' credentials must be rejected with HTTP 503."""
+    from backend.app.services.oauth_service import configured_adapter
+    from fastapi import HTTPException
+    settings = get_settings()
+
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(settings, "DEBUG", False)
+    monkeypatch.setattr(settings, "FRONTEND_URL", "http://localhost:3000")
+    monkeypatch.setattr(settings, "LINKEDIN_CLIENT_ID", "your_linkedin_client_id")
+    monkeypatch.setattr(settings, "LINKEDIN_CLIENT_SECRET", "your_linkedin_secret")
+
+    with pytest.raises(HTTPException) as exc_info:
+        configured_adapter("linkedin", "http://localhost:3000/oauth/callback")
+    assert exc_info.value.status_code == 503
+    assert "OAuth credentials are not configured" in exc_info.value.detail
+
+
+def test_platform_oauth_status_and_startup_logging(monkeypatch):
+    """Test OAuth status inspection and startup log generation."""
+    from backend.app.services.oauth_service import get_platform_oauth_status, log_startup_oauth_status
+    settings = get_settings()
+
+    monkeypatch.setattr(settings, "X_CLIENT_ID", "real_x_client_id_12345")
+    monkeypatch.setattr(settings, "X_CLIENT_SECRET", "real_x_secret_67890")
+    monkeypatch.setattr(settings, "LINKEDIN_CLIENT_ID", "your_placeholder_id")
+    monkeypatch.setattr(settings, "LINKEDIN_CLIENT_SECRET", "your_placeholder_secret")
+    monkeypatch.setattr(settings, "YOUTUBE_CLIENT_ID", None)
+    monkeypatch.setattr(settings, "YOUTUBE_CLIENT_SECRET", None)
+
+    status_map = get_platform_oauth_status()
+    assert status_map["x"]["configured"] is True
+    assert status_map["x"]["has_client_id"] is True
+    assert status_map["linkedin"]["configured"] is False
+    assert status_map["youtube"]["configured"] is False
+
+    # Should execute without throwing
+    log_startup_oauth_status()

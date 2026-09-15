@@ -1,5 +1,6 @@
 """Owner-scoped comment inbox and provider actions."""
 from uuid import UUID
+from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,14 +47,15 @@ async def sync_inbox(current_user: User = Depends(get_current_verified_user), db
 
 
 @router.get('/posts/{platform}/{post_id}')
-async def list_comments(platform: str, post_id: str, limit: int = Query(50, ge=1, le=100), current_user: User = Depends(get_current_verified_user), db: AsyncSession = Depends(get_db)):
+async def list_comments(platform: str, post_id: str, limit: int = Query(50, ge=1, le=100), account_id: Optional[str] = Query(None), current_user: User = Depends(get_current_verified_user), db: AsyncSession = Depends(get_db)):
     try: key=UUID(post_id)
     except ValueError: raise HTTPException(404, 'Post not found')
     publication = await db.scalar(select(PostPublication).join(Post).where(
         Post.id==key, Post.user_id==current_user.id, PostPublication.platform==platform))
     if not publication or not publication.platform_post_id:
         raise HTTPException(404, 'Published post not found')
-    adapter = await owned_adapter(db, current_user.id, platform)
+    target_account_id = account_id or (publication.platform_data or {}).get("account_id")
+    adapter = await owned_adapter(db, current_user.id, platform, account_id=target_account_id)
     records = await adapter.get_comments(publication.platform_post_id, limit=limit)
     for c in records:
         existing = await db.scalar(select(Comment).where(Comment.post_id==key, Comment.platform==platform, Comment.platform_comment_id==c.id))
@@ -65,27 +67,27 @@ async def list_comments(platform: str, post_id: str, limit: int = Query(50, ge=1
 
 
 @router.post('/{platform}/{comment_id}/reply')
-async def reply_to_comment(platform: str, comment_id: str, request: ReplyToCommentRequest, current_user: User = Depends(get_current_verified_user), db: AsyncSession = Depends(get_db)):
+async def reply_to_comment(platform: str, comment_id: str, request: ReplyToCommentRequest, account_id: Optional[str] = Query(None), current_user: User = Depends(get_current_verified_user), db: AsyncSession = Depends(get_db)):
     record = await own_comment(db,current_user,platform,comment_id)
-    adapter = await owned_adapter(db,current_user.id,platform)
+    adapter = await owned_adapter(db, current_user.id, platform, account_id=account_id)
     reply = await adapter.reply_to_comment(record.platform_comment_id, request.text)
     if not reply.id: raise HTTPException(502,'Provider did not confirm the reply.')
     return {'id':reply.id,'text':reply.text,'created_at':reply.created_at,'platform_data':{}}
 
 
 @router.delete('/{platform}/{comment_id}')
-async def delete_comment(platform: str, comment_id: str, current_user: User = Depends(get_current_verified_user), db: AsyncSession = Depends(get_db)):
+async def delete_comment(platform: str, comment_id: str, account_id: Optional[str] = Query(None), current_user: User = Depends(get_current_verified_user), db: AsyncSession = Depends(get_db)):
     record = await own_comment(db,current_user,platform,comment_id)
-    adapter = await owned_adapter(db,current_user.id,platform)
+    adapter = await owned_adapter(db, current_user.id, platform, account_id=account_id)
     if not await adapter.delete_comment(record.platform_comment_id): raise HTTPException(502,'Provider did not confirm deletion.')
     await db.delete(record); await db.commit()
     return {'deleted':True}
 
 
 @router.post('/{platform}/{comment_id}/hide')
-async def hide_comment(platform: str, comment_id: str, current_user: User = Depends(get_current_verified_user), db: AsyncSession = Depends(get_db)):
+async def hide_comment(platform: str, comment_id: str, account_id: Optional[str] = Query(None), current_user: User = Depends(get_current_verified_user), db: AsyncSession = Depends(get_db)):
     record = await own_comment(db,current_user,platform,comment_id)
-    adapter = await owned_adapter(db,current_user.id,platform)
+    adapter = await owned_adapter(db, current_user.id, platform, account_id=account_id)
     if not await adapter.hide_comment(record.platform_comment_id): raise HTTPException(502,'Provider did not confirm hiding.')
     record.is_hidden=True; await db.commit()
     return {'hidden':True}
