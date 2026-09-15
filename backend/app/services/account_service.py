@@ -272,6 +272,26 @@ class AccountService:
             disconnected=True,
         )
 
+    async def refresh_token_proactive(self, account_id: UUID, user_id: UUID, window_hours: int = 2) -> bool:
+        """Phase 3: proactive refresh when token expires within window_hours."""
+        account = await self.get_account(account_id, user_id)
+        if not account or not account.token_expires_at:
+            return False
+        # If token expires within window_hours, refresh via adapter
+        from datetime import datetime, timezone
+        if account.token_expires_at > datetime.now(timezone.utc) - timedelta(hours=window_hours):
+            adapter = await owned_adapter(self.db, user_id, account.platform, account_id=str(account.id))
+            try:
+                result = await adapter.refresh_token()
+                return bool(result)
+            except Exception:
+                # Phase 3 failure path: mark for reconnection, don't crash
+                account.is_active = False
+                account.needs_reconnection = True  # requires DB column addition if not present
+                await self.db.commit()
+                return False
+        return False
+
     async def refresh_token(self, account_id: UUID, user_id: UUID) -> bool:
         """Refresh access token for an account."""
         account = await self.get_account(account_id, user_id)

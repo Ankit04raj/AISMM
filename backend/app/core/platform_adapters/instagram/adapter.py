@@ -28,6 +28,7 @@ from ...normalization import (
     ContentType,
     MetricNormalizer,
 )
+import json
 from ...normalization.content import MediaType
 
 
@@ -76,6 +77,12 @@ class InstagramAdapter(BasePlatformAdapter):
                 redirect_uri=self.redirect_uri or "",
             )
         )
+
+    def _record_rate_headers(self, response) -> None:
+        """Store rate-limit headers from latest response for scheduling backoff."""
+        self._last_rate_headers = {
+            k.lower(): v for k, v in response.headers.items()
+        } if hasattr(response, 'headers') else {}
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client with auth headers."""
@@ -178,6 +185,7 @@ class InstagramAdapter(BasePlatformAdapter):
         """Get Instagram Business Account ID from Facebook Page."""
         client = await self._get_client()
         response = await client.get("/me/accounts", params={"fields": "instagram_business_account"})
+        self._record_rate_headers(response)
         if response.status_code != 200:
             raise AuthenticationError(
                 f"Failed to get Instagram account: {response.text}",
@@ -693,9 +701,31 @@ class InstagramAdapter(BasePlatformAdapter):
         }
 
     def _get_rate_limit_remaining(self) -> int:
-        """Calculate remaining rate limit (simplified)."""
-        # TODO: Implement proper rate limit tracking from response headers
-        return self.RATE_LIMIT_CALLS
+        """Calculate remaining rate limit from last response headers (Instagram Graph API)."""
+        # Meta Graph API rate-limit headers (per-request call tracking)
+        # x-app-usage: {"call_count":N,"total_cputime":N,"total_time":N}
+        # x-business-use-available / x-business-use-request (business-account tier)
+        last = getattr(self, '_last_rate_headers', {})
+        if not last:
+            return self.RATE_LIMIT_CALLS  # default before any request
+        # Try business-use available (most direct for scheduling backoff)
+        avail_str = last.get('x-business-use-available') or last.get('X-Business-Use-Available', '0')
+        try:
+            # Format typically "18/18" or integer; take first component
+            avail = int(str(avail_str).split('/')[0].strip())
+        except Exception:
+            avail = self.RATE_LIMIT_CALLS
+        # Fallback to app-usage call_count if business-use unavailable
+        if avail >= self.RATE_LIMIT_CALLS:
+            usage_str = last.get('x-app-usage') or last.get('X-App-Usage')
+            if usage_str:
+                try:
+                    usage = json.loads(str(usage_str)) if isinstance(usage_str, str) else usage_str
+                    call_count = usage.get('call_count', 0)
+                    avail = max(0, self.RATE_LIMIT_CALLS - call_count)
+                except Exception:
+                    pass
+        return max(0, min(avail, self.RATE_LIMIT_CALLS))
 
     # =========================================================================
     # Lifecycle
