@@ -6,21 +6,19 @@
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api/v1";
 
-// Auth Token Management in Browser LocalStorage
+// Auth Token Management via HttpOnly Cookies (XSS-safe) — localStorage removed
 export function getAuthToken() {
-  return localStorage.getItem("aismm_access_token") || "";
+  return ""; // Browser sends cookie automatically with credentials: 'include'
 }
 
 export function setAuthSession(accessToken, refreshToken, user) {
-  if (accessToken) localStorage.setItem("aismm_access_token", accessToken);
-  if (refreshToken) localStorage.setItem("aismm_refresh_token", refreshToken);
+  // Cookies handled by backend Set-Cookie headers; no localStorage
   if (user) localStorage.setItem("aismm_user", JSON.stringify(user));
 }
 
 export function clearAuthSession() {
-  localStorage.removeItem("aismm_access_token");
-  localStorage.removeItem("aismm_refresh_token");
-  localStorage.removeItem("aismm_user");
+  // Cookies cleared by backend /auth/logout; user storage optional
+  try { localStorage.removeItem("aismm_user"); } catch {}
 }
 
 export function getStoredUser() {
@@ -36,15 +34,14 @@ let refreshInFlight = null;
 async function refreshSession() {
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
-      const refresh_token = localStorage.getItem('aismm_refresh_token');
-      if (!refresh_token) return false;
+      // Cookie-backed refresh — browser sends refresh cookie; no localStorage read
       const response = await fetch(`${API_BASE}/auth/refresh`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token }), signal: AbortSignal.timeout(15000),
+        credentials: 'include', signal: AbortSignal.timeout(15000),
       });
       if (!response.ok) return false;
       const data = await response.json();
-      setAuthSession(data.access_token, data.refresh_token);
+      setAuthSession(data.access_token, data.refresh_token); // cookies set by backend; user retained
       return true;
     })().finally(() => { refreshInFlight = null; });
   }
@@ -57,6 +54,7 @@ export async function fetchApi(endpoint, options = {}, retry = true) {
   try {
     res = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
+      credentials: 'include', // HttpOnly cookies sent automatically
       signal: options.signal || AbortSignal.timeout(45000),
       headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
     });
@@ -81,7 +79,7 @@ export async function fetchApi(endpoint, options = {}, retry = true) {
 export const api = {
   getInbox: () => fetchApi('/comments'),
   syncInbox: () => fetchApi('/comments/sync', {method:'POST'}),
-  logout: () => fetchApi('/auth/logout', { method: 'POST', body: JSON.stringify({ refresh_token: localStorage.getItem('aismm_refresh_token') }) }),
+  logout: () => fetchApi('/auth/logout', { method: 'POST', credentials: 'include' }),
   updateProfile: (full_name) => fetchApi('/auth/me', { method: 'PATCH', body: JSON.stringify({ full_name }) }),
   changePassword: (data) => fetchApi('/auth/password', { method: 'POST', body: JSON.stringify(data) }),
   setup2fa: () => fetchApi('/auth/2fa/setup', { method: 'POST' }),

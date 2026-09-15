@@ -44,7 +44,8 @@ class MetricsService:
 
         all_metrics = {}
         for publication in post.publications:
-            adapter = await owned_adapter(self.db, user_id, publication.platform)
+            adapter = await owned_adapter(self.db, user_id, publication.platform,
+                                         account_id=getattr(publication, 'account_id', None))
             if adapter and publication.platform_post_id:
                 try:
                     cached = await self._get_cached_metrics(
@@ -233,7 +234,8 @@ class MetricsService:
             primary_platform = "unknown"
             for publication in post.publications:
                 primary_platform = publication.platform
-                adapter = await owned_adapter(self.db, user_id, publication.platform)
+                adapter = await owned_adapter(self.db, user_id, publication.platform,
+                                             account_id=getattr(publication, 'account_id', None))
                 if adapter and publication.platform_post_id:
                     try:
                         insights = await adapter.fetch_insights(publication.platform_post_id)

@@ -44,7 +44,8 @@ class GrowthPredictionResult:
 class GrowthEngine:
     """Platform-specific predictive growth modeling engine evaluated on out-of-sample holdout test sets."""
 
-    # Research baseline target R2 metrics for reference
+    # Synthetic-data R2 baselines — trained on generated samples only.
+    # Replace with production baselines from real follower-snapshot data (Phase 2).
     PLATFORM_R2_BASELINES = {
         "instagram": 0.892,  # 89.2% R2 baseline
         "facebook": 0.875,   # 87.5% R2 baseline
@@ -72,6 +73,12 @@ class GrowthEngine:
         self.metrics: Dict[str, Dict[str, float]] = {}
         self.heldout_test_data: Dict[str, Tuple[List[List[float]], List[float]]] = {}
         self._initialize_platform_models()
+
+    def train_from_follower_snapshots(self, snapshots: List[Any]) -> None:
+        """Phase 2: train on real (features -> 30d follower delta) pairs from profile snapshots."""
+        # Placeholder until snapshot collection pipeline (2.1) feeds real data.
+        # Fallback: existing synthetic model remains active.
+        pass
 
     def _initialize_platform_models(self) -> None:
         """Train Random Forest Regressors on train split and evaluate on held-out test split."""

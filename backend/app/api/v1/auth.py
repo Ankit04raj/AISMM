@@ -391,7 +391,7 @@ async def login_user(
         two_factor_enabled=user.two_factor_enabled,
     )
 
-    return UserLoginResponse(
+    login_resp = UserLoginResponse(
         access_token=access_token,
         token_type="Bearer",
         expires_in=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
@@ -399,6 +399,12 @@ async def login_user(
         requires_2fa=False,
         user=profile,
     )
+    # HttpOnly cookie transition — tokens set in HttpOnly Secure SameSite cookies
+    from fastapi.responses import JSONResponse
+    resp = JSONResponse(content=login_resp.model_dump(), media_type="application/json")
+    resp.set_cookie("aismm_access_token", access_token, httponly=True, secure=settings.ENVIRONMENT!="development", samesite="lax", max_age=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES*60)
+    resp.set_cookie("aismm_refresh_token", refresh_token, httponly=True, secure=settings.ENVIRONMENT!="development", samesite="lax", max_age=60*60*24*30)
+    return resp
 
 
 @router.post(

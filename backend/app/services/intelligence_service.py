@@ -55,7 +55,8 @@ class IntelligenceService:
             if not pub.platform_post_id:
                 continue
 
-            target_acc_id = (pub.platform_data or {}).get("account_id")
+            # Prefer FK account_id on publication; fall back to JSON blob for legacy
+            target_acc_id = getattr(pub, 'account_id', None) or (pub.platform_data or {}).get("account_id")
             adapter = await owned_adapter(self.db, user_id, pub.platform, account_id=target_acc_id)
             if not adapter:
                 continue
