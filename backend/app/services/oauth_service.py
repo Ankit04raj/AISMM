@@ -34,7 +34,7 @@ def validate_redirect_uri(redirect_uri: str) -> str:
                 allowed_hosts.add(host)
 
     if parsed.hostname not in allowed_hosts or parsed.path != "/oauth/callback":
-        raise HTTPException(400, "OAuth redirect does not match the configured frontend.")
+        raise HTTPException(400, f"OAuth redirect does not match configured frontend. Expected: {expected} (FRONTEND_URL={settings.FRONTEND_URL}). Set FRONTEND_URL to your real HTTPS domain.")
 
     return redirect_uri
 
