@@ -189,7 +189,9 @@ class Settings(BaseSettings):
             if "*" in self.CORS_ORIGINS or not self.CORS_ORIGINS:
                 raise ValueError("Production CORS requires explicit allowed origins")
             if not self.FRONTEND_URL.startswith("https://"):
-                raise ValueError("Production FRONTEND_URL must use HTTPS")
+                raise ValueError("Production FRONTEND_URL must use HTTPS (e.g., https://app.aismm.ai)")
+            if "localhost" in self.FRONTEND_URL or "127.0.0.1" in self.FRONTEND_URL or "0.0.0.0" in self.FRONTEND_URL:
+                raise ValueError("Production FRONTEND_URL must be real deployed HTTPS domain, not localhost/127.0.0.1 (set via operator, do NOT fabricate)")
             if not self.SMTP_USER or not self.SMTP_PASSWORD:
                 raise ValueError("Production SMTP credentials are required")
             if self.DEBUG:

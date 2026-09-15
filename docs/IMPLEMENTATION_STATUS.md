@@ -85,3 +85,13 @@ npm --prefix frontend run lint
 # Disposable PostgreSQL verification:
 TEST_API_URL=http://127.0.0.1:8000/api/v1 python scripts/verify_postgres.py
 ```
+
+
+---
+## 4. Deployment Readiness (P3) — Verified Directly
+- FRONTEND_URL: currently localhost:3000 (BLOCKED for deploy — must be real HTTPS domain; settings.py now rejects localhost in production with clear error)
+- Provider credentials (Meta/FB/IG/X/LI/YouTube): all MISSING (BLOCKED — need real developer app registration at respective portals; NOT fabricated)
+- SMTP_HOST/SMTP_USER/SMTP_PASSWORD: MISSING (BLOCKED — live SMTP delivery unverified; G-11 token suppression separately VERIFIED)
+- Verification commands from this section: pytest backend/tests -q | npm --prefix frontend run build | npm --prefix frontend run lint | python -c 'import backend.app.main'
+- Gate statuses (G-01/G-02/G-03/G-09/G-10/G-11): PASS for CODE/HARDENING per file; add BLOCKED note for PRODUCTION DEPLOYMENT only until external domain + apps + SMTP registered by operator.
+- Co-Authored-By: Claude Code <noreply@anthropic.com>

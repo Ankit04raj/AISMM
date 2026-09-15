@@ -320,6 +320,12 @@ async def login_user(
             is_recovery, matched_recovery_hash = verify_recovery_code(
                 code_input, user.two_factor_recovery_codes
             )
+            if is_recovery:
+                # Single-use: remove the consumed hash from storage
+                updated = [h for h in user.two_factor_recovery_codes if h != matched_recovery_hash]
+                user.two_factor_recovery_codes = updated if updated else []
+                await db.commit()
+                await db.refresh(user)
 
         if not is_totp and not is_recovery:
             default_audit_logger.log_event(
