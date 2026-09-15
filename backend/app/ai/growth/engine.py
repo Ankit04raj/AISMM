@@ -44,7 +44,8 @@ class GrowthPredictionResult:
 class GrowthEngine:
     """Platform-specific predictive growth modeling engine evaluated on out-of-sample holdout test sets."""
 
-    # Research baseline target R2 metrics for reference
+    # Synthetic-data R2 baselines — trained on generated samples only.
+    # Replace with production baselines from real follower-snapshot data (Phase 2).
     PLATFORM_R2_BASELINES = {
         "instagram": 0.892,  # 89.2% R2 baseline
         "facebook": 0.875,   # 87.5% R2 baseline

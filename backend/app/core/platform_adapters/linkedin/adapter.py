@@ -66,10 +66,12 @@ class LinkedInAdapter(BasePlatformAdapter):
         self.author_id = config.get("author_id")
         self._http_client: Optional[httpx.AsyncClient] = None
 
+        if not self.client_id or not self.client_secret:
+            raise ValueError("LinkedIn CLIENT_ID and CLIENT_SECRET required")
         self.auth = LinkedInAuth(
             LinkedInAuthConfig(
-                client_id=self.client_id or "default_li_client_id",
-                client_secret=self.client_secret or "default_li_client_secret",
+                client_id=self.client_id,
+                client_secret=self.client_secret,
                 redirect_uri=self.redirect_uri or "http://localhost:8000/callback",
                 organization_urn=self.organization_urn,
             )

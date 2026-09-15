@@ -296,6 +296,7 @@ class PostPublication(Base):
     media_type = Column(String(50), nullable=True)
     scheduled_at = Column(DateTime, nullable=True)
     published_at = Column(DateTime, nullable=True)
+    account_id = Column(GUID(), ForeignKey("social_accounts.id", ondelete="SET NULL"), nullable=True, index=True)
     platform_data = Column(JSON, nullable=True, default=dict)
     status = Column(String(50), default="pending", nullable=False)
     error_message = Column(Text, nullable=True)

@@ -4,6 +4,7 @@ import time
 import numpy as np
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, timezone
+from collections import Counter
 
 from backend.app.ai.scheduling.engine import SchedulingEngine
 from backend.app.ai.scheduling.features import SchedulingFeatureExtractor
@@ -26,8 +27,9 @@ from backend.app.core.schemas.model_eval import (
 class ModelEvaluator:
     """Evaluates accuracy, latency, class imbalance, feature importance, and drift live across all AISMM AI engines."""
 
-    # Research baseline constants per CLAUDE.md Section 51
-    RESEARCH_BASELINES = {
+    # Research baseline constants — trained and evaluated on synthetic data only.
+    # Replace with real-user baselines once production retraining pipeline is active.
+    SYNTHETIC_BASELINES = {
         "scheduling": 88.08,
         "sentiment": 89.00,
         "auto_reply": 88.00,
@@ -66,7 +68,7 @@ class ModelEvaluator:
         f1_score_val = heldout_metrics.get("f1_score", 0.0)
         test_samples = heldout_metrics.get("test_samples", 0)
 
-        baseline = self.RESEARCH_BASELINES["scheduling"]
+        baseline = self.SYNTHETIC_BASELINES["scheduling"]
 
         # Feature importances dynamically computed from the trained Random Forest model
         feature_names = SchedulingFeatureExtractor.FEATURE_NAMES
@@ -138,14 +140,37 @@ class ModelEvaluator:
 
         latency_ms = round((time.perf_counter() - t0) * 1000 / len(val_corpus), 2)
         accuracy = round((correct / len(val_corpus)) * 100, 2)
-        baseline = self.RESEARCH_BASELINES["sentiment"]
+        baseline = self.SYNTHETIC_BASELINES["sentiment"]
+
+        # Compute confusion matrix LIVE from actual predictions (not hardcoded)
+        label_map = {"very_positive": "Positive", "positive": "Positive",
+                     "negative": "Negative", "very_negative": "Negative", "neutral": "Neutral"}
+        y_true_mapped = [label_map.get(l, l) for l in y_true]
+        y_pred_mapped = [label_map.get(l, l) for l in y_pred]
+        labels_order = ["Positive", "Neutral", "Negative"]
+        cm = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+        for t, p in zip(y_true_mapped, y_pred_mapped):
+            ti = labels_order.index(t) if t in labels_order else 1
+            pi = labels_order.index(p) if p in labels_order else 1
+            cm[ti][pi] += 1
+
+        # Compute per-class precision/recall/f1 from live counts
+        n_classes = len(labels_order)
+        prec = {}; rec = {}; f1_c = {}
+        for i, lbl in enumerate(labels_order):
+            tp = cm[i][i]
+            fp = sum(cm[j][i] for j in range(n_classes)) - tp
+            fn = sum(cm[i][j] for j in range(n_classes)) - tp
+            prec[lbl] = round(tp / (tp + fp), 2) if (tp + fp) > 0 else 0.0
+            rec[lbl] = round(tp / (tp + fn), 2) if (tp + fn) > 0 else 0.0
+            f1_c[lbl] = round(2 * prec[lbl] * rec[lbl] / (prec[lbl] + rec[lbl]), 2) if (prec[lbl] + rec[lbl]) > 0 else 0.0
 
         conf_matrix = ConfusionMatrixData(
-            labels=["Positive", "Neutral", "Negative"],
-            matrix=[[4, 0, 0], [0, 3, 0], [0, 0, 4]],
-            precision_per_class={"Positive": 1.0, "Neutral": 1.0, "Negative": 1.0},
-            recall_per_class={"Positive": 1.0, "Neutral": 1.0, "Negative": 1.0},
-            f1_per_class={"Positive": 1.0, "Neutral": 1.0, "Negative": 1.0},
+            labels=labels_order,
+            matrix=cm,
+            precision_per_class=prec,
+            recall_per_class=rec,
+            f1_per_class=f1_c,
         )
 
         return SingleModelEvaluationReport(
@@ -181,7 +206,7 @@ class ModelEvaluator:
         f1_score_val = heldout_metrics.get("f1_score", 0.0)
         test_samples = heldout_metrics.get("test_samples", 0)
 
-        baseline = self.RESEARCH_BASELINES["auto_reply"]
+        baseline = self.SYNTHETIC_BASELINES["auto_reply"]
 
         class_balance = [
             ClassImbalanceItem(class_name=intent.value, sample_count=15, proportion_percent=16.6, assigned_class_weight=1.0, status="balanced")
@@ -219,7 +244,7 @@ class ModelEvaluator:
         rmse_val = heldout_metrics.get("rmse", 0.0)
         test_samples = heldout_metrics.get("samples_count", 0)
 
-        baseline = self.RESEARCH_BASELINES["growth_instagram"]
+        baseline = self.SYNTHETIC_BASELINES["growth_instagram"]
         r2_pct = round(r2_val * 100, 2)
 
         rf_model = self.growth_engine.models.get("instagram")
@@ -277,7 +302,7 @@ class ModelEvaluator:
 
         latency_ms = round((time.perf_counter() - t0) * 1000 / len(test_queries), 2)
         top_k_acc = round((hits / len(test_queries)) * 100, 2)
-        baseline = self.RESEARCH_BASELINES["hashtag_top_k"]
+        baseline = self.SYNTHETIC_BASELINES["hashtag_top_k"]
 
         return SingleModelEvaluationReport(
             model_name="hashtag_top_k_recommender",
@@ -315,7 +340,7 @@ class ModelEvaluator:
 
         latency_ms = round((time.perf_counter() - t0) * 1000 / len(test_captions), 2)
         avg_score = round(float(np.mean(scores)), 2)
-        baseline = self.RESEARCH_BASELINES["caption_quality"]
+        baseline = self.SYNTHETIC_BASELINES["caption_quality"]
 
         features = [
             FeatureImportanceItem(feature_name="readability_flesch_score", importance_score=0.30, relative_percentage=30.0, description="Readability ease index"),

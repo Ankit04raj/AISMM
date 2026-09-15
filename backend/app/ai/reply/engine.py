@@ -65,7 +65,7 @@ class ReplyConfig:
     auto_threshold: float = 0.90
     approval_threshold: float = 0.70
     automation_mode: AutomationMode = AutomationMode.AUTOMATIC
-    baseline_accuracy: float = 88.00  # Research paper baseline
+    baseline_accuracy: float = 88.00  # Synthetic-data baseline — replace with real-user baseline after Phase 2
 
     templates: Dict[str, List[str]] = field(default_factory=lambda: {
         ReplyIntent.PRICING_INQUIRY.value: [

@@ -31,7 +31,7 @@ class SchedulingRecommendationResponse:
     optimal_time: datetime
     recommendations: List[TimeSlotRecommendation]
     model_version: str
-    baseline_accuracy: float = 88.08  # Research paper baseline
+    baseline_accuracy: float = 88.08  # Synthetic-data baseline — replace with real-user baseline after Phase 2
 
 
 @dataclass

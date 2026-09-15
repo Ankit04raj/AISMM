@@ -193,6 +193,7 @@ class PostService:
                     post_id=post.id,
                     platform=p_key,
                     platform_post_id=res.platform_post_id or None,
+                    account_id=target_acc_id,
                     permalink=res.url,
                     media_type=(res.platform_data or {}).get("media_type", ct.value),
                     scheduled_at=request.scheduled_at,
