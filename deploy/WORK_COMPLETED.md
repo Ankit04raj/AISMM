@@ -195,3 +195,16 @@ Public landing, authentication, verification/recovery and legal routes are addit
 ## 10. Where Claude should start next
 
 Read `AISMM_ORIGINAL_GAPS_FOR_CLAUDE.md` completely, identify whether working in the original or repair repository, reproduce the baseline, then follow P0 gates before adding more cosmetic features. Ask for live provider/hosting inputs only when they are needed. Preserve explicit unavailable states until real acceptance succeeds.
+
+---
+
+## Session additions — 2026-09-15 (author: Ankit Raj, co-authored Claude Code)
+
+- **Priority 1** fully verified (19/19 tests): G-09 fail-loud 503, G-10 Meta v20.0, G-11 token suppression.
+- **Priority 2**: 2.1 multi-account selection (account_id threaded through 5 files), 2.2 scheduler network-failure reconciliation (query upstream before marking failed, duplicate guard), 2.3 HttpOnly-cookie token transition (backend set_cookie + frontend localStorage removal), 2.4 single-use 2FA recovery codes, 2.5 Instagram rate-limit header tracking (x-business-use-available / x-app-usage), 2.6 media-upload pipeline spec (out of scope, documented).
+- **Priority 3 (deployment readiness)**: FRONTEND_URL localhost/127.0.0.1 block in production settings; .env.example production field descriptors (no fabricated credentials); oauth_service error shows expected redirect URL; IMPLEMENTATION_STATUS.md honest P3 section.
+- Servers: backend (port 8000) + frontend (port 3000) verified running.
+- Verbatim original gaps list preserved in AISMM_ORIGINAL_GAPS_FOR_CLAUDE.md.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
+Co-Authored-By: Ankit Raj <ankit.freelance04@gmail.com>
