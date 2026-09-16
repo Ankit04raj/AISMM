@@ -95,13 +95,19 @@ export default function OverviewTab({ onNavigateTab }) {
 
       {/* 5 Top KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {data ? [
+        {(data ? [
           { label: 'Total Reach', value: data.total_reach ? `${(data.total_reach/1e6).toFixed(1)}M` : '--', change: data.reach_change || '+0.0%', icon: Eye, color: 'text-cyan-400' },
           { label: 'Engagement', value: data.total_engagement ? `${(data.total_engagement/1e3).toFixed(1)}K` : '--', change: data.engagement_change || '+0.0%', icon: Zap, color: 'text-brand-400' },
           { label: 'Profile Visits', value: data.profile_visits ? `${(data.profile_visits/1e3).toFixed(1)}K` : '--', change: data.visits_change || '+0.0%', icon: Users, color: 'text-emerald-400' },
           { label: 'Clicks', value: data.total_clicks ? `${(data.total_clicks/1e3).toFixed(1)}K` : '--', change: data.clicks_change || '+0.0%', icon: MousePointer, color: 'text-blue-400' },
           { label: 'Conversions', value: data.conversions ? `${(data.conversions/1e3).toFixed(1)}K` : '--', change: data.conversions_change || '+0.0%', icon: Award, color: 'text-amber-400' },
-        ].map((kpi) => {
+        ] : [
+          { label: 'Total Reach', value: '--', change: '--', icon: Eye, color: 'text-cyan-400' },
+          { label: 'Engagement', value: '--', change: '--', icon: Zap, color: 'text-brand-400' },
+          { label: 'Profile Visits', value: '--', change: '--', icon: Users, color: 'text-emerald-400' },
+          { label: 'Clicks', value: '--', change: '--', icon: MousePointer, color: 'text-blue-400' },
+          { label: 'Conversions', value: '--', change: '--', icon: Award, color: 'text-amber-400' },
+        ]).map((kpi) => {
           const Icon = kpi.icon;
           return (
             <div key={kpi.label} className="p-5 rounded-3xl bg-[#0D121F] border border-[#1E293B] shadow-xl space-y-2">
