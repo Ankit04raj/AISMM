@@ -8,7 +8,14 @@ export default function ComposerTab({ onNavigateTab }) {
   const [draft,setDraft] = useState(readDraft); const [accounts,setAccounts] = useState([]);
   const [loading,setLoading] = useState(true); const [busy,setBusy] = useState(false);
   const [error,setError] = useState(''); const [result,setResult] = useState(null); const [analysis,setAnalysis] = useState(null);
-  useEffect(()=>{api.getAccounts().then(data=>setAccounts(data.accounts||[])).catch(err=>setError(err.message)).finally(()=>setLoading(false));},[]);
+  const fetchAccounts = () => {
+    api.getAccounts().then(data=>setAccounts(data.accounts||[])).catch(err=>setError(err.message)).finally(()=>setLoading(false));
+  };
+  useEffect(()=>{
+    fetchAccounts();
+    window.addEventListener('aismm:accounts-updated', fetchAccounts);
+    return () => window.removeEventListener('aismm:accounts-updated', fetchAccounts);
+  },[]);
   useEffect(()=>{try{sessionStorage.setItem('aismm_composer',JSON.stringify(draft));}catch{/* Storage blocked: in-memory draft still retained. */}},[draft]);
   const update = (field,value)=>setDraft(d=>({...d,[field]:value}));
   const platforms=[...new Set(accounts.filter(a=>a.is_active).map(a=>a.platform))];
@@ -19,6 +26,7 @@ export default function ComposerTab({ onNavigateTab }) {
     if(!window.confirm(scheduled?'Schedule this post for the selected accounts?':'Publish this post now to the selected accounts?'))return;
     setBusy(true);setError('');setResult(null);
     try {const data=await api.publishMultiPlatform({platforms:draft.platforms,content_type:'post',text:draft.text,caption:draft.text,publish_now:!scheduled,scheduled_at:scheduled?new Date(draft.scheduledAt).toISOString():null,media:draft.mediaUrl?[{type:draft.mediaType,url:draft.mediaUrl}]:[]});setResult(data);
+      window.dispatchEvent(new CustomEvent('aismm:content-published'));
       if(data.overall_status==='failed')setError('One or more publications failed. Review each result below; your draft is retained.');
     }catch(err){setError(err.message);}finally{setBusy(false);}
   }

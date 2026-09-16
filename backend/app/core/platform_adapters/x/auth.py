@@ -73,9 +73,12 @@ class XAuth:
         code: str,
         state: str,
         redirect_uri: Optional[str] = None,
+        code_verifier: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Exchange authorization code with code_verifier for access and refresh tokens."""
-        verifier = self.get_verifier(state) or "challenge_verifier_placeholder"
+        verifier = code_verifier or self.get_verifier(state)
+        if not verifier:
+            raise AuthenticationError(f"Missing PKCE code verifier for state {state}", platform="x")
         data = {
             "code": code,
             "grant_type": "authorization_code",

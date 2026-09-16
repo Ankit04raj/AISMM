@@ -244,7 +244,29 @@ async def register_user(
         # Guaranteed None in all production and staging environments
         response_data.verification_token = None
 
-    return response_data
+    from fastapi.responses import JSONResponse
+    resp = JSONResponse(
+        content=response_data.model_dump(mode="json"),
+        status_code=status.HTTP_201_CREATED,
+        media_type="application/json",
+    )
+    resp.set_cookie(
+        "aismm_access_token",
+        access_token,
+        httponly=True,
+        secure=settings.ENVIRONMENT != "development",
+        samesite="lax",
+        max_age=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+    resp.set_cookie(
+        "aismm_refresh_token",
+        refresh_token,
+        httponly=True,
+        secure=settings.ENVIRONMENT != "development",
+        samesite="lax",
+        max_age=60 * 60 * 24 * 30,
+    )
+    return resp
 
 
 @router.post(
@@ -419,14 +441,27 @@ async def login_user(
     dependencies=[Depends(rate_limit_guard(max_requests=30, window_seconds=60))],
 )
 async def refresh_app_token(
-    request: AppRefreshTokenRequest,
     req: Request,
+    request_data: Optional[AppRefreshTokenRequest] = None,
     db: AsyncSession = Depends(get_db),
 ):
     """Exchange a valid JWT refresh token for a newly signed access token."""
     client_ip = req.client.host if req.client else "127.0.0.1"
+    raw_refresh_token = None
+    if request_data and request_data.refresh_token:
+        raw_refresh_token = request_data.refresh_token
+    elif req.cookies.get("aismm_refresh_token"):
+        raw_refresh_token = req.cookies.get("aismm_refresh_token")
+
+    if not raw_refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token was not provided.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     try:
-        user_id_str = verify_token(request.refresh_token, expected_type="refresh")
+        user_id_str = verify_token(raw_refresh_token, expected_type="refresh")
         user_uuid = UUID(user_id_str)
     except Exception as e:
         default_audit_logger.log_event(
@@ -453,7 +488,7 @@ async def refresh_app_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    new_access_token, new_refresh_token = await rotate_session(db, request.refresh_token, user.id)
+    new_access_token, new_refresh_token = await rotate_session(db, raw_refresh_token, user.id)
 
     default_audit_logger.log_event(
         event_type=AuditEventType.AUTH_TOKEN_REFRESH,
@@ -463,12 +498,31 @@ async def refresh_app_token(
         status="SUCCESS",
     )
 
-    return AppTokenRefreshResponse(
+    resp_data = AppTokenRefreshResponse(
         access_token=new_access_token,
         token_type="Bearer",
         expires_in=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         refresh_token=new_refresh_token,
     )
+    from fastapi.responses import JSONResponse
+    resp = JSONResponse(content=resp_data.model_dump(mode="json"), media_type="application/json")
+    resp.set_cookie(
+        "aismm_access_token",
+        new_access_token,
+        httponly=True,
+        secure=settings.ENVIRONMENT != "development",
+        samesite="lax",
+        max_age=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+    resp.set_cookie(
+        "aismm_refresh_token",
+        new_refresh_token,
+        httponly=True,
+        secure=settings.ENVIRONMENT != "development",
+        samesite="lax",
+        max_age=60 * 60 * 24 * 30,
+    )
+    return resp
 
 
 @router.post("/logout")
@@ -480,11 +534,22 @@ async def logout_user(
 ):
     """Invalidate session tokens server-side upon logout."""
     from backend.app.core.security import decode_token
-    payload = decode_token(req.headers["Authorization"].split(" ", 1)[1])
-    await db.execute(update(AuthSession).where(
-        AuthSession.id == payload["sid"], AuthSession.user_id == current_user.id
-    ).values(revoked=True))
-    await db.commit()
+    token = None
+    if "Authorization" in req.headers and " " in req.headers["Authorization"]:
+        token = req.headers["Authorization"].split(" ", 1)[1]
+    elif req.cookies.get("aismm_access_token"):
+        token = req.cookies.get("aismm_access_token")
+
+    if token:
+        try:
+            payload = decode_token(token)
+            if "sid" in payload:
+                await db.execute(update(AuthSession).where(
+                    AuthSession.id == payload["sid"], AuthSession.user_id == current_user.id
+                ).values(revoked=True))
+                await db.commit()
+        except Exception:
+            pass
 
     default_audit_logger.log_event(
         event_type=AuditEventType.AUTH_LOGOUT,
@@ -492,7 +557,11 @@ async def logout_user(
         action="USER_LOGGED_OUT_TOKEN_REVOKED",
         status="SUCCESS",
     )
-    return {"message": "Successfully logged out and session revoked."}
+    from fastapi.responses import JSONResponse
+    resp = JSONResponse(content={"message": "Successfully logged out and session revoked."})
+    resp.delete_cookie("aismm_access_token", path="/")
+    resp.delete_cookie("aismm_refresh_token", path="/")
+    return resp
 
 
 @router.get("/me", response_model=UserProfile)
@@ -1057,15 +1126,12 @@ async def forgot_password(request: PasswordResetRequest, db: AsyncSession = Depe
     env_clean = str(settings.ENVIRONMENT or "").strip().lower()
     is_development_env = env_clean in {"development", "dev", "local", "test"}
 
-    response_data = {
+    if is_development_env and token and not (settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST):
+        logging.info(f"[DEV ONLY] Password reset URL for {request.email}: /reset-password?token={token}")
+
+    return {
         'message': 'If an account exists, a password reset link will be sent. Check your inbox.'
     }
-    if is_development_env and token and not (settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST):
-        response_data['reset_token'] = token
-        response_data['reset_url'] = f"/reset-password?token={token}"
-        response_data['message'] = 'Local development: email delivery is disabled. Use the reset link below to choose a new password.'
-
-    return response_data
 
 
 @router.post('/reset-password', dependencies=[Depends(rate_limit_guard(max_requests=5, window_seconds=300))])

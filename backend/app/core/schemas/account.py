@@ -46,6 +46,12 @@ class DirectConnectAccountRequest(BaseModel):
     platform: str = Field(..., description="Platform: instagram, facebook, x, linkedin, youtube")
     identifier: str = Field(..., min_length=1, max_length=500, description="Username (@handle), Profile URL, or Channel ID")
     display_name: Optional[str] = Field(None, description="Custom display name")
+    profile_url: Optional[str] = Field(None, description="Direct Public Profile URL")
+    profile_image_url: Optional[str] = Field(None, description="Custom Profile Image URL")
+    followers_count: Optional[int] = Field(None, ge=0, description="Real follower/subscriber count")
+    following_count: Optional[int] = Field(None, ge=0, description="Real following count")
+    media_count: Optional[int] = Field(None, ge=0, description="Real total posts/media count")
+    biography: Optional[str] = Field(None, description="Account bio/description")
     access_token: Optional[str] = Field(None, description="Optional OAuth Access Token or API Key")
     refresh_token: Optional[str] = Field(None, description="Optional Refresh Token")
 
@@ -71,6 +77,8 @@ class SocialAccountListResponse(BaseModel):
 class UpdateAccountRequest(BaseModel):
     """Request to update account settings."""
     display_name: Optional[str] = None
+    username: Optional[str] = None
+    profile_image_url: Optional[str] = None
     is_active: Optional[bool] = None
     metadata: Optional[Dict[str, Any]] = None
 

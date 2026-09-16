@@ -1,9 +1,12 @@
 """AISMM Configuration Settings using Pydantic Settings."""
 
+from pathlib import Path
 from functools import lru_cache
 from typing import List, Optional, Set
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 
 # Known insecure/placeholder secrets that must NEVER be used in production/staging
 DENYLISTED_SECRETS: Set[str] = {
@@ -196,6 +199,19 @@ class Settings(BaseSettings):
                 raise ValueError("Production SMTP credentials are required")
             if self.DEBUG:
                 raise ValueError("DEBUG must be disabled in production")
+        return self
+
+    @model_validator(mode="after")
+    def normalize_sqlite_database_url(self) -> "Settings":
+        """Ensure relative SQLite database URLs resolve deterministically to repository root."""
+        if self.DATABASE_URL and self.DATABASE_URL.startswith("sqlite+aiosqlite:///./"):
+            rel_path = self.DATABASE_URL[len("sqlite+aiosqlite:///./"):]
+            abs_db = (_REPO_ROOT / rel_path).resolve()
+            self.DATABASE_URL = f"sqlite+aiosqlite:///{abs_db}"
+        elif self.DATABASE_URL and self.DATABASE_URL.startswith("sqlite:///./"):
+            rel_path = self.DATABASE_URL[len("sqlite:///./"):]
+            abs_db = (_REPO_ROOT / rel_path).resolve()
+            self.DATABASE_URL = f"sqlite:///{abs_db}"
         return self
 
 

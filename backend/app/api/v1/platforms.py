@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from backend.app.core.platform_adapters import PlatformRegistry
 from backend.app.db.models import User
 from backend.app.api.deps import get_current_user
+from backend.app.services.oauth_service import get_platform_oauth_status
 
 router = APIRouter(prefix="/platforms", tags=["Platforms"])
 
@@ -12,8 +13,11 @@ router = APIRouter(prefix="/platforms", tags=["Platforms"])
 async def list_platforms(
     current_user: User = Depends(get_current_user),
 ):
-    """List all supported platforms."""
-    return {"platforms": PlatformRegistry.list_platforms()}
+    """List all supported platforms and their OAuth configuration readiness."""
+    return {
+        "platforms": PlatformRegistry.list_platforms(),
+        "oauth_status": get_platform_oauth_status(),
+    }
 
 
 @router.get("/{platform}/capabilities")

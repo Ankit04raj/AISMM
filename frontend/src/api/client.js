@@ -6,19 +6,29 @@
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api/v1";
 
-// Auth Token Management via HttpOnly Cookies (XSS-safe) — localStorage removed
+// Auth Token Management via HttpOnly Cookies & Bearer Tokens
 export function getAuthToken() {
-  return ""; // Browser sends cookie automatically with credentials: 'include'
+  try {
+    return localStorage.getItem("aismm_access_token") || "";
+  } catch {
+    return "";
+  }
 }
 
 export function setAuthSession(accessToken, refreshToken, user) {
-  // Cookies handled by backend Set-Cookie headers; no localStorage
-  if (user) localStorage.setItem("aismm_user", JSON.stringify(user));
+  try {
+    if (accessToken) localStorage.setItem("aismm_access_token", accessToken);
+    if (refreshToken) localStorage.setItem("aismm_refresh_token", refreshToken);
+    if (user) localStorage.setItem("aismm_user", JSON.stringify(user));
+  } catch {}
 }
 
 export function clearAuthSession() {
-  // Cookies cleared by backend /auth/logout; user storage optional
-  try { localStorage.removeItem("aismm_user"); } catch {}
+  try {
+    localStorage.removeItem("aismm_user");
+    localStorage.removeItem("aismm_access_token");
+    localStorage.removeItem("aismm_refresh_token");
+  } catch {}
 }
 
 export function getStoredUser() {
@@ -34,14 +44,20 @@ let refreshInFlight = null;
 async function refreshSession() {
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
-      // Cookie-backed refresh — browser sends refresh cookie; no localStorage read
+      let refreshToken = "";
+      try {
+        refreshToken = localStorage.getItem("aismm_refresh_token") || "";
+      } catch {}
       const response = await fetch(`${API_BASE}/auth/refresh`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', signal: AbortSignal.timeout(15000),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: refreshToken ? JSON.stringify({ refresh_token: refreshToken }) : JSON.stringify({}),
+        credentials: 'include',
+        signal: AbortSignal.timeout(15000),
       });
       if (!response.ok) return false;
       const data = await response.json();
-      setAuthSession(data.access_token, data.refresh_token); // cookies set by backend; user retained
+      setAuthSession(data.access_token, data.refresh_token);
       return true;
     })().finally(() => { refreshInFlight = null; });
   }
@@ -61,7 +77,7 @@ export async function fetchApi(endpoint, options = {}, retry = true) {
   } catch (error) {
     throw new Error(error.name === 'TimeoutError' ? 'The server took too long to respond. Please retry.' : 'Unable to reach AISMM backend. Check your connection.');
   }
-  if (res.status === 401 && token && retry && !['/auth/login', '/auth/refresh', '/auth/logout'].includes(endpoint)) {
+  if (res.status === 401 && retry && !['/auth/login', '/auth/refresh', '/auth/logout'].includes(endpoint)) {
     if (await refreshSession().catch(() => false)) return fetchApi(endpoint, options, false);
     clearAuthSession();
     window.dispatchEvent(new Event('aismm:session-expired'));
@@ -109,6 +125,7 @@ export const api = {
   getAccounts: () => fetchApi("/accounts"),
   getAccount: (id) => fetchApi(`/accounts/${id}`),
   getAccountProfile: (id) => fetchApi(`/accounts/${id}/profile`),
+  updateAccount: (id, data) => fetchApi(`/accounts/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   syncAccount: (id) => fetchApi(`/accounts/${id}/sync`, { method: "POST" }),
   connectAccount: (data) => fetchApi("/accounts/connect", { method: "POST", body: JSON.stringify(data) }),
   directConnectAccount: (data) => fetchApi("/accounts/direct-connect", { method: "POST", body: JSON.stringify(data) }),

@@ -50,6 +50,7 @@ export default function SchedulingTab() {
     setLoading(true);
     try {
       await api.autoSchedule({ platform, text: caption, content_type: 'post' });
+      window.dispatchEvent(new CustomEvent('aismm:content-published'));
       setScheduledOk(true);
       setTimeout(() => setScheduledOk(false), 3000);
     } catch (err) {

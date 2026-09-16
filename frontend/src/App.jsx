@@ -92,21 +92,26 @@ function OAuthCallback() {
     if(query.get('error')) { setError(true); setMessage('Platform authorization was cancelled or denied. No account was connected.'); return; }
     const platform = sessionStorage.getItem('aismm_oauth_platform');
     api.completeOAuth({ platform, code:query.get('code'), state:query.get('state'), redirect_uri: `${window.location.origin}/oauth/callback` })
-      .then(()=>{sessionStorage.removeItem('aismm_oauth_platform'); setMessage('Your platform account is connected.'); window.history.replaceState({},'', '/oauth/callback');})
+      .then(()=>{
+        sessionStorage.removeItem('aismm_oauth_platform');
+        setMessage('Your platform account is connected.');
+        window.dispatchEvent(new CustomEvent('aismm:accounts-updated'));
+        window.history.replaceState({},'', '/oauth/callback');
+      })
       .catch(err=>{setError(true);setMessage(err.message);});
   },[]);
   return <div className="max-w-lg mx-auto p-6 mt-16 panel"><h1 className="text-2xl font-bold mb-6">Platform connection</h1><p className={error?'error':'notice'}>{message}</p><Link className="btn mt-6" to="/app/platforms">Back to platforms</Link></div>;
 }
 
 function Application() {
-  const [user,setUser] = useState(getStoredUser); const [checking,setChecking] = useState(Boolean(getStoredUser())); const [error,setError] = useState('');
+  const [user,setUser] = useState(getStoredUser); const [checking,setChecking] = useState(true); const [error,setError] = useState('');
   const navigate=useNavigate(); const location=useLocation();
   useEffect(()=> {
     const hash = window.location.hash.slice(1);
     if(hash.startsWith('tab-')) navigate(`/app/${hash.slice(4)}`, {replace:true});
     else if(['terms','privacy'].includes(hash)) navigate(`/${hash}`, {replace:true});
     let alive=true;
-    if(getStoredUser()) api.getMe().then(me=>{ if(alive){setUser(me);setAuthSession(null,null,me);} }).catch(()=>{if(alive){clearAuthSession();setUser(null);}}).finally(()=>{if(alive)setChecking(false);});
+    api.getMe().then(me=>{ if(alive){setUser(me);setAuthSession(null,null,me);} }).catch(()=>{if(alive){clearAuthSession();setUser(null);}}).finally(()=>{if(alive)setChecking(false);});
     const expired=()=>{setUser(null);navigate('/login');}; window.addEventListener('aismm:session-expired',expired);
     return ()=>{alive=false;window.removeEventListener('aismm:session-expired',expired);};
   },[]);

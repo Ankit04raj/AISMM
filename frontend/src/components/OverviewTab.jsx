@@ -51,6 +51,12 @@ export default function OverviewTab({ onNavigateTab }) {
 
   useEffect(() => {
     loadData();
+    window.addEventListener('aismm:content-published', loadData);
+    window.addEventListener('aismm:accounts-updated', loadData);
+    return () => {
+      window.removeEventListener('aismm:content-published', loadData);
+      window.removeEventListener('aismm:accounts-updated', loadData);
+    };
   }, [timeRange]);
 
   const dateRangeLabel = data ? getDateRangeLabel(parseInt(timeRange.replace('days', '')) || 30) : 'Loading...';

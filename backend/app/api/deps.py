@@ -2,7 +2,7 @@
 
 from typing import Optional
 from uuid import UUID
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -17,18 +17,23 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """Validate Bearer JWT access token and return current authenticated User model."""
-    if not credentials or not credentials.credentials:
+    """Validate Bearer JWT access token or HttpOnly cookie and return current authenticated User model."""
+    token: Optional[str] = None
+    if credentials and credentials.credentials:
+        token = credentials.credentials
+    elif request.cookies.get("aismm_access_token"):
+        token = request.cookies.get("aismm_access_token")
+
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication credentials were not provided",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-    token = credentials.credentials
     try:
         user_id_str = verify_token(token, expected_type="access")
         user_uuid = UUID(user_id_str)
