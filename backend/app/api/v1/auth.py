@@ -407,7 +407,7 @@ async def login_user(
     )
     # HttpOnly cookie transition — tokens set in HttpOnly Secure SameSite cookies
     from fastapi.responses import JSONResponse
-    resp = JSONResponse(content=login_resp.model_dump(), media_type="application/json")
+    resp = JSONResponse(content=login_resp.model_dump(mode="json"), media_type="application/json")
     resp.set_cookie("aismm_access_token", access_token, httponly=True, secure=settings.ENVIRONMENT!="development", samesite="lax", max_age=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES*60)
     resp.set_cookie("aismm_refresh_token", refresh_token, httponly=True, secure=settings.ENVIRONMENT!="development", samesite="lax", max_age=60*60*24*30)
     return resp

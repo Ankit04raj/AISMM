@@ -4,7 +4,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.12%20%7C%203.13-blue)
 ![Node](https://img.shields.io/badge/node-24.x-green)
-![Tests](https://img.shields.io/badge/backend%20tests-251%2F251%20passing%20(100%25)-brightgreen)
+![Tests](https://img.shields.io/badge/backend%20tests-268%2F268%20passing%20(100%25)-brightgreen)
 ![Frontend](https://img.shields.io/badge/frontend-React%2018%20%7C%20Vite%208%20%7C%20Tailwind-blue)
 ![Database](https://img.shields.io/badge/database-PostgreSQL%2016%20%7C%20Alembic-blue)
 
@@ -54,7 +54,7 @@ AISMM is a **platform-agnostic, AI-powered social media management platform** bu
 | **14** | **Multi-Platform Expansion** | ✅ Verified | X / Twitter API v2, LinkedIn REST & UGC, YouTube Data v3 & Analytics |
 | **15** | **Model Improvement & Evaluation** | ✅ Verified | Continuous Model Evaluation, Feature Importance, Class Imbalance, Drift Tracking, Model Registry |
 | **16** | **Production Hardening** | ✅ Verified | AES-256 Vault Encryption, Sliding Window Rate Limiting, Circuit Breaker & Exponential Backoff, Audit Logging, Health Probes |
-| **17** | **Final Verification & Production Readiness** | ✅ **100% Verified** | **194/194 Tests Passing** (End-to-End Master Lifecycle Verification across 5 Platforms & 8 AI Engines) |
+| **17** | **Final Verification & Production Readiness** | ✅ **100% Verified** | **268/268 Tests Passing** (End-to-End Master Lifecycle Verification across 5 Platforms & 8 AI Engines) |
 
 ---
 
@@ -90,7 +90,7 @@ AISMM is a **platform-agnostic, AI-powered social media management platform** bu
 
 | Component | Module | Description | Research Baseline / Standard |
 |-----------|--------|-------------|------------------------------|
-| **Model Evaluator** | `backend/app/ai/evaluation/evaluator.py` | Full diagnostic evaluation across all engines (Scheduling 88.42%, Sentiment 89.40%, Auto-Reply 88.50%, Growth 89.2% $R^2$, Hashtag 93.10%) | CLAUDE.md Section 51 Baselines |
+| **Model Evaluator** | `backend/app/ai/evaluation/evaluator.py` | Full diagnostic evaluation across all engines (Synthetic baselines: Scheduling 88.08%, Sentiment 89.00%, Auto-Reply 88.00%, Growth 89.2% $R^2$, Hashtag 92.70% — evaluated live on held-out splits; real-data retraining pipeline planned in Phase 2) | Synthetic Baseline Evaluation |
 | **Feature Importance Diagnostics** | `backend/app/ai/evaluation/evaluator.py` | Ranked feature importance analysis for Random Forest & heuristic models | Model explainability |
 | **Class Imbalance Analyzer** | `backend/app/ai/evaluation/evaluator.py` | Detects minority intent categories (spam, neutral) and calculates optimal class balance weights | Robust classification |
 | **Model Drift Detection** | `backend/app/ai/evaluation/evaluator.py` | Detects metric decay against baseline thresholds with automated retraining recommendations | Continuous calibration |
@@ -134,32 +134,13 @@ AISMM is a **platform-agnostic, AI-powered social media management platform** bu
 
 ---
 
-## 🧪 Test Results: 194/194 Passing (100%)
+## 🧪 Test Results: 268/268 Passing (100%)
 
-```
-backend/tests/test_master_e2e_verification.py ..........                 [  5%]
-backend/tests/test_production_hardening.py ..............                [ 12%]
-backend/tests/test_model_improvement.py ..................               [ 21%]
-backend/tests/test_x_adapter.py ..........                               [ 26%]
-backend/tests/test_linkedin_adapter.py ..........                        [ 31%]
-backend/tests/test_youtube_adapter.py .........                          [ 36%]
-backend/tests/test_ai_strategy_engine.py ...........                     [ 42%]
-backend/tests/test_analytics_dashboard.py .........                      [ 47%]
-backend/tests/test_growth_engine.py ......                               [ 50%]
-backend/tests/test_auto_reply.py ..........                              [ 55%]
-backend/tests/test_post_intelligence.py ......                           [ 58%]
-backend/tests/test_scheduling_engine.py .......                          [ 62%]
-backend/tests/test_ai_content_engine.py ............                     [ 68%]
-backend/tests/test_api_v1.py .....                                       [ 71%]
-backend/tests/test_content_management.py ....                            [ 73%]
-backend/tests/test_e2e_instagram.py .                                    [ 74%]
-backend/tests/test_facebook_adapter.py ..........                        [ 79%]
-backend/tests/test_foundation.py ...........                             [ 85%]
-backend/tests/test_instagram_adapter.py .........................        [ 97%]
-backend/tests/test_normalization.py ..                                   [ 98%]
-backend/tests/test_services.py ....                                      [100%]
+All 268 backend integration, unit, and end-to-end test cases pass across 30 test suites covering Auth/MFA/Vault, Platform Adapters (Meta Graph API v20.0, X API v2, LinkedIn REST v2, YouTube Data API v3), Content Normalization, Scheduling, and AI Evaluation.
 
-======================= 194 passed in 78.02s =======================
+```bash
+.venv/bin/pytest backend/tests/ -q
+# 268 passed, 0 failed (100%)
 ```
 
 ---
@@ -180,7 +161,7 @@ pip install -r requirements.txt
 # Run migrations
 alembic upgrade head
 
-# Run full test suite (194 tests)
+# Run full test suite (268 tests)
 pytest -v
 
 # Start FastAPI backend server (http://localhost:8000)
@@ -312,7 +293,7 @@ The complete **AISMM (AI-Powered Social Media Management)** platform is 100% bui
 1. **Universal Adapter Architecture** — 5 full platform adapters (Instagram, Facebook, X, LinkedIn, YouTube) operating via capability contracts with zero core business logic rewrites.
 2. **Autonomous AI Core** — 8 independent AI engines (Sentiment, Caption, Hashtag, Scheduling, Post Intelligence, Auto-Reply, Growth, Strategy).
 3. **Production Hardening** — AES-256 vault token encryption at rest, microsecond sliding-window rate limiting, circuit breaker fault tolerance, and Kubernetes health probes.
-4. **100% Test Coverage** — 194/194 tests passing across 21 test suites.
+4. **100% Test Coverage** — 268/268 tests passing across 30 test suites.
 
 ---
 
