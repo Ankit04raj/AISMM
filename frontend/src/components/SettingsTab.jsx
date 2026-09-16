@@ -20,7 +20,7 @@ export default function SettingsTab({ onUser }) {
   const [user, setUser] = useState(null);
   const [name, setName] = useState('Ankit Raj');
   const [email, setEmail] = useState('ankit@example.com');
-  const [timezoneVal, setTimezoneVal] = useState('Asia/Kolkata (GMT+5:30)');
+  const [timezoneVal, setTimezoneVal] = useState('Asia/Kolkata');
   const [language, setLanguage] = useState('English');
   const [theme, setTheme] = useState('Dark');
 
@@ -66,7 +66,7 @@ export default function SettingsTab({ onUser }) {
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     action(async () => {
-      const me = await api.updateProfile(name);
+      const me = await api.updateProfile({ full_name: name, timezone: timezoneVal, language });
       setUser(me);
       onUser?.(me);
       setMessage('Profile settings saved successfully.');

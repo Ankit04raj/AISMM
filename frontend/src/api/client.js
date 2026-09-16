@@ -80,7 +80,7 @@ export const api = {
   getInbox: () => fetchApi('/comments'),
   syncInbox: () => fetchApi('/comments/sync', {method:'POST'}),
   logout: () => fetchApi('/auth/logout', { method: 'POST', credentials: 'include' }),
-  updateProfile: (full_name) => fetchApi('/auth/me', { method: 'PATCH', body: JSON.stringify({ full_name }) }),
+  updateProfile: (data) => fetchApi('/auth/me', { method: 'PATCH', body: JSON.stringify({ full_name: data.full_name, timezone: data.timezone, language: data.language }) }),
   changePassword: (data) => fetchApi('/auth/password', { method: 'POST', body: JSON.stringify(data) }),
   setup2fa: () => fetchApi('/auth/2fa/setup', { method: 'POST' }),
   enable2fa: (code) => fetchApi('/auth/2fa/enable', { method: 'POST', body: JSON.stringify({ code }) }),
@@ -176,6 +176,12 @@ export const api = {
   predictGrowth: (data) => fetchApi("/growth/predict", { method: "POST", body: JSON.stringify(data) }),
   getAccountGrowthProjections: (accountId) => fetchApi(`/growth/accounts/${accountId}/projections`),
   getGrowthModelsStatus: () => fetchApi("/growth/models/status"),
+  exportReport: (reportType, dateRange) =>
+    fetchApi(`/analytics/export?report_type=${reportType}&date_range=${encodeURIComponent(dateRange)}`, { method: "POST" }).then(data => {
+      if (data?.blob) return data.blob;
+      const jsonStr = JSON.stringify(data, null, 2);
+      return new Blob([jsonStr], { type: "application/json" });
+    }),
 
   // Models & Registry
   getModelRegistry: () => fetchApi("/models/registry"),

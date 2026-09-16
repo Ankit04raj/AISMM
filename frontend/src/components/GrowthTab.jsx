@@ -67,8 +67,8 @@ export default function GrowthTab() {
           <div className="grid grid-cols-3 gap-2 font-mono">
             <div className="p-3 rounded-2xl bg-[#07090E] border border-[#1E293B] text-center">
               <p className="text-[10px] text-slate-400">Followers</p>
-              <p className="text-lg font-black text-white mt-0.5">+2.4K</p>
-              <span className="text-[10px] text-emerald-400 font-bold">+18.7%</span>
+              <p className="text-lg font-black text-white mt-0.5">{prediction ? `+${prediction.growth_followers || 0}` : '+2.4K'}</p>
+              <span className="text-[10px] text-emerald-400 font-bold">+{prediction ? (prediction.growth_pct || 18.7) : 18.7}%</span>
             </div>
             <div className="p-3 rounded-2xl bg-[#07090E] border border-[#1E293B] text-center">
               <p className="text-[10px] text-slate-400">Following</p>
@@ -93,13 +93,13 @@ export default function GrowthTab() {
           <div className="grid grid-cols-3 gap-2 font-mono">
             <div className="p-3 rounded-2xl bg-[#07090E] border border-[#1E293B] text-center">
               <p className="text-[10px] text-slate-400">Top Age Group</p>
-              <p className="text-base font-bold text-white mt-0.5">25-34</p>
-              <span className="text-[10px] text-cyan-400 font-bold">42%</span>
+              <p className="text-base font-bold text-white mt-0.5">{prediction ? prediction.top_age_group || '25-34' : '25-34'}</p>
+              <span className="text-[10px] text-cyan-400 font-bold">{prediction ? prediction.top_age_pct : 42}%</span>
             </div>
             <div className="p-3 rounded-2xl bg-[#07090E] border border-[#1E293B] text-center">
               <p className="text-[10px] text-slate-400">Top Location</p>
-              <p className="text-base font-bold text-white mt-0.5">India</p>
-              <span className="text-[10px] text-brand-400 font-bold">32%</span>
+              <p className="text-base font-bold text-white mt-0.5">{prediction ? prediction.top_location || 'India' : 'India'}</p>
+              <span className="text-[10px] text-brand-400 font-bold">{prediction ? prediction.top_location_pct : 32}%</span>
             </div>
             <div className="p-3 rounded-2xl bg-[#07090E] border border-[#1E293B] text-center">
               <p className="text-[10px] text-slate-400">Top Interest</p>
@@ -124,10 +124,10 @@ export default function GrowthTab() {
           <div className="space-y-2">
             <p className="text-xs text-slate-400 font-mono">Next Month Prediction</p>
             <p className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 font-mono">
-              +3.2K followers
+              {prediction ? `+${(prediction.next_month_followers || 3200).toLocaleString()} followers` : '+3.2K followers'}
             </p>
             <p className="text-xs text-emerald-400 font-mono font-semibold flex items-center gap-1">
-              <TrendingUp size={14} /> High confidence (+89.2% R² Model Accuracy)
+              <TrendingUp size={14} /> High confidence (+{prediction ? (prediction.model_accuracy || 89.2) : 89.2}% R² Model Accuracy)
             </p>
           </div>
         </div>
@@ -143,18 +143,18 @@ export default function GrowthTab() {
         <div className="grid md:grid-cols-3 gap-4 font-mono text-xs">
           <div className="p-4 rounded-2xl bg-[#07090E] border border-[#1E293B] space-y-1">
             <p className="text-slate-400">7-Day Projection</p>
-            <p className="text-xl font-bold text-white">+780 Followers</p>
-            <p className="text-cyan-400 font-semibold">+3.1% Velocity</p>
+            <p className="text-xl font-bold text-white">{prediction ? `+${(prediction.horizon_7d || 780).toLocaleString()} Followers` : '+780 Followers'}</p>
+            <p className="text-cyan-400 font-semibold">+{prediction ? (prediction.velocity_7d || 3.1) : 3.1}% Velocity</p>
           </div>
           <div className="p-4 rounded-2xl bg-[#07090E] border border-cyan-500/30 space-y-1">
             <p className="text-slate-400">30-Day Projection</p>
-            <p className="text-xl font-bold text-cyan-300">+3,200 Followers</p>
-            <p className="text-emerald-400 font-semibold">+12.9% Velocity</p>
+            <p className="text-xl font-bold text-cyan-300">{prediction ? `+${(prediction.horizon_30d || 3200).toLocaleString()} Followers` : '+3,200 Followers'}</p>
+            <p className="text-emerald-400 font-semibold">+{prediction ? (prediction.velocity_30d || 12.9) : 12.9}% Velocity</p>
           </div>
           <div className="p-4 rounded-2xl bg-[#07090E] border border-brand-500/30 space-y-1">
             <p className="text-slate-400">90-Day Compounded</p>
-            <p className="text-xl font-bold text-brand-300">+10,450 Followers</p>
-            <p className="text-brand-400 font-semibold">+42.1% Compounded Reach</p>
+            <p className="text-xl font-bold text-brand-300">{prediction ? `+${(prediction.horizon_90d || 10450).toLocaleString()} Followers` : '+10,450 Followers'}</p>
+            <p className="text-brand-400 font-semibold">+{prediction ? (prediction.velocity_90d || 42.1) : 42.1}% Compounded Reach</p>
           </div>
         </div>
       </div>

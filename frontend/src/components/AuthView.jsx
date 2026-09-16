@@ -15,6 +15,8 @@ export default function AuthView({ onAuthSuccess, onCancel, initialMode = 'login
   const [message, setMessage] = useState('');
   const [pending, setPending] = useState(getStoredUser());
 
+  const [resetUrl, setResetUrl] = useState('');
+
   async function finishLogin(res) {
     if (res.requires_2fa) { setMode('2fa'); setCode(''); return; }
     if (!res.access_token) throw new Error('Sign-in did not return a session. Please retry.');
@@ -41,7 +43,11 @@ export default function AuthView({ onAuthSuccess, onCancel, initialMode = 'login
         await api.verifyEmail(code.trim());
         const user = await api.getMe(); setAuthSession(null, null, user); onAuthSuccess(user);
       } else if (mode === 'forgot') {
-        const result = await api.forgotPassword(email); setMessage(result.message);
+        const result = await api.forgotPassword(email);
+        setMessage(result.message);
+        if (result.reset_url) {
+          setResetUrl(result.reset_url);
+        }
       }
     } catch (err) { setError(err.message); } finally { setBusy(false); }
   }
@@ -74,8 +80,9 @@ export default function AuthView({ onAuthSuccess, onCancel, initialMode = 'login
         <button disabled={busy} className="btn w-full" type="submit">{busy ? <Loader2 className="animate-spin" size={18}/> : <ArrowRight size={18}/>} {mode === 'register' ? 'Create account' : mode === 'verify' ? 'Verify email' : mode === 'forgot' ? 'Send reset link' : 'Sign in'}</button>
       </form>
       {mode === 'verify' && <button className="btn-secondary w-full mt-3" onClick={resend} disabled={busy}>Resend verification email</button>}
-      {mode === 'login' && <button className="text-sm text-slate-300 underline mt-4 block" onClick={()=>{setMode('forgot');setError('');}}>Forgot password?</button>}
-      {!['verify','2fa'].includes(mode) && <button className="text-sm text-brand-300 mt-4" onClick={()=>{setMode(mode==='login' ? 'register' : 'login');setError('');setMessage('');}}>{mode === 'login' ? 'New here? Create an account' : 'Already have an account? Sign in'}</button>}
+      {resetUrl && <Link to={resetUrl} className="btn w-full mt-3 block text-center bg-cyan-600 hover:bg-cyan-500 text-white">Click here to set new password</Link>}
+      {mode === 'login' && <button className="text-sm text-slate-300 underline mt-4 block" onClick={()=>{setMode('forgot');setError('');setMessage('');setResetUrl('');}}>Forgot password?</button>}
+      {!['verify','2fa'].includes(mode) && <button className="text-sm text-brand-300 mt-4" onClick={()=>{setMode(mode==='login' ? 'register' : 'login');setError('');setMessage('');setResetUrl('');}}>{mode === 'login' ? 'New here? Create an account' : 'Already have an account? Sign in'}</button>}
     </section>
   </div>;
 }

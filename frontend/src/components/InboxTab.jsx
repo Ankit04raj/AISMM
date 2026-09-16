@@ -24,15 +24,8 @@ export default function InboxTab() {
   const [replyLoading, setReplyLoading] = useState(false);
   const [replySuccess, setReplySuccess] = useState(null);
 
-  const mockFeed = [
-    { id: '1', author: 'tech_lover', text: 'Great insights! This helped me a lot.', time: '2m ago', platform: 'instagram', type: 'comment', likes: 12 },
-    { id: '2', author: 'business_owner', text: 'Can you share more details about the dashboard?', time: '5m ago', platform: 'x', type: 'message', likes: 4 },
-    { id: '3', author: 'ai_enthusiast', text: 'Amazing work! 👏', time: '8m ago', platform: 'linkedin', type: 'comment', likes: 18 },
-    { id: '4', author: 'digital_marketer', text: 'What tools do you recommend?', time: '12m ago', platform: 'x', type: 'mention', likes: 7 },
-    { id: '5', author: 'startup_founder', text: 'This is exactly what I needed!', time: '15m ago', platform: 'youtube', type: 'comment', likes: 23 },
-  ];
-
-  const [comments, setComments] = useState(mockFeed);
+  const [comments, setComments] = useState([]);
+  const [inboxEmpty, setInboxEmpty] = useState(false);
 
   useEffect(() => {
     api.getInbox().then(res => {
@@ -46,8 +39,11 @@ export default function InboxTab() {
           type: 'comment',
           likes: 5
         })));
+        setInboxEmpty(false);
+      } else {
+        setInboxEmpty(true);
       }
-    }).catch(() => {});
+    }).catch(() => setInboxEmpty(true));
   }, []);
 
   const handleSelectComment = (c) => {
@@ -117,7 +113,13 @@ export default function InboxTab() {
       <div className="grid lg:grid-cols-12 gap-6">
         {/* Comment List */}
         <div className="lg:col-span-7 space-y-3">
-          {filteredComments.map((c) => (
+          {inboxEmpty ? (
+            <div className="p-8 rounded-2xl bg-[#0D121F] border border-[#1E293B] text-center space-y-2">
+              <Inbox size={40} className="mx-auto text-slate-500" />
+              <p className="text-sm font-mono text-slate-300">No conversations in your inbox yet</p>
+              <p className="text-xs text-slate-500 font-mono">Comments and messages from your audience will appear here</p>
+            </div>
+          ) : filteredComments.map((c) => (
             <div
               key={c.id}
               onClick={() => handleSelectComment(c)}

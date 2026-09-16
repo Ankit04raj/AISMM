@@ -14,13 +14,23 @@ import { api } from '../api/client';
 
 export default function StrategyTab() {
   const [loading, setLoading] = useState(false);
+  const [strategyData, setStrategyData] = useState(null);
 
-  const pillars = [
+  useEffect(() => {
+    setLoading(true);
+    api.getStrategyDashboard().then(data => {
+      setStrategyData(data);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const defaultPillars = [
     { num: 1, title: "AI & Automation Tips", impact: "High Virality", color: "text-cyan-400" },
     { num: 2, title: "Behind the Scenes", impact: "High Trust", color: "text-brand-400" },
     { num: 3, title: "Industry Insights", impact: "High Engagement", color: "text-emerald-400" },
     { num: 4, title: "User Success Stories", impact: "High Conversion", color: "text-blue-400" },
   ];
+
+  const pillars = strategyData?.pillars?.map((p, i) => ({ ...p, num: i + 1, color: "text-cyan-400" })) || defaultPillars;
 
   return (
     <div className="space-y-6 animate-fadeIn font-sans">
@@ -49,8 +59,8 @@ export default function StrategyTab() {
           {/* Recommended Strategy Box */}
           <div className="p-4 rounded-2xl bg-gradient-to-r from-brand-950/40 via-[#0D121F] to-cyan-950/40 border border-brand-500/40 space-y-1">
             <span className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">Recommended Strategy</span>
-            <p className="text-base font-bold text-white font-mono">Educational Content</p>
-            <p className="text-xs text-emerald-400 font-mono font-semibold">High performance predicted (+34% audience retention)</p>
+            <p className="text-base font-bold text-white font-mono">{strategyData?.recommendation || "Educational Content"}</p>
+            <p className="text-xs text-emerald-400 font-mono font-semibold">{strategyData?.recommendation_confidence ? `+${strategyData.recommendation_confidence}% audience retention predicted` : "High performance predicted (+34% audience retention)"}</p>
           </div>
 
           {/* Strategy Pillars List */}
@@ -73,50 +83,63 @@ export default function StrategyTab() {
           </div>
         </div>
 
-        {/* Right: Strategy Radar Chart */}
+        {/* Right: Strategy Radar Chart - Dynamic */}
         <div className="lg:col-span-5 p-6 rounded-3xl bg-[#0D121F] border border-[#1E293B] shadow-xl space-y-5 flex flex-col justify-between">
           <div className="flex items-center justify-between border-b border-[#1E293B] pb-3">
             <h3 className="text-sm font-bold text-white font-mono">Pillar Balance Matrix</h3>
-            <span className="text-xs text-slate-400 font-mono">Performance Radar</span>
+            <span className="text-xs text-slate-400 font-mono">Performance Radar (Loading...)</span>
           </div>
 
-          {/* SVG Radar Chart */}
-          <div className="h-56 w-full flex items-center justify-center relative my-2">
-            <svg viewBox="0 0 240 240" className="w-48 h-48">
-              {/* Web Rings */}
-              <polygon points="120,20 215,89 179,200 61,200 25,89" fill="none" stroke="#1E293B" strokeWidth="1" />
-              <polygon points="120,50 184,96 159,174 81,174 56,96" fill="none" stroke="#1E293B" strokeWidth="1" />
-              <polygon points="120,80 152,104 140,147 100,147 88,104" fill="none" stroke="#1E293B" strokeWidth="1" />
+          {/* Helper to compute radar coordinates */}
+          {(() => {
+            const scores = strategyData?.pillar_scores || [85, 45, 70, 60, 55];
+            const labels = strategyData?.pillar_labels || ['Engagement', 'Virality', 'Reach', 'Consistency', 'Growth'];
+            const maxVal = Math.max(...scores, 100);
+            const center = { x: 120, y: 120 };
+            const radius = 80;
+            const angles = [Math.PI/2, Math.PI/2 - 2*Math.PI/5, Math.PI/2 - 4*Math.PI/5, Math.PI/2 - 6*Math.PI/5, Math.PI/2 - 8*Math.PI/5];
 
-              {/* Axes Lines */}
-              <line x1="120" y1="120" x2="120" y2="20" stroke="#1E293B" strokeWidth="1" />
-              <line x1="120" y1="120" x2="215" y2="89" stroke="#1E293B" strokeWidth="1" />
-              <line x1="120" y1="120" x2="179" y2="200" stroke="#1E293B" strokeWidth="1" />
-              <line x1="120" y1="120" x2="61" y2="200" stroke="#1E293B" strokeWidth="1" />
-              <line x1="120" y1="120" x2="25" y2="89" stroke="#1E293B" strokeWidth="1" />
+            const computePoint = (val, angle) => ({
+              x: center.x + radius * (val / maxVal) * Math.cos(angle),
+              y: center.y + radius * (val / maxVal) * Math.sin(angle)
+            });
 
-              {/* Data Polygon */}
-              <polygon
-                points="120,35 190,95 160,185 70,180 40,95"
-                fill="rgba(124, 58, 237, 0.25)"
-                stroke="#7C3AED"
-                strokeWidth="2"
-              />
-              {/* Data Dots */}
-              <circle cx="120" cy="35" r="4" fill="#06B6D4" />
-              <circle cx="190" cy="95" r="4" fill="#06B6D4" />
-              <circle cx="160" cy="185" r="4" fill="#06B6D4" />
-              <circle cx="70" cy="180" r="4" fill="#06B6D4" />
-              <circle cx="40" cy="95" r="4" fill="#06B6D4" />
-            </svg>
-          </div>
+            const polygon = scores.map((score, i) => computePoint(score, angles[i]));
+            const pointsStr = polygon.map(p => `${p.x},${p.y}`).join(' ');
+
+            const cycles = [0,1,2,3,4];
+            const computeCircle = (factor = 1) => {
+              return cycles.map((_, i) => computePoint(factor * maxVal, angles[i])).map(p => `${p.x},${p.y}`).join(' ');
+            };
+
+            return (
+              <div className="h-56 w-full flex items-center justify-center relative my-2">
+                <svg viewBox="0 0 240 240" className="w-48 h-48">
+                  <g stroke="#1E293B" strokeWidth="1">
+                    {[3, 6, 9, 12].map(n => (
+                      <polygon key={n} points={computeCircle(cycles, n / 3)} fill="none" opacity="0.3" />
+                    ))}
+                  </g>
+                  <g stroke="#1E293B" strokeWidth="1">
+                    {angles.map((_, i) => {
+                      const end = computePoint(maxVal, angles[i]);
+                      return <line key={i} x1={center.x} y1={center.y} x2={end.x} y2={end.y} />;
+                    })}
+                  </g>
+                  <polygon points={pointsStr} fill="rgba(124, 58, 237, 0.25)" stroke="#7C3AED" strokeWidth="2" />
+                  <g fill="#06B6D4">
+                    {polygon.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="4" />)}
+                  </g>
+                </svg>
+                <div className="absolute text-center">
+                  <p className="text-xs font-mono text-cyan-400">{strategyData?.recommendation || 'Strategy Score'}</p>
+                </div>
+              </div>
+            );
+          })()}
 
           <div className="flex flex-wrap justify-between text-[11px] font-mono text-slate-400 pt-2 border-t border-[#1E293B]">
-            <span>Engagement</span>
-            <span>Virality</span>
-            <span>Reach</span>
-            <span>Consistency</span>
-            <span>Growth</span>
+            {strategyData?.pillar_labels?.map((l, i) => (<span key={i}>{l}</span>)) || ['Engagement', 'Virality', 'Reach', 'Consistency', 'Growth'].map((l, i) => (<span key={i}>{l}</span>))}
           </div>
         </div>
       </div>

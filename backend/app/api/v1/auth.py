@@ -1018,7 +1018,12 @@ async def provider_disconnect(
 
 @router.patch('/me', response_model=UserProfile)
 async def update_profile(request: ProfileUpdate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    current_user.full_name = request.full_name.strip()
+    if request.full_name is not None:
+        current_user.full_name = request.full_name.strip()
+    if request.timezone is not None:
+        current_user.timezone = request.timezone
+    if request.language is not None:
+        current_user.language = request.language
     await db.commit()
     return await get_current_user_profile(current_user)
 
@@ -1040,14 +1045,27 @@ async def change_password(request: PasswordChange, current_user: User = Depends(
 @router.post('/forgot-password', dependencies=[Depends(rate_limit_guard(max_requests=3, window_seconds=300))])
 async def forgot_password(request: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
     user = await db.scalar(select(User).where(User.email == request.email.strip().lower()))
+    token = None
     if user and user.is_active:
         token = secrets.token_urlsafe(32)
         user.password_reset_hash = hashlib.sha256(token.encode()).hexdigest()
         user.password_reset_expiry = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=30)
         await db.commit()
-        if settings.ENABLE_EMAIL_NOTIFICATIONS:
+        if settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST:
             await asyncio.to_thread(email_service.send_password_reset_email, user.email, token, user.full_name)
-    return {'message': 'If an account exists, a password reset link will be sent. Check your inbox.'}
+
+    env_clean = str(settings.ENVIRONMENT or "").strip().lower()
+    is_development_env = env_clean in {"development", "dev", "local", "test"}
+
+    response_data = {
+        'message': 'If an account exists, a password reset link will be sent. Check your inbox.'
+    }
+    if is_development_env and token and not (settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST):
+        response_data['reset_token'] = token
+        response_data['reset_url'] = f"/reset-password?token={token}"
+        response_data['message'] = 'Local development: email delivery is disabled. Use the reset link below to choose a new password.'
+
+    return response_data
 
 
 @router.post('/reset-password', dependencies=[Depends(rate_limit_guard(max_requests=5, window_seconds=300))])

@@ -23,45 +23,28 @@ export default function SchedulingTab() {
   const [queue, setQueue] = useState([]);
   const [scheduledOk, setScheduledOk] = useState(false);
 
-  const bestTimes = [
+  const [bestTimes, setBestTimes] = useState([
     { day: "Today", time: "7:00 PM", quality: "Optimal", tag: "Great", impact: "+45% reach", optimal: true },
     { day: "Tomorrow", time: "6:30 PM", quality: "Good", tag: "Good", impact: "+30% reach", optimal: false },
-    { day: "May 22", time: "8:00 PM", quality: "Good", tag: "Good", impact: "+28% reach", optimal: false },
-  ];
+  ]);
+  const [calendarDays, setCalendarDays] = useState([]);
 
-  const calendarDays = [
-    { d: 1, active: false, scheduled: true },
-    { d: 2, active: false },
-    { d: 3, active: false },
-    { d: 4, active: false },
-    { d: 5, active: false },
-    { d: 6, active: false },
-    { d: 7, active: false },
-    { d: 8, active: false, scheduled: true },
-    { d: 9, active: false },
-    { d: 10, active: false },
-    { d: 11, active: false },
-    { d: 12, active: false },
-    { d: 13, active: false },
-    { d: 14, active: false },
-    { d: 15, active: false, scheduled: true },
-    { d: 16, active: false },
-    { d: 17, active: false },
-    { d: 18, active: false },
-    { d: 19, active: true, selected: true },
-    { d: 20, active: true, scheduled: true },
-    { d: 21, active: true },
-    { d: 22, active: true, scheduled: true },
-    { d: 23, active: true },
-    { d: 24, active: true },
-    { d: 25, active: true },
-    { d: 26, active: true, scheduled: true },
-    { d: 27, active: true },
-    { d: 28, active: true },
-    { d: 29, active: true, scheduled: true },
-    { d: 30, active: true },
-    { d: 31, active: true },
-  ];
+  useEffect(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDay = new Date(year, month, 1).getDay();
+    const days = [];
+    for (let i = 0; i < firstDay; i++) days.push({ d: null, empty: true });
+    for (let d = 1; d <= daysInMonth; d++) {
+      days.push({ d, active: true, scheduled: d % 7 === 0 || d === now.getDate() });
+    }
+    setCalendarDays(days);
+    api.recommendTimes({ platform }).then(res => {
+      if (res?.recommendations?.length) setBestTimes(res.recommendations);
+    }).catch(() => {});
+  }, [platform]);
 
   const handleSchedulePost = async () => {
     setLoading(true);
@@ -171,7 +154,7 @@ export default function SchedulingTab() {
         {/* Right: Calendar View */}
         <div className="lg:col-span-5 p-6 rounded-3xl bg-[#0D121F] border border-[#1E293B] shadow-xl space-y-5 flex flex-col justify-between">
           <div className="flex items-center justify-between border-b border-[#1E293B] pb-4">
-            <h3 className="text-sm font-bold text-white font-mono">May 2024</h3>
+            <h3 className="text-sm font-bold text-white font-mono">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3>
             <div className="flex items-center gap-2">
               <button className="p-1.5 rounded-lg bg-[#07090E] text-slate-400 hover:text-white border border-[#1E293B]">
                 <ChevronLeft size={14} />

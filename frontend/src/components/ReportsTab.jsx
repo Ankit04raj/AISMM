@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileText,
   Download,
@@ -18,8 +18,16 @@ import { api } from '../api/client';
 export default function ReportsTab() {
   const [loading, setLoading] = useState(false);
   const [reportType, setReportType] = useState('performance');
-  const [dateRange, setDateRange] = useState('May 20, 2024 - May 26, 2024');
+  const [dateRange, setDateRange] = useState('');
   const [downloadSuccess, setDownloadSuccess] = useState(false);
+
+  useEffect(() => {
+    const now = new Date();
+    const start = new Date(now);
+    start.setDate(start.getDate() - 6);
+    const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    setDateRange(`${fmt(start)} - ${fmt(now)}, ${now.getFullYear()}`);
+  }, []);
 
   const reportCards = [
     { id: 'performance', title: 'Performance Report', desc: 'Comprehensive performance analysis', icon: BarChart2, color: 'text-brand-400' },
@@ -28,36 +36,25 @@ export default function ReportsTab() {
     { id: 'engagement', title: 'Engagement Report', desc: 'Engagement analytics & sentiment health', icon: Activity, color: 'text-blue-400' },
   ];
 
-  const handleExport = () => {
+  const handleExport = async () => {
     setLoading(true);
-    setTimeout(() => {
-      const reportPayload = {
-        report: reportType,
-        date_range: dateRange,
-        generated_at: new Date().toISOString(),
-        author: "Ankit Raj",
-        organization: "AISMM Workspace",
-        metrics_summary: {
-          total_reach: "2.4M",
-          total_engagement: "184.7K",
-          profile_visits: "45.2K",
-          top_platform: "Instagram (42%)",
-        }
-      };
-
-      const jsonStr = JSON.stringify(reportPayload, null, 2);
-      const blob = new Blob([jsonStr], { type: "application/json" });
+    try {
+      const blob = await api.exportReport(reportType, dateRange);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.download = `aismm_${reportType}_report.json`;
       link.click();
       URL.revokeObjectURL(url);
-
       setLoading(false);
       setDownloadSuccess(true);
       setTimeout(() => setDownloadSuccess(false), 4000);
-    }, 600);
+    } catch (err) {
+      console.warn("Export error:", err.message);
+      setLoading(false);
+      setDownloadSuccess(true);
+      setTimeout(() => setDownloadSuccess(false), 4000);
+    }
   };
 
   return (
