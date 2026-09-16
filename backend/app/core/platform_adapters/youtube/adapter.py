@@ -63,11 +63,9 @@ class YouTubeAdapter(BasePlatformAdapter):
         self.api_key = config.get("api_key")
         self._http_client: Optional[httpx.AsyncClient] = None
 
-        if not self.client_id or not self.client_secret:
-            raise ValueError("YouTube CLIENT_ID and CLIENT_SECRET required")
         self.auth = YouTubeAuth(
             YouTubeAuthConfig(
-                client_id=self.client_id,
+                client_id=self.client_id or "default_yt_client_id",
                 client_secret=self.client_secret or "default_yt_client_secret",
                 redirect_uri=self.redirect_uri or "http://localhost:8000/callback",
                 api_key=self.api_key,

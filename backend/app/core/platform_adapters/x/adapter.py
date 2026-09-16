@@ -65,11 +65,9 @@ class XAdapter(BasePlatformAdapter):
         self.account_username = config.get("account_username")
         self._http_client: Optional[httpx.AsyncClient] = None
 
-        if not self.client_id:
-            raise ValueError("X CLIENT_ID required")
         self.auth = XAuth(
             XAuthConfig(
-                client_id=self.client_id,
+                client_id=self.client_id or "default_x_client_id",
                 client_secret=self.client_secret,
                 redirect_uri=self.redirect_uri or "http://localhost:8000/callback",
                 api_key=config.get("api_key"),

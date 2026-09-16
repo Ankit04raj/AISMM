@@ -59,10 +59,9 @@ class InstagramAuth:
         if state is None:
             state = secrets.token_urlsafe(32)
 
-        # Note: Instagram OAuth via Meta Graph API uses server-side authorization code flow.
-        # PKCE code_challenge is not required/implemented here per Meta documentation.
         self._state_store[state] = {
             "created_at": datetime.now(timezone.utc),
+            "code_verifier": secrets.token_urlsafe(64),
         }
 
         params = {

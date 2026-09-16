@@ -22,7 +22,7 @@ class XAuth:
 
     def __init__(self, config: XAuthConfig):
         self.config = config
-        # In-memory store removed — use OAuthStateService DB-backed store (multi-worker safe)
+        self._state_store: Dict[str, Dict[str, Any]] = {}
 
     def _generate_pkce_pair(self) -> Tuple[str, str]:
         """Generate PKCE code verifier and code challenge."""

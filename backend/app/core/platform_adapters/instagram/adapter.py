@@ -80,9 +80,13 @@ class InstagramAdapter(BasePlatformAdapter):
 
     def _record_rate_headers(self, response) -> None:
         """Store rate-limit headers from latest response for scheduling backoff."""
-        self._last_rate_headers = {
-            k.lower(): v for k, v in response.headers.items()
-        } if hasattr(response, 'headers') else {}
+        headers = getattr(response, "headers", None)
+        if headers is not None and isinstance(headers, (dict, httpx.Headers)):
+            self._last_rate_headers = {
+                str(k).lower(): str(v) for k, v in headers.items()
+            }
+        else:
+            self._last_rate_headers = {}
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client with auth headers."""
