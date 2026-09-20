@@ -241,8 +241,16 @@ class TestEmailVerification:
         assert "wait 60 seconds" in resend_resp.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_resend_email_otp_endpoint(self, client, async_test_db):
+    async def test_resend_email_otp_endpoint(self, client, async_test_db, monkeypatch):
         """Test POST /auth/resend-email-otp with unauthenticated request containing email."""
+        from backend.app.config import get_settings
+        from backend.app.services.email_service import email_service
+        settings = get_settings()
+
+        monkeypatch.setattr(email_service, "send_email_verification_otp", lambda *args, **kwargs: True)
+        monkeypatch.setattr(settings, "ENABLE_EMAIL_NOTIFICATIONS", True)
+        monkeypatch.setattr(settings, "SMTP_HOST", "smtp.test.example")
+
         resp = _register(client, "unauth.resend@example.com")
         assert resp.status_code == 201
 

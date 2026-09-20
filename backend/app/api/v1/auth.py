@@ -187,8 +187,13 @@ async def register_user(
     phone_sent = False
 
     if verification_method == "email":
-        try:
-            if settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST:
+        if settings.ENABLE_EMAIL_NOTIFICATIONS and not settings.SMTP_HOST:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Email verification delivery is enabled but SMTP_HOST is not configured in .env. Please configure your SMTP server.",
+            )
+        if settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST:
+            try:
                 email_sent = await asyncio.to_thread(
                     email_service.send_email_verification_otp,
                     to_email=user.email,
@@ -199,13 +204,12 @@ async def register_user(
                     logging.error(f"Failed to send verification email to {user.email}")
                     raise HTTPException(
                         status_code=status.HTTP_502_BAD_GATEWAY,
-                        detail="Failed to send verification email. Please check your SMTP configuration in .env.",
+                        detail="Failed to send verification email via SMTP. Please check your SMTP configuration in .env.",
                     )
-        except HTTPException:
-            raise
-        except Exception as e:
-            logging.error(f"Error sending verification email to {user.email}: {e}")
-            if settings.ENABLE_EMAIL_NOTIFICATIONS:
+            except HTTPException:
+                raise
+            except Exception as e:
+                logging.error(f"Error sending verification email to {user.email}: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail=f"Email delivery failed: {str(e)}. Please check your SMTP settings in .env.",
@@ -782,29 +786,39 @@ async def resend_verification_email(
     # Send verification email
     email_sent = False
     try:
-        if settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST:
-            email_sent = await asyncio.to_thread(
-                email_service.send_email_verification_otp,
-                to_email=current_user.email,
-                otp_code=email_otp,
-                user_name=current_user.full_name,
+        if not (settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Cannot send verification email: SMTP is not configured in .env. Please configure SMTP_HOST, SMTP_USER, and SMTP_PASSWORD.",
             )
+
+        email_sent = await asyncio.to_thread(
+            email_service.send_email_verification_otp,
+            to_email=current_user.email,
+            otp_code=email_otp,
+            user_name=current_user.full_name,
+        )
+        if not email_sent:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Failed to send verification email via SMTP. Please check your SMTP configuration in .env.",
+            )
+    except HTTPException:
+        raise
     except Exception as e:
         logging.error(f"Error sending verification email to {current_user.email}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Email delivery failed: {str(e)}. Please check your SMTP settings in .env.",
+        )
 
     default_audit_logger.log_event(
         event_type=AuditEventType.SETTINGS_UPDATED,
         user_id=str(current_user.id),
         ip_address=client_ip,
         action="VERIFICATION_EMAIL_RESENT",
-        status="SUCCESS" if email_sent else "EMAIL_SEND_FAILED",
+        status="SUCCESS",
     )
-
-    if not email_sent and settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send verification email. Please try again later.",
-        )
 
     return {
         "message": "Verification code sent to your email.",
@@ -907,36 +921,39 @@ async def resend_email_otp(
 
     # Send verification email
     email_sent = False
+    if not (settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Cannot send verification email: SMTP is not configured in .env. Please configure SMTP_HOST, SMTP_USER, and SMTP_PASSWORD.",
+        )
+
     try:
-        if settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST:
-            email_sent = await asyncio.to_thread(
-                email_service.send_email_verification_otp,
-                to_email=user.email,
-                otp_code=email_otp,
-                user_name=user.full_name,
+        email_sent = await asyncio.to_thread(
+            email_service.send_email_verification_otp,
+            to_email=user.email,
+            otp_code=email_otp,
+            user_name=user.full_name,
+        )
+        if not email_sent:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Failed to deliver verification email via SMTP. Please check your SMTP configuration in .env.",
             )
-            if not email_sent:
-                logging.error(f"Failed to send verification email to {user.email}")
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail="Failed to deliver verification email. Please check your SMTP configuration in .env.",
-                )
     except HTTPException:
         raise
     except Exception as e:
         logging.error(f"Error sending verification email to {user.email}: {e}")
-        if settings.ENABLE_EMAIL_NOTIFICATIONS:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Email delivery failed: {str(e)}. Please check your SMTP settings in .env.",
-            )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Email delivery failed: {str(e)}. Please check your SMTP settings in .env.",
+        )
 
     default_audit_logger.log_event(
         event_type=AuditEventType.SETTINGS_UPDATED,
         user_id=str(user.id),
         ip_address=client_ip,
         action="EMAIL_OTP_RESENT",
-        status="SUCCESS" if email_sent else "EMAIL_SEND_FAILED",
+        status="SUCCESS",
     )
 
     return {"message": "Verification code sent to your email."}
