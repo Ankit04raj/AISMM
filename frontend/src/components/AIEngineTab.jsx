@@ -51,14 +51,19 @@ export default function AIEngineTab() {
     setError(null);
     try {
       const data = await api.optimizeContentAll({ text, platforms: [platform], top_k_hashtags: 5 });
-      setOriginalScore(74);
-      setOptimizedScore(94);
+      if (data?.caption_analysis) {
+        const rawScore = Math.round(data.caption_analysis.readability_score || 70);
+        const optScore = Math.min(99, Math.round((data.caption_analysis.engagement_probability || 0.85) * 100));
+        setOriginalScore(rawScore);
+        setOptimizedScore(optScore);
+        if (data.caption_analysis.suggestions?.length) {
+          setImprovements(data.caption_analysis.suggestions);
+        }
+      }
       setApplied(true);
       setTimeout(() => setApplied(false), 3000);
     } catch (err) {
-      console.warn("AI optimization note:", err.message);
-      setApplied(true);
-      setTimeout(() => setApplied(false), 3000);
+      setError(`Optimization error: ${err.message}`);
     } finally {
       setLoading(false);
     }

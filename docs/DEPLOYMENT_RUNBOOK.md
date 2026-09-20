@@ -1,8 +1,8 @@
 # AISMM Staging & Production Deployment Runbook
 
 **Document Version:** 1.0.0  
-**Last Updated:** 2026-09-09 (Asia/Kolkata)  
-**Target Architecture:** FastAPI (Python 3.13) + React 18 (Vite/Nginx) + PostgreSQL 16 + Redis 7  
+**Last Updated:** 2026-09-20 (Asia/Kolkata)  
+**Target Architecture:** FastAPI (Python 3.12/3.13) + React 19 (Vite/Nginx) + PostgreSQL 16 + Redis 7  
 
 ---
 
@@ -64,6 +64,8 @@ FROM_EMAIL=noreply@your-domain.com
 FROM_NAME=AISMM
 
 # Social Media OAuth (Register callback: https://app.your-domain.com/oauth/callback)
+FACEBOOK_CLIENT_ID=<META_APP_ID>
+FACEBOOK_CLIENT_SECRET=<META_APP_SECRET>
 X_CLIENT_ID=<TWITTER_OAUTH2_CLIENT_ID>
 X_CLIENT_SECRET=<TWITTER_OAUTH2_CLIENT_SECRET>
 LINKEDIN_CLIENT_ID=<LINKEDIN_CLIENT_ID>
@@ -102,7 +104,7 @@ Verify output shows:
 ```
 Running upgrade -> 1c2e5404a0b3
 ...
-Running upgrade 5d6e7f8a9b0c -> 6e7f8a9b0c1d (head)
+Running upgrade 8a9b0c1d2e3f -> 9b8c1e2f3a4d (head)
 ```
 
 ### Step 3b: Pre-Go-Live Database Audit & Demo Data Purge
@@ -163,7 +165,7 @@ docker compose exec postgres pg_restore -U aismm -d aismm -v /var/lib/postgresql
    docker compose up -d
    ```
 2. **Schema Rollback Considerations**:
-   - **Warning:** Migration `5d6e7f8a9b0c` introduces encrypted session hashes and Fernet credential fields. Never blindly downgrade migrations with `alembic downgrade` if production data was created under the new schema.
+   - **Warning:** Migrations `5d6e7f8a9b0c`, `7f8a9b0c1d2e`, `8a9b0c1d2e3f`, and `9b8c1e2f3a4d` introduce encrypted session hashes, recovery codes, OAuth timestamps, and OTP challenge tables. Never blindly downgrade migrations with `alembic downgrade` if production data was created under the new schema.
    - If a rollback is required, restore the database from the pre-deployment pg_dump snapshot.
 
 ---

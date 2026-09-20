@@ -80,7 +80,7 @@ AISMM is architected with strict separation of concerns across presentation, API
 ## 2. Frontend Architecture
 
 ### Technology Stack
-- **Framework**: React 18.3.1 with Vite 8.2.2 bundler.
+- **Framework**: React 19.2.8 with Vite 8.2.2 bundler.
 - **Routing**: `react-router-dom` v7 with canonical URL paths (`/app/:tab`, `/login`, `/register`, `/verify-email`, `/reset-password`, `/oauth/callback`, `/terms`, `/privacy`).
 - **Icons & Styling**: `lucide-react`, Tailwind CSS with custom obsidian dark-theme design tokens.
 - **State Management**: Local React state + Session Storage continuity for Composer drafts and active navigation contexts.

@@ -102,6 +102,6 @@
 | :--- | :--- | :--- | :--- |
 | **DEP-01** | Dockerfile.backend & Dockerfile.frontend | `[VERIFIED]` | `Dockerfile.backend`, `Dockerfile.frontend` |
 | **DEP-02** | Docker Compose Multi-Container Orchestration | `[VERIFIED]` | `docker-compose.yml` (backend, frontend, postgres, redis) |
-| **DEP-03** | Nginx Reverse Proxy Configuration | `[deploy/nginx.conf]`, `deploy/workflows/ci.yml` |
+| **DEP-03** | Nginx Reverse Proxy Configuration | `[VERIFIED]` | `deploy/nginx.conf` |
 | **DEP-04** | CI/CD GitHub Actions Workflow | `[VERIFIED]` | `deploy/workflows/ci.yml` |
 | **DEP-05** | Production SSL & Custom Domain Setup | `[BLOCKED]` | Requires operator production domain and TLS certificate allocation. |
