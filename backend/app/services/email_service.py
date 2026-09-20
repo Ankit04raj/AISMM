@@ -15,17 +15,20 @@ except Exception:
 logger = logging.getLogger(__name__)
 
 
+_UNSET = object()
+
+
 class EmailService:
     """Service for sending transactional emails and OTP codes via SMTP."""
 
     def __init__(
         self,
-        smtp_host: Optional[str] = None,
-        smtp_port: Optional[int] = None,
-        smtp_user: Optional[str] = None,
-        smtp_password: Optional[str] = None,
-        from_email: Optional[str] = None,
-        from_name: Optional[str] = None,
+        smtp_host: Any = _UNSET,
+        smtp_port: Any = _UNSET,
+        smtp_user: Any = _UNSET,
+        smtp_password: Any = _UNSET,
+        from_email: Any = _UNSET,
+        from_name: Any = _UNSET,
     ):
         """Initialize email service with SMTP configuration from settings or explicit parameters."""
         self._smtp_host = smtp_host
@@ -47,7 +50,7 @@ class EmailService:
 
     @property
     def smtp_host(self) -> Optional[str]:
-        if self._smtp_host is not None:
+        if self._smtp_host is not _UNSET:
             return self._smtp_host
         s = self._settings
         return getattr(s, "SMTP_HOST", None) if s else None
@@ -58,7 +61,7 @@ class EmailService:
 
     @property
     def smtp_port(self) -> int:
-        if self._smtp_port is not None:
+        if self._smtp_port is not _UNSET:
             try:
                 return int(self._smtp_port)
             except (ValueError, TypeError):
@@ -76,7 +79,7 @@ class EmailService:
 
     @property
     def smtp_user(self) -> Optional[str]:
-        if self._smtp_user is not None:
+        if self._smtp_user is not _UNSET:
             return self._smtp_user
         s = self._settings
         if not s:
@@ -89,7 +92,7 @@ class EmailService:
 
     @property
     def smtp_password(self) -> Optional[str]:
-        if self._smtp_password is not None:
+        if self._smtp_password is not _UNSET:
             return self._smtp_password
         s = self._settings
         return getattr(s, "SMTP_PASSWORD", None) if s else None
@@ -100,7 +103,7 @@ class EmailService:
 
     @property
     def from_email(self) -> str:
-        if self._from_email is not None:
+        if self._from_email is not _UNSET and self._from_email is not None:
             return self._from_email
         s = self._settings
         if not s:
@@ -113,7 +116,7 @@ class EmailService:
 
     @property
     def from_name(self) -> str:
-        if self._from_name is not None:
+        if self._from_name is not _UNSET and self._from_name is not None:
             return self._from_name
         s = self._settings
         if not s:
