@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Lock, Activity, RefreshCw, AlertTriangle } from 'lucide-react';
+import { RefreshCw, AlertTriangle } from 'lucide-react';
 import { api } from '../api/client';
 
 export default function SecurityTab() {
@@ -32,10 +32,11 @@ export default function SecurityTab() {
     {error && <div className="p-4 bg-red-950/20 border border-red-500/30 rounded-xl flex gap-2 text-sm text-red-300"><AlertTriangle className="w-4 h-4 shrink-0" />{error}</div>}
 
     {loading && !liveness ? <div className="h-64 flex flex-col items-center justify-center gap-3"><RefreshCw className="w-6 h-6 animate-spin text-brand-400" /><p className="text-xs text-gray-500">Checking live health probes…</p></div> : <>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-[#0d121f] border border-gray-800 rounded-2xl p-5 shadow-lg"><span className="text-[11px] uppercase text-gray-500 font-bold">Liveness Probe</span><div className="text-2xl font-black text-emerald-400 mt-2 capitalize">{liveness?.status || 'Unknown'}</div><p className="text-xs text-gray-500 mt-1">Uptime: {liveness?.uptime_seconds?.toFixed(1) || 0}s</p></div>
         <div className="bg-[#0d121f] border border-gray-800 rounded-2xl p-5 shadow-lg"><span className="text-[11px] uppercase text-gray-500 font-bold">Readiness Probe</span><div className="text-2xl font-black text-cyan-400 mt-2 capitalize">{readiness?.status || 'Unknown'}</div><p className="text-xs text-gray-500 mt-1">Database: {readiness?.database || "unknown"}</p></div>
         <div className="bg-[#0d121f] border border-gray-800 rounded-2xl p-5 shadow-lg"><span className="text-[11px] uppercase text-gray-500 font-bold">Credential Vault</span><div className="text-xl font-black text-brand-400 mt-2">Fernet authenticated</div><p className="text-xs text-gray-500 mt-1">Per-record salt encryption active</p></div>
+        <div className="bg-[#0d121f] border border-gray-800 rounded-2xl p-5 shadow-lg"><span className="text-[11px] uppercase text-gray-500 font-bold">Process Telemetry</span><div className="text-2xl font-black text-indigo-400 mt-2">{telemetry?.process?.max_rss_memory_mb ? `${telemetry.process.max_rss_memory_mb} MB` : 'Active'}</div><p className="text-xs text-gray-500 mt-1">Platforms: {telemetry?.platforms?.count ?? 0} active</p></div>
       </div>
     </>}
   </div>;

@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 
 from backend.app.db.session import get_db
-from backend.app.db.models import User, AuthSession
+from backend.app.db.models import User, AuthSession, OtpChallenge
 from backend.app.config import get_settings
 from backend.app.core.security import (
     get_password_hash,
@@ -45,6 +45,10 @@ from backend.app.core.schemas.auth import (
     AppTokenRefreshResponse,
     VerifyEmailRequest,
     PhoneVerificationRequest,
+    VerifyEmailOtpRequest,
+    ResendEmailOtpRequest,
+    VerifyPasswordResetOtpRequest,
+    ResendPasswordResetOtpRequest,
     TwoFactorSetupResponse,
     TwoFactorVerifyRequest,
     TwoFactorEnableResponse,
@@ -131,10 +135,10 @@ async def register_user(
         )
 
     # Create new user (defaults to unverified until email/phone confirmation)
-    # Generate verification token (use naive UTC for SQLite compatibility)
-    verification_token = secrets.token_urlsafe(32)
-    verification_token_hash = hashlib.sha256(verification_token.encode()).hexdigest()
-    verification_expiry = (datetime.now(timezone.utc) + timedelta(minutes=30)).replace(tzinfo=None)
+    # Generate 6-digit email OTP
+    email_otp = str(secrets.randbelow(900000) + 100000)
+    email_otp_hash = hashlib.sha256(email_otp.encode()).hexdigest()
+    email_otp_expiry = (datetime.now(timezone.utc) + timedelta(minutes=5)).replace(tzinfo=None)
 
     # Generate phone OTP if phone verification method
     phone_otp = None
@@ -143,7 +147,7 @@ async def register_user(
     if verification_method == "phone" and request.phone_number:
         phone_otp = str(secrets.randbelow(900000) + 100000)  # 6-digit OTP
         phone_otp_hash = hashlib.sha256(phone_otp.encode()).hexdigest()
-        phone_otp_expiry = (datetime.now(timezone.utc) + timedelta(minutes=10)).replace(tzinfo=None)
+        phone_otp_expiry = (datetime.now(timezone.utc) + timedelta(minutes=5)).replace(tzinfo=None)
 
     user = User(
         terms_accepted_at=datetime.now(timezone.utc).replace(tzinfo=None) if request.accept_terms else None,
@@ -156,8 +160,8 @@ async def register_user(
         phone_verified=False,
         is_superuser=False,
         two_factor_enabled=False,
-        email_verification_token=verification_token_hash,
-        email_verification_expiry=verification_expiry,
+        email_verification_token=email_otp_hash,
+        email_verification_expiry=email_otp_expiry,
         phone_verification_token=phone_otp_hash,
         phone_verification_expiry=phone_otp_expiry,
     )
@@ -165,24 +169,47 @@ async def register_user(
     await db.commit()
     await db.refresh(user)
 
+    # Create OTP Challenge record in database
+    if verification_method == "email":
+        challenge = OtpChallenge(
+            user_id=str(user.id),
+            email=user.email,
+            purpose="EMAIL_VERIFICATION",
+            otp_hash=email_otp_hash,
+            expires_at=email_otp_expiry,
+            max_attempts=5,
+        )
+        db.add(challenge)
+        await db.commit()
+
     # Send verification based on method
     email_sent = False
     phone_sent = False
 
     if verification_method == "email":
-        # Send verification email (non-blocking, log failure but don't fail registration)
         try:
             if settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST:
-                email_sent = await asyncio.to_thread(email_service.send_verification_email,
+                email_sent = await asyncio.to_thread(
+                    email_service.send_email_verification_otp,
                     to_email=user.email,
-                    verification_token=verification_token,
+                    otp_code=email_otp,
                     user_name=user.full_name,
                 )
                 if not email_sent:
-                    logging.warning(f"Failed to send verification email to {user.email}")
+                    logging.error(f"Failed to send verification email to {user.email}")
+                    raise HTTPException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail="Failed to send verification email. Please check your SMTP configuration in .env.",
+                    )
+        except HTTPException:
+            raise
         except Exception as e:
-            # Log but don't fail registration if email fails
             logging.error(f"Error sending verification email to {user.email}: {e}")
+            if settings.ENABLE_EMAIL_NOTIFICATIONS:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Email delivery failed: {str(e)}. Please check your SMTP settings in .env.",
+                )
     elif verification_method == "phone" and phone_otp:
         # Send verification SMS
         try:
@@ -231,13 +258,13 @@ async def register_user(
         user=profile,
     )
 
-    # Development mode ONLY: include verification token in response when email/SMS is disabled
+    # Strictly isolated local development / test mode ONLY:
     # In production or staging, this token is strictly NEVER returned in the API response under any circumstances.
     env_clean = str(settings.ENVIRONMENT or "").strip().lower()
     is_development_env = env_clean in {"development", "dev", "local", "test"}
 
     if is_development_env and not (settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST) and verification_method == "email":
-        response_data.verification_token = verification_token
+        response_data.verification_token = email_otp
     elif is_development_env and not (settings.ENABLE_PHONE_VERIFICATION and settings.SMS_PROVIDER) and verification_method == "phone" and phone_otp:
         response_data.verification_token = phone_otp
     else:
@@ -310,6 +337,21 @@ async def login_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User account is deactivated.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Reject unverified accounts — email verification required before login
+    if not user.is_verified:
+        default_audit_logger.log_event(
+            event_type=AuditEventType.AUTH_LOGIN_FAILED,
+            user_id=str(user.id),
+            ip_address=client_ip,
+            action="USER_LOGIN_FAILED_UNVERIFIED",
+            status="FAILURE",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email verification required. Please verify your email address before signing in.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -588,59 +630,86 @@ async def get_current_user_profile(
     dependencies=[Depends(rate_limit_guard(max_requests=10, window_seconds=60))],
 )
 async def verify_user_email(
-    request: VerifyEmailRequest,
+    request: VerifyEmailOtpRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Verify email address with confirmation token.
+    """Verify email address with 6-digit OTP code."""
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
 
-    Token must match the stored token and not be expired.
-    """
     # Check if already verified
     if current_user.is_verified:
         return {"verified": True, "email": current_user.email, "message": "Email already verified"}
 
-    # Check if token exists
-    if not current_user.email_verification_token:
+    # Look up the active OTP challenge for this user
+    result = await db.execute(select(OtpChallenge).where(
+        OtpChallenge.email == current_user.email,
+        OtpChallenge.purpose == "EMAIL_VERIFICATION",
+        OtpChallenge.used_at.is_(None),
+        OtpChallenge.revoked_at.is_(None),
+    ).order_by(OtpChallenge.created_at.desc()))
+    challenge = result.scalars().first()
+
+    if not challenge:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No verification token found. Please request a new verification email.",
+            detail="No verification code found. Please request a new verification email.",
         )
 
-    # Check if token has expired (use naive UTC for SQLite compatibility)
-    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
-    if current_user.email_verification_expiry and current_user.email_verification_expiry < now_utc:
+    # Check if expired
+    if challenge.expires_at < now_utc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Verification token has expired. Please request a new verification email.",
+            detail="Verification code has expired. Please request a new code.",
         )
 
-    # Accept either token or code field (both should contain the same value)
-    submitted_token = request.token or request.code
-    if not submitted_token:
+    # Check attempt limit
+    if challenge.attempt_count >= challenge.max_attempts:
+        challenge.revoked_at = now_utc
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Either 'token' or 'code' field is required.",
+            detail="Too many failed attempts. Please request a new verification code.",
         )
 
-    # Hash submitted token and compare using constant-time comparison
-    submitted_token_hash = hashlib.sha256(submitted_token.encode()).hexdigest()
-    if not secrets.compare_digest(current_user.email_verification_token, submitted_token_hash):
-        default_audit_logger.log_event(
-            event_type=AuditEventType.SETTINGS_UPDATED,
-            user_id=str(current_user.id),
-            action="EMAIL_VERIFICATION_FAILED_INVALID_TOKEN",
-            status="FAILURE",
-        )
+    submitted_code = request.code or request.token
+    if not submitted_code:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid verification token. Please check the token and try again.",
+            detail="Verification code or token is required.",
         )
 
-    # Token is valid - verify the email
+    # Verify OTP/token using secure hash comparison
+    submitted_otp_hash = hashlib.sha256(submitted_code.encode()).hexdigest()
+    if not secrets.compare_digest(challenge.otp_hash, submitted_otp_hash):
+        # Also check against user.email_verification_token if available
+        matched_user_token = (
+            current_user.email_verification_token and
+            secrets.compare_digest(current_user.email_verification_token, submitted_otp_hash)
+        )
+        if not matched_user_token:
+            challenge.attempt_count += 1
+            await db.commit()
+            default_audit_logger.log_event(
+                event_type=AuditEventType.AUTH_LOGIN_FAILED,
+                user_id=str(current_user.id),
+                action="EMAIL_VERIFICATION_FAILED_INVALID_OTP",
+                status="FAILURE",
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid verification code. Please check the code and try again.",
+            )
+
+    # OTP is valid - verify the email
     current_user.is_verified = True
-    current_user.email_verification_token = None  # Invalidate token after use
+    current_user.email_verified_at = now_utc
+    challenge.used_at = now_utc
+
+    # Optional: nullify legacy token fields
+    current_user.email_verification_token = None
     current_user.email_verification_expiry = None
+
     await db.commit()
     await db.refresh(current_user)
 
@@ -669,13 +738,47 @@ async def resend_verification_email(
     if current_user.is_verified:
         return {"message": "Email is already verified", "email": current_user.email}
 
-    # Generate new verification token (use naive UTC for SQLite compatibility)
-    verification_token = secrets.token_urlsafe(32)
-    verification_token_hash = hashlib.sha256(verification_token.encode()).hexdigest()
-    verification_expiry = (datetime.now(timezone.utc) + timedelta(minutes=30)).replace(tzinfo=None)
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
 
-    current_user.email_verification_token = verification_token_hash
-    current_user.email_verification_expiry = verification_expiry
+    # Check for recent active challenge to enforce 60s cooldown
+    recent_result = await db.execute(select(OtpChallenge).where(
+        OtpChallenge.email == current_user.email,
+        OtpChallenge.purpose == "EMAIL_VERIFICATION",
+        OtpChallenge.created_at > (now_utc - timedelta(seconds=60)),
+    ))
+    if recent_result.scalars().first():
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Please wait 60 seconds before requesting another verification code.",
+        )
+
+    # Invalidate all prior active challenges for this email
+    await db.execute(update(OtpChallenge).where(
+        OtpChallenge.email == current_user.email,
+        OtpChallenge.purpose == "EMAIL_VERIFICATION",
+        OtpChallenge.used_at.is_(None),
+        OtpChallenge.revoked_at.is_(None),
+    ).values(revoked_at=now_utc))
+
+    # Generate new 6-digit OTP
+    email_otp = str(secrets.randbelow(900000) + 100000)
+    email_otp_hash = hashlib.sha256(email_otp.encode()).hexdigest()
+    email_otp_expiry = (datetime.now(timezone.utc) + timedelta(minutes=5)).replace(tzinfo=None)
+
+    # Create new challenge
+    challenge = OtpChallenge(
+        user_id=str(current_user.id),
+        email=current_user.email,
+        purpose="EMAIL_VERIFICATION",
+        otp_hash=email_otp_hash,
+        expires_at=email_otp_expiry,
+        max_attempts=5,
+    )
+    db.add(challenge)
+
+    # Also update user model legacy fields
+    current_user.email_verification_token = email_otp_hash
+    current_user.email_verification_expiry = email_otp_expiry
     await db.commit()
     await db.refresh(current_user)
 
@@ -683,9 +786,10 @@ async def resend_verification_email(
     email_sent = False
     try:
         if settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST:
-            email_sent = await asyncio.to_thread(email_service.send_verification_email,
+            email_sent = await asyncio.to_thread(
+                email_service.send_email_verification_otp,
                 to_email=current_user.email,
-                verification_token=verification_token,
+                otp_code=email_otp,
                 user_name=current_user.full_name,
             )
     except Exception as e:
@@ -705,16 +809,140 @@ async def resend_verification_email(
             detail="Failed to send verification email. Please try again later.",
         )
 
-    response_data = {
-        "message": "Verification email sent" if email_sent else "Verification token generated (email delivery disabled)",
+    return {
+        "message": "Verification code sent to your email.",
         "email": current_user.email,
     }
 
-    # Development mode: include verification token in response when email is disabled
-    if settings.ENVIRONMENT == "development" and not (settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST):
-        response_data["verification_token"] = verification_token
 
-    return response_data
+@router.post(
+    "/resend-email-otp",
+    dependencies=[Depends(rate_limit_guard(max_requests=3, window_seconds=300))],
+)
+async def resend_email_otp(
+    req: Request,
+    request: Optional[ResendEmailOtpRequest] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """Resend email verification OTP. Can be called with email (for unauthenticated users) or using active session."""
+    client_ip = req.client.host if req.client else "127.0.0.1"
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    # Determine target email
+    email = None
+    if request and request.email:
+        email = request.email.strip().lower()
+    else:
+        # Try to get from auth token/cookie
+        from backend.app.core.security import decode_token
+        token = None
+        if "Authorization" in req.headers and " " in req.headers["Authorization"]:
+            token = req.headers["Authorization"].split(" ", 1)[1]
+        elif req.cookies.get("aismm_access_token"):
+            token = req.cookies.get("aismm_access_token")
+        if token:
+            try:
+                payload = decode_token(token)
+                sub = payload.get("sub")
+                if sub:
+                    u_res = await db.execute(select(User).where(User.id == UUID(sub)))
+                    u = u_res.scalar_one_or_none()
+                    if u:
+                        email = u.email
+            except Exception:
+                pass
+
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email is required to resend verification code.",
+        )
+
+    # Find user
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        # Don't leak account existence, return generic success
+        return {"message": "If an account exists with this email, a verification code has been sent."}
+
+    if user.is_verified:
+        return {"message": "Email is already verified.", "email": user.email}
+
+    # Enforce 60s cooldown
+    recent_result = await db.execute(select(OtpChallenge).where(
+        OtpChallenge.email == user.email,
+        OtpChallenge.purpose == "EMAIL_VERIFICATION",
+        OtpChallenge.created_at > (now_utc - timedelta(seconds=60)),
+    ))
+    if recent_result.scalars().first():
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Please wait 60 seconds before requesting another verification code.",
+        )
+
+    # Invalidate all prior active challenges for this email
+    await db.execute(update(OtpChallenge).where(
+        OtpChallenge.email == user.email,
+        OtpChallenge.purpose == "EMAIL_VERIFICATION",
+        OtpChallenge.used_at.is_(None),
+        OtpChallenge.revoked_at.is_(None),
+    ).values(revoked_at=now_utc))
+
+    # Generate new 6-digit OTP
+    email_otp = str(secrets.randbelow(900000) + 100000)
+    email_otp_hash = hashlib.sha256(email_otp.encode()).hexdigest()
+    email_otp_expiry = (datetime.now(timezone.utc) + timedelta(minutes=5)).replace(tzinfo=None)
+
+    challenge = OtpChallenge(
+        user_id=str(user.id),
+        email=user.email,
+        purpose="EMAIL_VERIFICATION",
+        otp_hash=email_otp_hash,
+        expires_at=email_otp_expiry,
+        max_attempts=5,
+    )
+    db.add(challenge)
+    current_user_token = email_otp_hash
+    user.email_verification_token = current_user_token
+    user.email_verification_expiry = email_otp_expiry
+    await db.commit()
+
+    # Send verification email
+    email_sent = False
+    try:
+        if settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST:
+            email_sent = await asyncio.to_thread(
+                email_service.send_email_verification_otp,
+                to_email=user.email,
+                otp_code=email_otp,
+                user_name=user.full_name,
+            )
+            if not email_sent:
+                logging.error(f"Failed to send verification email to {user.email}")
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail="Failed to deliver verification email. Please check your SMTP configuration in .env.",
+                )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error sending verification email to {user.email}: {e}")
+        if settings.ENABLE_EMAIL_NOTIFICATIONS:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Email delivery failed: {str(e)}. Please check your SMTP settings in .env.",
+            )
+
+    default_audit_logger.log_event(
+        event_type=AuditEventType.SETTINGS_UPDATED,
+        user_id=str(user.id),
+        ip_address=client_ip,
+        action="EMAIL_OTP_RESENT",
+        status="SUCCESS" if email_sent else "EMAIL_SEND_FAILED",
+    )
+
+    return {"message": "Verification code sent to your email."}
 
 
 @router.post(
@@ -1113,24 +1341,124 @@ async def change_password(request: PasswordChange, current_user: User = Depends(
 
 @router.post('/forgot-password', dependencies=[Depends(rate_limit_guard(max_requests=3, window_seconds=300))])
 async def forgot_password(request: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
+    """Request a password reset OTP code. Never reveals whether the account exists."""
     user = await db.scalar(select(User).where(User.email == request.email.strip().lower()))
-    token = None
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+
     if user and user.is_active:
-        token = secrets.token_urlsafe(32)
-        user.password_reset_hash = hashlib.sha256(token.encode()).hexdigest()
-        user.password_reset_expiry = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=30)
+        # Invalidate existing reset challenges for this user
+        await db.execute(update(OtpChallenge).where(
+            OtpChallenge.email == user.email,
+            OtpChallenge.purpose == "PASSWORD_RESET",
+            OtpChallenge.used_at.is_(None),
+            OtpChallenge.revoked_at.is_(None),
+        ).values(revoked_at=now_utc))
+
+        # Generate 6-digit OTP
+        reset_otp = str(secrets.randbelow(900000) + 100000)
+        reset_otp_hash = hashlib.sha256(reset_otp.encode()).hexdigest()
+        reset_otp_expiry = (datetime.now(timezone.utc) + timedelta(minutes=5)).replace(tzinfo=None)
+
+        # Store in OtpChallenge table
+        challenge = OtpChallenge(
+            user_id=str(user.id),
+            email=user.email,
+            purpose="PASSWORD_RESET",
+            otp_hash=reset_otp_hash,
+            expires_at=reset_otp_expiry,
+            max_attempts=5,
+        )
+        db.add(challenge)
+
+        # Also store on user model for compatibility
+        user.password_reset_hash = reset_otp_hash
+        user.password_reset_expiry = reset_otp_expiry
         await db.commit()
+
+        # Send real email
         if settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST:
-            await asyncio.to_thread(email_service.send_password_reset_email, user.email, token, user.full_name)
+            await asyncio.to_thread(
+                email_service.send_otp_email,
+                to_email=user.email,
+                otp_code=reset_otp,
+                purpose="reset",
+                user_name=user.full_name,
+                expires_in_minutes=5,
+            )
 
-    env_clean = str(settings.ENVIRONMENT or "").strip().lower()
-    is_development_env = env_clean in {"development", "dev", "local", "test"}
-
-    if is_development_env and token and not (settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST):
-        logging.info(f"[DEV ONLY] Password reset URL for {request.email}: /reset-password?token={token}")
+        default_audit_logger.log_event(
+            event_type=AuditEventType.SETTINGS_UPDATED,
+            user_id=str(user.id),
+            action="PASSWORD_RESET_REQUESTED",
+            status="SUCCESS",
+        )
 
     return {
-        'message': 'If an account exists, a password reset link will be sent. Check your inbox.'
+        'message': 'If an account exists with this email, a verification code has been sent. Check your inbox.'
+    }
+
+
+@router.post('/verify-password-reset-otp', dependencies=[Depends(rate_limit_guard(max_requests=5, window_seconds=300))])
+async def verify_password_reset_otp(request: VerifyPasswordResetOtpRequest, db: AsyncSession = Depends(get_db)):
+    """Verify password reset OTP and return a single-use reset token."""
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    email = request.email.strip().lower()
+
+    result = await db.execute(select(OtpChallenge).where(
+        OtpChallenge.email == email,
+        OtpChallenge.purpose == "PASSWORD_RESET",
+        OtpChallenge.used_at.is_(None),
+        OtpChallenge.revoked_at.is_(None),
+    ).order_by(OtpChallenge.created_at.desc()))
+    challenge = result.scalars().first()
+
+    if not challenge:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No active password reset request found. Please request a new code.",
+        )
+
+    if challenge.expires_at < now_utc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification code has expired. Please request a new code.",
+        )
+
+    if challenge.attempt_count >= challenge.max_attempts:
+        challenge.revoked_at = now_utc
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Too many failed attempts. Please request a new code.",
+        )
+
+    submitted_otp_hash = hashlib.sha256(request.code.encode()).hexdigest()
+    if not secrets.compare_digest(challenge.otp_hash, submitted_otp_hash):
+        challenge.attempt_count += 1
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid verification code. Please check the code and try again.",
+        )
+
+    # Valid OTP: Generate a temporary single-use reset authorization token
+    reset_auth_token = secrets.token_urlsafe(32)
+    reset_auth_token_hash = hashlib.sha256(reset_auth_token.encode()).hexdigest()
+    reset_auth_expiry = (datetime.now(timezone.utc) + timedelta(minutes=15)).replace(tzinfo=None)
+
+    # Invalidate the OTP challenge so it cannot be used again
+    challenge.used_at = now_utc
+
+    # Update user's password reset hash to the new single-use token
+    user = await db.scalar(select(User).where(User.email == email))
+    if user:
+        user.password_reset_hash = reset_auth_token_hash
+        user.password_reset_expiry = reset_auth_expiry
+        await db.commit()
+
+    return {
+        "message": "Verification code accepted. Please enter your new password.",
+        "reset_token": reset_auth_token,
     }
 
 
@@ -1147,7 +1475,14 @@ async def reset_password(request: PasswordResetConfirm, db: AsyncSession = Depen
              password_reset_expiry=None).returning(User.id))
     user_id = result.scalar_one_or_none()
     if user_id is None:
-        raise HTTPException(400, 'Reset link is invalid or expired.')
+        raise HTTPException(400, 'Reset token is invalid or expired. Please request a new code.')
     await revoke_all(db, user_id)
     await db.commit()
+
+    default_audit_logger.log_event(
+        event_type=AuditEventType.SETTINGS_UPDATED,
+        user_id=str(user_id),
+        action="PASSWORD_RESET_COMPLETED",
+        status="SUCCESS",
+    )
     return {'message': 'Password reset. Sign in with your new password.'}

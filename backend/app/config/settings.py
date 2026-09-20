@@ -98,9 +98,12 @@ class Settings(BaseSettings):
     SMTP_HOST: Optional[str] = None
     SMTP_PORT: int = 587
     SMTP_USER: Optional[str] = None
+    SMTP_USERNAME: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
     FROM_EMAIL: Optional[str] = Field(default="noreply@aismm.app", description="From email address for outbound emails")
+    SMTP_FROM_EMAIL: Optional[str] = None
     FROM_NAME: str = Field(default="AISMM", description="From name for outbound emails")
+    SMTP_FROM_NAME: Optional[str] = None
 
     # SMS/Phone Verification
     ENABLE_PHONE_VERIFICATION: bool = False

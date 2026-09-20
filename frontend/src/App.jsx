@@ -68,22 +68,12 @@ function Studio({ user, onLogout, onUser }) {
 }
 
 function VerifyEmail({ onSuccess, onCancel }) {
-  const [error, setError] = useState('');
-  const [working, setWorking] = useState(false);
-  const token = new URLSearchParams(window.location.search).get('token');
-  async function verify() {
-    setWorking(true); setError('');
-    try { await api.verifyEmail(token); const me = await api.getMe(); setAuthSession(null,null,me); onSuccess(me); }
-    catch (err) { setError(err.message); } finally { setWorking(false); }
-  }
-  if (!token) return <AuthView initialMode="verify" onAuthSuccess={onSuccess} onCancel={onCancel}/>;
-  return <div className="max-w-lg mx-auto p-6 mt-16"><div className="panel"><h1 className="text-2xl font-bold mb-4">Verify your email</h1><p className="text-slate-400 mb-6">Confirm your address to unlock your workspace. If you opened this link on another device, sign in first, then reopen the link.</p>{error && <div className="error mb-4">{error}</div>}<button className="btn w-full" disabled={working} onClick={verify}>{working ? 'Verifying…' : 'Confirm email address'}</button><Link className="block text-brand-300 mt-4" to="/login">Sign in</Link></div></div>;
+  return <AuthView initialMode="verify" onAuthSuccess={onSuccess} onCancel={onCancel} />;
 }
 
 function ResetPassword() {
-  const [password, setPassword] = useState(''); const [message,setMessage] = useState(''); const [error,setError] = useState(''); const [busy,setBusy] = useState(false);
-  async function submit(e) { e.preventDefault(); setBusy(true); setError(''); try { const result = await api.resetPassword(new URLSearchParams(window.location.search).get('token') || '',password); clearAuthSession(); setMessage(result.message); } catch(err) { setError(err.message); } finally { setBusy(false); } }
-  return <div className="max-w-lg mx-auto p-6 mt-16 panel"><h1 className="text-2xl font-bold mb-6">Choose a new password</h1>{error && <div className="error">{error}</div>}{message ? <div className="notice">{message}<Link to="/login" className="block underline mt-3">Sign in</Link></div> : <form className="space-y-4" onSubmit={submit}><label className="block">New password<input className="field mt-2" type="password" autoComplete="new-password" required minLength={8} maxLength={72} value={password} onChange={e=>setPassword(e.target.value)}/></label><button className="btn" disabled={busy}>Reset password</button></form>}</div>;
+  const navigate = useNavigate();
+  return <AuthView initialMode="forgot" onAuthSuccess={() => navigate('/login')} onCancel={() => navigate('/')} />;
 }
 
 function OAuthCallback() {
@@ -121,7 +111,7 @@ function Application() {
   if(checking) return <div className="p-12 text-slate-400" role="status">Restoring your secure session…</div>;
   return <><a href="#main-content" className="sr-only focus:not-sr-only">Skip to content</a>{error && <div role="alert" className="error">{error}<button className="ml-3 underline" onClick={logout}>Retry logout</button></div>}
     <Routes>
-      <Route path="/" element={<LandingPage onLaunchDashboard={()=>navigate(user?'/app/overview':'/register')} onOpenAuth={()=>navigate('/login')}/>}/>
+      <Route path="/" element={<LandingPage onLaunchDashboard={()=>navigate((user && (user.is_verified || user.phone_verified)) ? '/app/overview' : '/register')} onOpenAuth={()=>navigate('/login')}/>}/>
       <Route path="/login" element={<AuthView onAuthSuccess={success} onCancel={()=>navigate('/')}/>}/>
       <Route path="/register" element={<AuthView initialMode="register" onAuthSuccess={success} onCancel={()=>navigate('/')}/>}/>
       <Route path="/verify-email" element={<VerifyEmail onSuccess={success} onCancel={()=>navigate('/')}/>}/>

@@ -150,6 +150,10 @@ def test_meta_oauth_is_active_and_connectable(client, monkeypatch):
     _, headers = register_user(client, "meta_tester@example.com")
     settings = get_settings()
     monkeypatch.setattr(settings, "FRONTEND_URL", "http://localhost:3000")
+    monkeypatch.setattr(settings, "INSTAGRAM_CLIENT_ID", "mock_ig_client_id")
+    monkeypatch.setattr(settings, "INSTAGRAM_CLIENT_SECRET", "mock_ig_client_secret")
+    monkeypatch.setattr(settings, "FACEBOOK_CLIENT_ID", "mock_fb_client_id")
+    monkeypatch.setattr(settings, "FACEBOOK_CLIENT_SECRET", "mock_fb_client_secret")
 
     for platform in ["instagram", "facebook"]:
         resp = client.post("/api/v1/auth/oauth/init", headers=headers, json={
@@ -163,14 +167,30 @@ def test_meta_oauth_is_active_and_connectable(client, monkeypatch):
 
         # Test callback exchange
         state = data["state"]
-        cb_resp = client.post("/api/v1/auth/oauth/callback", headers=headers, json={
-            "platform": platform,
-            "code": f"dev_auth_{platform}_test",
-            "state": state,
-            "redirect_uri": "http://localhost:3000/oauth/callback"
-        })
-        assert cb_resp.status_code == 200, cb_resp.text
-        assert cb_resp.json()["platform"] == platform
+        mock_adapter = MagicMock()
+        mock_adapter.auth._state_store = {}
+        if platform == "instagram":
+            mock_adapter.auth.exchange_code = AsyncMock(return_value={"access_token": "ig_user_token_123"})
+            mock_adapter.auth.get_instagram_business_account = AsyncMock(return_value={
+                "id": f"ig_{platform}_test", "username": "meta_tester",
+                "name": "Meta Tester", "page_access_token": "page_token_meta",
+            })
+        else:
+            mock_adapter.auth.exchange_code = AsyncMock(return_value={"access_token": "fb_user_token_123"})
+            mock_adapter.auth.get_page_access_token = AsyncMock(return_value={
+                "page_id": f"page_{platform}_test", "page_access_token": "page_token_meta"})
+            mock_adapter.auth.get_user_profile = AsyncMock(return_value={
+                "id": f"page_{platform}_test", "username": "meta_tester", "name": "Meta Tester"})
+
+        with patch("backend.app.services.oauth_service.configured_adapter", return_value=mock_adapter):
+            cb_resp = client.post("/api/v1/auth/oauth/callback", headers=headers, json={
+                "platform": platform,
+                "code": "real_meta_auth_code",
+                "state": state,
+                "redirect_uri": "http://localhost:3000/oauth/callback"
+            })
+            assert cb_resp.status_code == 200, cb_resp.text
+            assert cb_resp.json()["platform"] == platform
 
 
 @pytest.mark.asyncio

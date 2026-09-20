@@ -4,7 +4,7 @@
  * Never silently masks offline/failed states with fake numbers.
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api/v1";
+const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || "/api/v1";
 
 // Auth Token Management via HttpOnly Cookies & Bearer Tokens
 export function getAuthToken() {
@@ -102,6 +102,7 @@ export const api = {
   enable2fa: (code) => fetchApi('/auth/2fa/enable', { method: 'POST', body: JSON.stringify({ code }) }),
   disable2fa: (code) => fetchApi('/auth/2fa/disable', { method: 'POST', body: JSON.stringify({ code }) }),
   forgotPassword: (email) => fetchApi('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+  verifyPasswordResetOtp: (email, code) => fetchApi('/auth/verify-password-reset-otp', { method: 'POST', body: JSON.stringify({ email, code }) }),
   resetPassword: (token, password) => fetchApi('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
   initOAuth: (platform) => fetchApi('/auth/oauth/init', { method: 'POST', body: JSON.stringify({ platform, redirect_uri: `${window.location.origin}/oauth/callback` }) }),
   completeOAuth: (data) => fetchApi('/auth/oauth/callback', { method: 'POST', body: JSON.stringify(data) }),
@@ -110,11 +111,15 @@ export const api = {
   login: (email, password, two_factor_code) => fetchApi("/auth/login", { method: "POST", body: JSON.stringify({ email, password, two_factor_code }) }),
   register: (email, password, full_name, phone_number, verification_method) => fetchApi("/auth/register", { method: "POST", body: JSON.stringify({ email, password, full_name, phone_number: phone_number || null, verification_method, accept_terms: true }) }),
   verifyEmail: (code) => fetchApi("/auth/verify-email", { method: "POST", body: JSON.stringify({ code }) }),
+  verifyEmailOtp: (code) => fetchApi("/auth/verify-email", { method: "POST", body: JSON.stringify({ code }) }),
   verifyPhone: (code, phone_number) => fetchApi("/auth/verify-phone", { method: "POST", body: JSON.stringify({ code, phone_number }) }),
   resendVerification: () => fetchApi("/auth/resend-verification", { method: "POST" }),
+  resendEmailOtp: (email) => fetchApi("/auth/resend-email-otp", { method: "POST", body: JSON.stringify({ email }) }),
   resendPhoneVerification: () => fetchApi("/auth/resend-phone-verification", { method: "POST" }),
   getMe: () => fetchApi("/auth/me"),
+  getCurrentUser: () => fetchApi("/auth/me"),
   refreshToken: (refresh_token) => fetchApi("/auth/refresh", { method: "POST", body: JSON.stringify({ refresh_token }) }),
+  refreshSession: () => refreshSession(),
 
   // Health & System
   getLiveness: () => fetchApi("/health/liveness"),

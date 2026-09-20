@@ -6,11 +6,6 @@ import {
   Shield,
   Bell,
   Key,
-  CheckCircle2,
-  Lock,
-  Globe,
-  Clock,
-  Moon,
   RefreshCw,
   Save
 } from 'lucide-react';

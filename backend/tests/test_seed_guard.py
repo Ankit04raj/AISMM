@@ -13,9 +13,10 @@ from test_auth_and_scoping import async_test_db, app_with_db, client
 
 
 def test_seed_script_refuses_production_environment():
-    """seed_live_demo.py must exit with code 1 and print fatal error if ENVIRONMENT != development."""
+    """seed_live_demo.py must exit with code 1 if ENVIRONMENT != development."""
     env = os.environ.copy()
     env["ENVIRONMENT"] = "production"
+    env["AISMM_ALLOW_DEMO_SEED"] = "1"
     env["DEBUG"] = "false"
 
     script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../scripts/seed_live_demo.py"))
@@ -29,13 +30,14 @@ def test_seed_script_refuses_production_environment():
 
     assert proc.returncode == 1
     assert "FATAL ERROR" in proc.stderr
-    assert "Refusing to execute demo seed script in 'production' environment" in proc.stderr
+    assert "ENVIRONMENT=development" in proc.stderr
 
 
 def test_seed_script_refuses_staging_environment():
     """seed_live_demo.py must exit with code 1 if ENVIRONMENT=staging."""
     env = os.environ.copy()
     env["ENVIRONMENT"] = "staging"
+    env["AISMM_ALLOW_DEMO_SEED"] = "1"
     env["DEBUG"] = "false"
 
     script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../scripts/seed_live_demo.py"))
@@ -49,6 +51,7 @@ def test_seed_script_refuses_staging_environment():
 
     assert proc.returncode == 1
     assert "FATAL ERROR" in proc.stderr
+    assert "ENVIRONMENT=development" in proc.stderr
 
 
 @pytest.mark.asyncio
@@ -141,3 +144,82 @@ async def test_cleanup_removes_mock_account_on_non_demo_user(async_test_db):
 
     acc_rem = await async_test_db.scalar(select(SocialAccount).where(SocialAccount.username == "real_handle"))
     assert acc_rem is None
+
+
+SEED_ENV_BASE = {"ENVIRONMENT": "development", "DEBUG": "false"}
+
+
+def _run_seed(env_overrides, extra_args=None):
+    env = os.environ.copy()
+    for key in ("AISMM_ALLOW_DEMO_SEED", "AISMM_REAL_OAUTH_TESTING", "AISMM_DEMO_DATABASE_URL",
+                "X_CLIENT_ID", "FACEBOOK_CLIENT_ID", "INSTAGRAM_CLIENT_ID",
+                "LINKEDIN_CLIENT_ID", "YOUTUBE_CLIENT_ID"):
+        env.pop(key, None)
+    env.update(env_overrides)
+    script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../scripts/seed_live_demo.py"))
+    return subprocess.run(
+        [sys.executable, script_path, *(extra_args or [])],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_seed_requires_explicit_demo_opt_in():
+    """Without AISMM_ALLOW_DEMO_SEED the script must refuse even in development."""
+    proc = _run_seed({"ENVIRONMENT": "development"})
+    assert proc.returncode == 1
+    assert "FATAL ERROR" in proc.stderr
+    assert "AISMM_ALLOW_DEMO_SEED" in proc.stderr
+
+
+def test_seed_refuses_when_real_oauth_testing_flag_set():
+    proc = _run_seed({
+        "ENVIRONMENT": "development",
+        "AISMM_ALLOW_DEMO_SEED": "1",
+        "AISMM_REAL_OAUTH_TESTING": "1",
+        "AISMM_DEMO_DATABASE_URL": "sqlite+aiosqlite:///./demo_seed.db",
+        "DATABASE_URL": "sqlite+aiosqlite:///./demo_seed.db",
+    })
+    assert proc.returncode == 1
+    assert "real OAuth context detected" in proc.stderr
+
+
+def test_seed_refuses_when_provider_credentials_configured():
+    proc = _run_seed({
+        "ENVIRONMENT": "development",
+        "AISMM_ALLOW_DEMO_SEED": "1",
+        "AISMM_DEMO_DATABASE_URL": "sqlite+aiosqlite:///./demo_seed.db",
+        "DATABASE_URL": "sqlite+aiosqlite:///./demo_seed.db",
+        "X_CLIENT_ID": "real-x-client-id",
+    })
+    assert proc.returncode == 1
+    assert "real OAuth context detected" in proc.stderr
+    assert "x" in proc.stderr
+
+
+def test_seed_requires_dedicated_demo_database():
+    proc = _run_seed({
+        "ENVIRONMENT": "development",
+        "AISMM_ALLOW_DEMO_SEED": "1",
+        "DATABASE_URL": "postgresql+asyncpg://postgres:postgres@localhost:5432/aismm",
+    })
+    assert proc.returncode == 1
+    assert "AISMM_DEMO_DATABASE_URL" in proc.stderr
+
+
+def test_seed_refuses_production_even_with_demo_flags():
+    proc = _run_seed({
+        "ENVIRONMENT": "production",
+        "AISMM_ALLOW_DEMO_SEED": "1",
+        "AISMM_DEMO_DATABASE_URL": "sqlite+aiosqlite:///./demo_seed.db",
+    })
+    assert proc.returncode == 1
+    assert "FATAL ERROR" in proc.stderr
+
+
+def test_purge_path_is_blocked_without_opt_in():
+    proc = _run_seed({"ENVIRONMENT": "development"}, extra_args=["--purge"])
+    assert proc.returncode == 1
+    assert "FATAL ERROR" in proc.stderr
+    assert "AISMM_ALLOW_DEMO_SEED" in proc.stderr

@@ -14,20 +14,54 @@ from uuid import uuid4
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # =============================================================================
-# ENVIRONMENT SAFETY GUARD: NEVER RUN AGAINST STAGING OR PRODUCTION DATABASES
+# ENVIRONMENT SAFETY GUARD: NEVER RUN WHERE REAL OAUTH IS BEING TESTED OR USED
 # =============================================================================
-_raw_env = (os.getenv("ENVIRONMENT") or "development").strip().lower()
-if _raw_env not in {"development", "dev", "local", "test"}:
+# Fail-closed rules, checked BEFORE settings or DB engine creation:
+#   1. ENVIRONMENT must be development and AISMM_ALLOW_DEMO_SEED must be "1".
+#   2. Refuse when real-OAuth testing mode is on (AISMM_REAL_OAUTH_TESTING=1)
+#      or when any platform has non-placeholder provider credentials configured.
+#   3. DATABASE_URL must point at an explicitly designated demo database
+#      (AISMM_DEMO_DATABASE_URL) — never the application database.
+_raw_env = (os.getenv("ENVIRONMENT") or "").strip().lower()
+_allow_demo = (os.getenv("AISMM_ALLOW_DEMO_SEED") or "").strip().lower() in {"1", "true", "yes"}
+if _raw_env not in {"development", "dev"} or not _allow_demo:
     sys.stderr.write(
-        f"\n[FATAL ERROR] Refusing to execute demo seed script in '{_raw_env}' environment!\n"
+        f"\n[FATAL ERROR] Refusing to execute demo seed script (ENVIRONMENT={_raw_env or 'unset'}, "
+        f"AISMM_ALLOW_DEMO_SEED={'set' if _allow_demo else 'unset'}).\n"
         f"This script creates placeholder mock social accounts and dummy data.\n"
-        f"It is strictly restricted to development environments (ENVIRONMENT=development).\n"
-        f"If you need to seed data for testing, set ENVIRONMENT=development in your environment.\n\n"
+        f"Requirements: ENVIRONMENT=development AND AISMM_ALLOW_DEMO_SEED=1 AND\n"
+        f"AISMM_DEMO_DATABASE_URL set to a dedicated demo database.\n\n"
+    )
+    sys.exit(1)
+
+# Real provider credentials configured = real OAuth territory. Never seed here.
+_REAL_CREDENTIAL_PLATFORMS = ["X", "FACEBOOK", "INSTAGRAM", "LINKEDIN", "YOUTUBE"]
+_configured = []
+for _p in _REAL_CREDENTIAL_PLATFORMS:
+    _cid = (os.getenv(f"{_p}_CLIENT_ID") or "").strip()
+    if _cid and not _cid.startswith("your_"):
+        _configured.append(_p.lower())
+if _configured or (os.getenv("AISMM_REAL_OAUTH_TESTING") or "").strip().lower() in {"1", "true", "yes"}:
+    sys.stderr.write(
+        f"\n[FATAL ERROR] Refusing to seed demo accounts: real OAuth context detected "
+        f"(credentials configured for: {', '.join(_configured) or 'none'}; "
+        f"AISMM_REAL_OAUTH_TESTING is set). Demo seeding would pollute live-OAuth testing.\n\n"
     )
     sys.exit(1)
 
 from backend.app.config.settings import get_settings
 _settings = get_settings()
+
+_demo_db = (os.getenv("AISMM_DEMO_DATABASE_URL") or "").strip()
+_effective_db = (os.getenv("DATABASE_URL") or _settings.DATABASE_URL or "").strip()
+if not _demo_db or _demo_db != _effective_db:
+    sys.stderr.write(
+        f"\n[FATAL ERROR] Refusing to seed: DATABASE_URL must exactly equal AISMM_DEMO_DATABASE_URL.\n"
+        f"Set both to a dedicated demo database (never the application database).\n"
+        f"  DATABASE_URL              = {_effective_db}\n"
+        f"  AISMM_DEMO_DATABASE_URL   = {_demo_db or '(unset)'}\n\n"
+    )
+    sys.exit(1)
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker

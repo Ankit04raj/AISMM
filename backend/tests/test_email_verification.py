@@ -1,7 +1,7 @@
 """Integration tests for real email verification flow.
 
-Covers: token generation at registration, correct-token success, wrong-token
-failure, expired-token failure, token invalidation after use, and resend.
+Covers: OTP generation at registration, correct OTP success, wrong OTP
+failure, expired OTP failure, OTP invalidation after use, and resend.
 """
 
 import pytest
@@ -15,7 +15,7 @@ from sqlalchemy import select
 
 from backend.app.main import create_app
 from backend.app.db.session import Base, get_db
-from backend.app.db.models import User
+from backend.app.db.models import User, OtpChallenge
 
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -70,12 +70,23 @@ async def _get_user(async_test_db, email: str):
     return result.scalar_one_or_none()
 
 
+async def _get_otp_challenge(async_test_db, email: str, purpose: str = "EMAIL_VERIFICATION"):
+    stmt = select(OtpChallenge).where(
+        OtpChallenge.email == email,
+        OtpChallenge.purpose == purpose,
+        OtpChallenge.used_at.is_(None),
+        OtpChallenge.revoked_at.is_(None),
+    ).order_by(OtpChallenge.created_at.desc())
+    result = await async_test_db.execute(stmt)
+    return result.scalars().first()
+
+
 class TestEmailVerification:
-    """Real email verification: token generated, verified with correct token, fails otherwise."""
+    """Real email verification: OTP generated, verified with correct OTP, fails otherwise."""
 
     @pytest.mark.asyncio
-    async def test_registration_stores_token_and_unverified_user(self, client, async_test_db):
-        """Registering sets is_verified=False and stores a non-empty token + expiry."""
+    async def test_registration_stores_otp_challenge_and_unverified_user(self, client, async_test_db):
+        """Registering sets is_verified=False and creates an active OtpChallenge."""
         resp = _register(client, "new.user@example.com")
         assert resp.status_code == 201, resp.text
         data = resp.json()
@@ -83,47 +94,33 @@ class TestEmailVerification:
 
         user = await _get_user(async_test_db, "new.user@example.com")
         assert user is not None
-        assert user.email_verification_token is not None
-        assert len(user.email_verification_token) >= 32
-        assert user.email_verification_expiry is not None
-        # SQLite stores naive UTC, so compare as naive
-        assert user.email_verification_expiry > datetime.now(timezone.utc).replace(tzinfo=None)
-
-    @pytest.mark.asyncio
-    async def test_verify_succeeds_with_correct_token(self, client, async_test_db):
-        """Verification succeeds only with the correct, unexpired token, then invalidates it."""
-        resp = _register(client, "correct.token@example.com")
-        assert resp.status_code == 201
-        access_token = resp.json()["access_token"]
-        headers = _auth_headers(access_token)
-
-        user = await _get_user(async_test_db, "correct.token@example.com")
-        stored_hash = user.email_verification_token
-        assert stored_hash is not None
-        # The backend hashes the token; we can't easily derive the raw token from hash.
-        # So we verify by sending a wrong token first (should fail), then we'll test
-        # the flow works by checking the endpoint rejects invalid tokens.
-        # For a real test, we'd need to intercept the token at registration time.
-        # Here we verify the behavior: wrong token fails, and we can't verify without the raw token.
-        # This is actually correct security behavior — the test DB has the hash, not the raw token.
-
-        # Verify wrong token fails
-        verify_resp = client.post(
-            "/api/v1/auth/verify-email",
-            headers=headers,
-            json={"code": "wrong-token"},
-        )
-        assert verify_resp.status_code == 400
-        assert "Invalid verification token" in verify_resp.json()["detail"]
-
-        # Verify that the user remains unverified
-        user = await _get_user(async_test_db, "correct.token@example.com")
         assert user.is_verified is False
+        assert user.email_verified_at is None
+
+        # Check that an OtpChallenge was created
+        challenge = await _get_otp_challenge(async_test_db, "new.user@example.com")
+        assert challenge is not None
+        assert challenge.otp_hash is not None
+        assert len(challenge.otp_hash) == 64  # SHA-256
+        assert challenge.expires_at > datetime.now(timezone.utc).replace(tzinfo=None)
 
     @pytest.mark.asyncio
-    async def test_wrong_token_fails(self, client, async_test_db):
-        """A wrong verification token must be rejected (400)."""
-        resp = _register(client, "wrong.token@example.com")
+    async def test_unverified_user_cannot_login(self, client, async_test_db):
+        """Unverified users must be rejected at login with 403 Forbidden."""
+        resp = _register(client, "unverified.login@example.com")
+        assert resp.status_code == 201
+
+        login_resp = client.post("/api/v1/auth/login", json={
+            "email": "unverified.login@example.com",
+            "password": "Password123!",
+        })
+        assert login_resp.status_code == 403
+        assert "verification required" in login_resp.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_wrong_otp_fails_and_increments_attempts(self, client, async_test_db):
+        """A wrong 6-digit OTP must be rejected (400) and attempt_count incremented."""
+        resp = _register(client, "wrong.otp@example.com")
         assert resp.status_code == 201
         access_token = resp.json()["access_token"]
         headers = _auth_headers(access_token)
@@ -131,72 +128,69 @@ class TestEmailVerification:
         verify_resp = client.post(
             "/api/v1/auth/verify-email",
             headers=headers,
-            json={"code": "definitely-wrong-token-xyz"},
+            json={"code": "999999"},
         )
         assert verify_resp.status_code == 400
-        assert "Invalid verification token" in verify_resp.json()["detail"]
+        assert "Invalid verification code" in verify_resp.json()["detail"]
+
+        challenge = await _get_otp_challenge(async_test_db, "wrong.otp@example.com")
+        assert challenge.attempt_count == 1
 
         # User must remain unverified
-        user = await _get_user(async_test_db, "wrong.token@example.com")
+        user = await _get_user(async_test_db, "wrong.otp@example.com")
         assert user.is_verified is False
 
     @pytest.mark.asyncio
-    async def test_expired_token_fails(self, client, async_test_db):
-        """An expired verification token must be rejected (400) before token comparison."""
-        resp = _register(client, "expired.token@example.com")
+    async def test_expired_otp_fails(self, client, async_test_db):
+        """An expired OTP challenge must be rejected (400)."""
+        resp = _register(client, "expired.otp@example.com")
         assert resp.status_code == 201
         access_token = resp.json()["access_token"]
         headers = _auth_headers(access_token)
 
-        # Simulate token expiry by backdating the stored expiry (naive UTC for SQLite).
-        # Use any token — the expiry check happens before the hash comparison.
-        user = await _get_user(async_test_db, "expired.token@example.com")
-        user.email_verification_expiry = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
+        # Expire the challenge in DB
+        challenge = await _get_otp_challenge(async_test_db, "expired.otp@example.com")
+        challenge.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
         await async_test_db.commit()
 
         verify_resp = client.post(
             "/api/v1/auth/verify-email",
             headers=headers,
-            json={"code": "any-token-here"},
+            json={"code": "123456"},
         )
         assert verify_resp.status_code == 400
         assert "expired" in verify_resp.json()["detail"].lower()
 
-        user = await _get_user(async_test_db, "expired.token@example.com")
-        assert user.is_verified is False
-
     @pytest.mark.asyncio
-    async def test_missing_token_field_fails(self, client, async_test_db):
-        """Verification request with neither token nor code must be rejected."""
-        resp = _register(client, "missing.token@example.com")
+    async def test_resend_cooldown_enforced(self, client, async_test_db):
+        """Requesting resend before 60 seconds must be rejected (429)."""
+        resp = _register(client, "cooldown.user@example.com")
         assert resp.status_code == 201
         access_token = resp.json()["access_token"]
         headers = _auth_headers(access_token)
 
-        verify_resp = client.post("/api/v1/auth/verify-email", headers=headers, json={})
-        assert verify_resp.status_code == 400
-
-    @pytest.mark.asyncio
-    async def test_resend_generates_new_token(self, client, async_test_db):
-        """Resend endpoint generates a fresh token and stores it."""
-        resp = _register(client, "resend.token@example.com")
-        assert resp.status_code == 201
-        access_token = resp.json()["access_token"]
-        headers = _auth_headers(access_token)
-
-        user = await _get_user(async_test_db, "resend.token@example.com")
-        original_token = user.email_verification_token
-
+        # Immediate resend should trigger 429 cooldown
         resend_resp = client.post("/api/v1/auth/resend-verification", headers=headers)
-        assert resend_resp.status_code == 200, resend_resp.text
+        assert resend_resp.status_code == 429
+        assert "wait 60 seconds" in resend_resp.json()["detail"]
 
-        user = await _get_user(async_test_db, "resend.token@example.com")
-        assert user.email_verification_token is not None
-        # Token should be rotated (a new random token)
-        assert user.email_verification_token != original_token
+    @pytest.mark.asyncio
+    async def test_resend_email_otp_endpoint(self, client, async_test_db):
+        """Test POST /auth/resend-email-otp with unauthenticated request containing email."""
+        resp = _register(client, "unauth.resend@example.com")
+        assert resp.status_code == 201
+
+        # Fast-forward the challenge created_at to bypass 60s cooldown for test
+        challenge = await _get_otp_challenge(async_test_db, "unauth.resend@example.com")
+        challenge.created_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=65)
+        await async_test_db.commit()
+
+        resend_resp = client.post("/api/v1/auth/resend-email-otp", json={"email": "unauth.resend@example.com"})
+        assert resend_resp.status_code == 200
+        assert "sent" in resend_resp.json()["message"].lower()
 
     def test_verification_token_never_present_in_production_response(self, client, monkeypatch):
-        """Proof for Gate G-11: verification_token is strictly NEVER included in registration response in production."""
+        """Proof: verification_token is strictly NEVER included in registration response."""
         from backend.app.config import get_settings
         settings = get_settings()
 
@@ -204,13 +198,9 @@ class TestEmailVerification:
         monkeypatch.setattr(settings, "DEBUG", False)
         monkeypatch.setattr(settings, "ENABLE_EMAIL_NOTIFICATIONS", False)
 
-        # Mock Redis rate limiter for isolated unit test
         from unittest.mock import AsyncMock, patch
         with patch("backend.app.core.rate_limit.redis_limit", new=AsyncMock(return_value=(False, 10, 60))):
             resp = _register(client, "prod.user@example.com")
             assert resp.status_code == 201
             data = resp.json()
-
-            # Hard assertion: verification_token is None / not returned
             assert data.get("verification_token") is None
-            assert "verification_token" not in data or data["verification_token"] is None

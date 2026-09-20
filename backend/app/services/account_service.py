@@ -13,7 +13,6 @@ from backend.app.core.platform_adapters import PlatformRegistry
 from backend.app.services.owned_adapter import owned_adapter
 from backend.app.core.schemas.account import (
     ConnectAccountRequest,
-    DirectConnectAccountRequest,
     SocialAccountResponse,
     UpdateAccountRequest,
     DisconnectAccountResponse,
@@ -31,116 +30,6 @@ class AccountService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
-
-    async def direct_connect_account(
-        self,
-        user_id: UUID,
-        request: DirectConnectAccountRequest,
-    ) -> SocialAccountResponse:
-        """Connect a social account directly via Username, Profile URL, Channel ID, or Token."""
-        from urllib.parse import urlparse
-        platform_key = "x" if request.platform.lower() in {"x", "twitter"} else request.platform.lower()
-        raw_ident = request.identifier.strip()
-
-        # Clean URL or handle
-        username = raw_ident
-        profile_url = request.profile_url
-        if "://" in raw_ident:
-            profile_url = raw_ident
-            path = urlparse(raw_ident).path.strip("/")
-            parts = [p for p in path.split("/") if p and p not in {"in", "user", "channel", "c"}]
-            if parts:
-                username = parts[-1]
-
-        username = username.lstrip("@").strip()
-        if not username:
-            raise ValidationError("A valid username, handle, or profile URL is required.")
-
-        # Construct default canonical profile URL if not given
-        if not profile_url:
-            if platform_key == "instagram":
-                profile_url = f"https://www.instagram.com/{username}"
-            elif platform_key == "x":
-                profile_url = f"https://x.com/{username}"
-            elif platform_key == "facebook":
-                profile_url = f"https://www.facebook.com/{username}"
-            elif platform_key == "linkedin":
-                profile_url = f"https://www.linkedin.com/in/{username}"
-            elif platform_key == "youtube":
-                profile_url = f"https://www.youtube.com/@{username}"
-            else:
-                profile_url = f"https://{platform_key}.com/{username}"
-
-        display_name = request.display_name or username
-        platform_user_id = f"{platform_key}_{username.lower()}"
-
-        # High-res authentic avatar
-        avatar_url = request.profile_image_url or f"https://api.dicebear.com/7.x/initials/svg?seed={display_name or username}&backgroundColor=0d121f,1e293b&textColor=38bdf8"
-
-        # Find if existing
-        existing = await self.db.execute(
-            select(SocialAccount).where(
-                SocialAccount.user_id == user_id,
-                SocialAccount.platform == platform_key,
-                or_(
-                    SocialAccount.platform_user_id == platform_user_id,
-                    SocialAccount.username == username,
-                )
-            )
-        )
-        account = existing.scalar_one_or_none()
-
-        followers = request.followers_count if request.followers_count is not None else 1250
-        following = request.following_count if request.following_count is not None else 180
-        media = request.media_count if request.media_count is not None else 24
-
-        metadata = {
-            "connected_via": "direct_url_or_handle",
-            "source_identifier": raw_ident,
-            "profile_url": profile_url,
-            "followers_count": followers,
-            "following_count": following,
-            "media_count": media,
-            "biography": request.biography or "",
-            "is_verified": True,
-            "account_type": "creator",
-        }
-
-        if account:
-            account.username = username
-            account.display_name = display_name
-            if request.profile_image_url:
-                account.profile_image_url = request.profile_image_url
-            if request.access_token:
-                account.access_token = request.access_token
-            if request.refresh_token:
-                account.refresh_token = request.refresh_token
-            account.is_active = True
-            account.account_metadata = {**(account.account_metadata or {}), **metadata}
-            account.last_synced_at = datetime.now(timezone.utc).replace(tzinfo=None)
-        else:
-            account = SocialAccount(
-                user_id=user_id,
-                platform=platform_key,
-                platform_user_id=platform_user_id,
-                username=username,
-                display_name=display_name,
-                profile_image_url=avatar_url,
-                account_type="creator",
-                access_token=request.access_token or f"vault_token_direct_{platform_key}_{secrets.token_hex(16)}",
-                refresh_token=request.refresh_token or f"vault_refresh_direct_{platform_key}_{secrets.token_hex(16)}",
-                token_expires_at=(datetime.now(timezone.utc) + timedelta(days=90)).replace(tzinfo=None),
-                permissions=["post_content", "read_insights", "reply_comments"],
-                account_metadata=metadata,
-                is_active=True,
-                connected_at=datetime.now(timezone.utc).replace(tzinfo=None),
-                last_synced_at=datetime.now(timezone.utc).replace(tzinfo=None),
-            )
-            self.db.add(account)
-
-        await self.db.commit()
-        await self.db.refresh(account)
-        return self._to_response(account)
 
     async def connect_account(
         self,
@@ -190,6 +79,7 @@ class AccountService:
             clean_profile_meta["connected_via"] = "oauth"
             account.account_metadata = clean_profile_meta
             account.is_active = True
+            account.oauth_verified_at = datetime.now(timezone.utc).replace(tzinfo=None)
             account.last_synced_at = datetime.now(timezone.utc).replace(tzinfo=None)
         else:
             # Create new social account
@@ -205,7 +95,8 @@ class AccountService:
                 refresh_token=token_response.get("refresh_token"),
                 token_expires_at=expiry_dt,
                 permissions=token_response.get("scope", "").split(",") if isinstance(token_response.get("scope"), str) else [],
-                account_metadata={**{key: value for key, value in profile.items() if key not in {"access_token", "refresh_token", "token", "client_secret"}}, "connected_via": "oauth"},
+                account_metadata={**{key: value for key, value in profile.items() if key not in {"access_token", "refresh_token", "token", "client_secret", "page_access_token"}}, "connected_via": "oauth"},
+                oauth_verified_at=datetime.now(timezone.utc).replace(tzinfo=None),
                 is_active=True,
                 connected_at=datetime.now(timezone.utc).replace(tzinfo=None),
                 last_synced_at=datetime.now(timezone.utc).replace(tzinfo=None),
@@ -442,6 +333,19 @@ class AccountService:
             "synced_at": datetime.now(timezone.utc).isoformat(),
         }
 
+    @staticmethod
+    def _connection_status(account: SocialAccount) -> str:
+        if (not account.oauth_verified_at or not account.is_active
+                or not account.access_token or not account.platform_user_id):
+            return "disconnected"
+        if account.token_expires_at:
+            expiry = account.token_expires_at
+            if expiry.tzinfo is None:
+                expiry = expiry.replace(tzinfo=timezone.utc)
+            if expiry <= datetime.now(timezone.utc):
+                return "token_expired"
+        return "connected_live"
+
     def _to_response(self, account: SocialAccount) -> SocialAccountResponse:
         """Convert model to response schema."""
         return SocialAccountResponse(
@@ -457,6 +361,7 @@ class AccountService:
             connected_at=account.connected_at or datetime.now(timezone.utc),
             last_synced_at=account.last_synced_at,
             token_expires_at=account.token_expires_at,
+            connection_status=self._connection_status(account),
             permissions=account.permissions or [],
             metadata=account.account_metadata or {},
         )
