@@ -258,17 +258,14 @@ async def register_user(
         user=profile,
     )
 
-    # Strictly isolated local development / test mode ONLY:
-    # In production or staging, this token is strictly NEVER returned in the API response under any circumstances.
+    # Email verification OTP is NEVER returned in API responses under any circumstances.
+    # Delivery occurs strictly out-of-band via SMTP.
+    # For phone OTP in isolated development/test without SMS provider, verification_token is provided for test harness.
     env_clean = str(settings.ENVIRONMENT or "").strip().lower()
     is_development_env = env_clean in {"development", "dev", "local", "test"}
-
-    if is_development_env and not (settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST) and verification_method == "email":
-        response_data.verification_token = email_otp
-    elif is_development_env and not (settings.ENABLE_PHONE_VERIFICATION and settings.SMS_PROVIDER) and verification_method == "phone" and phone_otp:
+    if is_development_env and not (settings.ENABLE_PHONE_VERIFICATION and settings.SMS_PROVIDER) and verification_method == "phone" and phone_otp:
         response_data.verification_token = phone_otp
     else:
-        # Guaranteed None in all production and staging environments
         response_data.verification_token = None
 
     from fastapi.responses import JSONResponse

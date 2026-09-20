@@ -11,12 +11,38 @@ from backend.app.db.models import User, SocialAccount, OAuthAttempt, Post, PostP
 from backend.app.config import get_settings
 
 
+import asyncio
+import concurrent.futures
+from sqlalchemy import update
+from backend.app.db.session import get_db
+
+
 def register_user(client, email="provider_test@example.com"):
     resp = client.post("/api/v1/auth/register", json={"email": email, "password": "SecurePassword123!", "accept_terms": True})
     assert resp.status_code == 201
     data = resp.json()
     headers = {"Authorization": "Bearer " + data["access_token"]}
-    client.post("/api/v1/auth/verify-email", json={"token": data["verification_token"]}, headers=headers)
+
+    async def _do():
+        for dep, override in client.app.dependency_overrides.items():
+            if dep == get_db:
+                async for db in override():
+                    await db.execute(update(User).where(User.email == email).values(is_verified=True))
+                    await db.commit()
+                    break
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            fut = executor.submit(asyncio.run, _do())
+            fut.result()
+    else:
+        asyncio.run(_do())
+
     return data, headers
 
 

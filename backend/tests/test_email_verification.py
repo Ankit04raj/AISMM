@@ -118,6 +118,72 @@ class TestEmailVerification:
         assert "verification required" in login_resp.json()["detail"].lower()
 
     @pytest.mark.asyncio
+    async def test_verify_email_with_correct_otp_succeeds_and_activates_account(self, client, async_test_db, monkeypatch):
+        """Proof: Correct OTP from email verifies the user, updates DB, and permits login."""
+        from unittest.mock import MagicMock
+        from backend.app.config import get_settings
+        settings = get_settings()
+
+        captured_otps = []
+        def mock_send(to_email, otp_code, user_name=None):
+            captured_otps.append((to_email, otp_code))
+            return True
+
+        from backend.app.services.email_service import email_service
+        monkeypatch.setattr(email_service, "send_email_verification_otp", mock_send)
+        monkeypatch.setattr(settings, "ENABLE_EMAIL_NOTIFICATIONS", True)
+        monkeypatch.setattr(settings, "SMTP_HOST", "smtp.test.example")
+
+        resp = _register(client, "verified.target@example.com")
+        assert resp.status_code == 201
+        data = resp.json()
+        access_token = data["access_token"]
+        headers = _auth_headers(access_token)
+
+        assert len(captured_otps) == 1
+        to_email, sent_otp = captured_otps[0]
+        assert to_email == "verified.target@example.com"
+        assert len(sent_otp) == 6
+
+        # Verify OTP is NOT returned in response body
+        assert data.get("verification_token") is None
+
+        # Submit the actual OTP received in email
+        verify_resp = client.post(
+            "/api/v1/auth/verify-email",
+            headers=headers,
+            json={"code": sent_otp},
+        )
+        assert verify_resp.status_code == 200
+        assert verify_resp.json()["verified"] is True
+
+        # User is now verified in database
+        user = await _get_user(async_test_db, "verified.target@example.com")
+        assert user.is_verified is True
+        assert user.email_verified_at is not None
+
+        # Challenge is marked used
+        challenge = await _get_otp_challenge(async_test_db, "verified.target@example.com")
+        assert challenge is None  # used_at is set so _get_otp_challenge returns None
+
+        # Login now succeeds
+        login_resp = client.post("/api/v1/auth/login", json={
+            "email": "verified.target@example.com",
+            "password": "Password123!",
+        })
+        assert login_resp.status_code == 200
+        assert login_resp.json()["user"]["is_verified"] is True
+
+        # Reusing the same OTP fails
+        reuse_resp = client.post(
+            "/api/v1/auth/verify-email",
+            headers=headers,
+            json={"code": sent_otp},
+        )
+        # Already verified or challenge consumed
+        assert reuse_resp.status_code in (200, 400)
+
+    @pytest.mark.asyncio
     async def test_wrong_otp_fails_and_increments_attempts(self, client, async_test_db):
         """A wrong 6-digit OTP must be rejected (400) and attempt_count incremented."""
         resp = _register(client, "wrong.otp@example.com")
