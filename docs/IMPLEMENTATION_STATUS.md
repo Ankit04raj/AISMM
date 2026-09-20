@@ -1,8 +1,8 @@
 # AISMM Implementation Status & Verification Gates
 
-**Last Updated:** 2026-09-14 (Asia/Kolkata)  
+**Last Updated:** 2026-09-20 (Asia/Kolkata)  
 **Branch:** `feature/production-hardening-and-e2e`  
-**Base Commit:** `37c85fa7378eda9ef3ec8ea84bf43d46ec380bc9`  
+**Base Commit:** `a5ad8cd4e889628ea205dc473faef53103852d6b`  
 **Supported Runtime Matrix:** Python 3.12 / 3.13, Node 24.x, PostgreSQL 16, Redis 7
 
 ---
@@ -11,11 +11,11 @@
 
 | Gate | Category | Status | Verified Command / Evidence |
 | :--- | :--- | :--- | :--- |
-| **G-01** | Backend Test Suite | **PASS** | `pytest backend/tests -q` (246/246 tests passing) |
-| **G-02** | Frontend Production Build | **PASS** | `npm --prefix frontend run build` (Vite 8.2.2, 1,849 modules, 0 errors) |
-| **G-03** | Frontend Linter | **PASS (with warnings)** | `npm --prefix frontend run lint` (0 errors, 73 warnings) |
-| **G-04** | Alembic Migration Chain | **PASS** | `PYTHONPATH=. python -m alembic -c backend/alembic.ini upgrade head` (`6e7f8a9b0c1d`) |
-| **G-05** | CI Workflow Discovery | **PASS** | `.github/workflows/ci.yml` activated with least-privilege permissions |
+| **G-01** | Backend Test Suite | **PASS** | `pytest backend/tests -q` (306/306 tests passing) |
+| **G-02** | Frontend Production Build | **PASS** | `npm --prefix frontend run build` (Vite 8.2.2, 1,850 modules, 0 errors) |
+| **G-03** | Frontend Test Suite | **PASS** | `npm --prefix frontend test` (17/17 tests passing) |
+| **G-04** | Alembic Migration Chain | **PASS** | `PYTHONPATH=. python -m alembic -c backend/alembic.ini upgrade head` (`9b8c1e2f3a4d`) |
+| **G-05** | CI Workflow Discovery | **PASS** | `deploy/workflows/ci.yml` activated with least-privilege permissions |
 | **G-06** | Vault & ORM Encryption | **PASS** | `backend/tests/test_production_completion.py` (Tokens & TOTP secrets encrypted at rest) |
 | **G-07** | Session Rotation & Revocation | **PASS** | `backend/tests/test_auth_and_scoping.py` (Single-use refresh hash rotation) |
 | **G-08** | Atomic Scheduler Claims | **PASS** | `backend/tests/test_production_completion.py` (PostgreSQL row-locking status claim) |
@@ -30,7 +30,7 @@
 | Area / Subsystem | Item / Journey | Current Classification | File Evidence & Disposition |
 | :--- | :--- | :--- | :--- |
 | **Auth & Security** | Token Storage in Client | *Threat Model Risk* | `frontend/src/api/client.js` uses `localStorage`. XSS exposure mitigated by strict CSP and no client-side eval; HttpOnly cookie transition documented in runbook. |
-| **Auth & Security** | 2FA Recovery Codes | *Missing Feature* | `backend/app/api/v1/auth.py` lacks backup codes. Database admin intervention required if authenticator device is lost. |
+| **Auth & Security** | 2FA Recovery Codes | *VERIFIED* | `backend/app/api/v1/auth.py:465`, migration `7f8a9b0c1d2e`, `test_production_hardening.py` (8 hashed backup recovery codes). |
 | **Platforms & OAuth** | Meta (IG / FB) Connection | *VERIFIED* | Graph API v20.0 aligned; Page/business-account selection via `/me/accounts`; zero-page and unlinked-page return clear HTTP 400; multi-Page selection tested |
 | **Platforms & OAuth** | Live Provider Approval | *External Dependency* | `backend/app/platforms/` adapters tested against mock fixtures; live acceptance blocked on developer portal approvals. |
 | **Scheduling Worker** | Network Failure Reconciliation | *Operational Gap* | `backend/app/services/scheduling_service.py:100` marks unconfirmed publishes as `failed` locally without blind retries to prevent duplicate posts. |

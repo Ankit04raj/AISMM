@@ -115,8 +115,9 @@ class TestAuthAndUserScoping:
         })
         assert resp_oauth.status_code == 401  # OAuth must be bound to an authenticated user.
 
-    def test_register_login_and_authenticated_access(self, client):
-        """Proof: Register -> Login -> Access with Bearer token -> 200 and scoped profile."""
+    @pytest.mark.asyncio
+    async def test_register_login_and_authenticated_access(self, client, async_test_db):
+        """Proof: Register -> Verify -> Login -> Access with Bearer token -> 200 and scoped profile."""
         # 1. Register User 1
         reg_payload = {
             "email": "user1@aismm.io",
@@ -136,7 +137,21 @@ class TestAuthAndUserScoping:
         dup_resp = client.post("/api/v1/auth/register", json=reg_payload)
         assert dup_resp.status_code == 400
 
-        # 2. Login User 1
+        # Unverified user login fails
+        unverified_login = client.post("/api/v1/auth/login", json={
+            "email": "user1@aismm.io",
+            "password": "SecurePassword123!",
+        })
+        assert unverified_login.status_code == 403
+
+        # Mark user verified
+        from sqlalchemy import update
+        await async_test_db.execute(
+            update(User).where(User.email == "user1@aismm.io").values(is_verified=True)
+        )
+        await async_test_db.commit()
+
+        # 2. Login User 1 (verified)
         login_payload = {
             "email": "user1@aismm.io",
             "password": "SecurePassword123!",
@@ -270,17 +285,13 @@ class TestAuthAndUserScoping:
         assert me_resp.json()["is_verified"] is False
 
         # Wrong code must be rejected
-        wrong_resp = client.post("/api/v1/auth/verify-email", headers=headers, json={"code": "wrong-code-xyz"})
+        wrong_resp = client.post("/api/v1/auth/verify-email", headers=headers, json={"code": "999999"})
         assert wrong_resp.status_code == 400
-        assert "Invalid verification token" in wrong_resp.json()["detail"]
+        assert "Invalid verification code" in wrong_resp.json()["detail"]
 
         # User remains unverified after wrong token
         me_still = client.get("/api/v1/auth/me", headers=headers)
         assert me_still.json()["is_verified"] is False
-
-        # The correct token path cannot be easily tested here because the backend
-        # stores a hash and the registration endpoint doesn't return the raw token.
-        # This is correct security behavior — the raw token is only sent via email.
 
         # Test idempotent behavior for already-verified user by manually marking user
         from sqlalchemy import select, update
@@ -294,12 +305,13 @@ class TestAuthAndUserScoping:
         await async_test_db.commit()
 
         # Already verified — idempotent 200 with "already verified" message
-        reuse_resp = client.post("/api/v1/auth/verify-email", headers=headers, json={"code": "any-code"})
+        reuse_resp = client.post("/api/v1/auth/verify-email", headers=headers, json={"code": "123456"})
         assert reuse_resp.status_code == 200
         assert reuse_resp.json()["verified"] is True
         assert "already verified" in reuse_resp.json().get("message", "").lower()
 
-    def test_two_factor_authentication_totp_flow(self, client):
+    @pytest.mark.asyncio
+    async def test_two_factor_authentication_totp_flow(self, client, async_test_db):
         """Proof 2.1: TOTP 2FA setup, activation, and login challenge enforcement."""
         reg_resp = client.post("/api/v1/auth/register", json={
             "email": "totp_user@aismm.io",
@@ -308,6 +320,13 @@ class TestAuthAndUserScoping:
         })
         token = reg_resp.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
+
+        # Verify the user so they can log in
+        from sqlalchemy import update
+        await async_test_db.execute(
+            update(User).where(User.email == "totp_user@aismm.io").values(is_verified=True)
+        )
+        await async_test_db.commit()
 
         # 1. 2FA Setup -> returns base32 secret and otpauth URI
         setup_resp = client.post("/api/v1/auth/2fa/setup", headers=headers)

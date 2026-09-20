@@ -1,6 +1,6 @@
 """Account-related Pydantic schemas for API contracts."""
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
 from pydantic import BaseModel, Field, validator, EmailStr
 
@@ -41,22 +41,6 @@ class MetaPagesListResponse(BaseModel):
     total: int = 0
 
 
-class DirectConnectAccountRequest(BaseModel):
-    """Request to securely connect a social account via Handle, Profile URL, ID, or Token."""
-    platform: str = Field(..., description="Platform: instagram, facebook, x, linkedin, youtube")
-    identifier: str = Field(..., min_length=1, max_length=500, description="Username (@handle), Profile URL, or Channel ID")
-    display_name: Optional[str] = Field(None, description="Custom display name")
-    profile_url: Optional[str] = Field(None, description="Direct Public Profile URL")
-    profile_image_url: Optional[str] = Field(None, description="Custom Profile Image URL")
-    followers_count: Optional[int] = Field(None, ge=0, description="Real follower/subscriber count")
-    following_count: Optional[int] = Field(None, ge=0, description="Real following count")
-    media_count: Optional[int] = Field(None, ge=0, description="Real total posts/media count")
-    biography: Optional[str] = Field(None, description="Account bio/description")
-    access_token: Optional[str] = Field(None, description="Optional OAuth Access Token or API Key")
-    refresh_token: Optional[str] = Field(None, description="Optional Refresh Token")
-
-
-
 class SocialAccountResponse(SocialAccountBase):
     """Response schema for social account."""
     id: str = Field(..., description="Internal account ID")
@@ -64,6 +48,7 @@ class SocialAccountResponse(SocialAccountBase):
     connected_at: datetime = Field(..., description="Connection timestamp")
     last_synced_at: Optional[datetime] = Field(None, description="Last sync timestamp")
     token_expires_at: Optional[datetime] = Field(None, description="Access token expiry")
+    connection_status: Literal["connected_live", "token_expired", "disconnected"] = "disconnected"
     permissions: List[str] = Field(default=[], description="Granted permissions")
     metadata: Optional[Dict[str, Any]] = Field(default={}, description="Platform-specific metadata")
 

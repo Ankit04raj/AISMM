@@ -159,6 +159,12 @@ class VerifyEmailRequest(BaseModel):
     code: Optional[str] = Field(None, description="6-digit verification code")
 
 
+class VerifyEmailOtpRequest(BaseModel):
+    """Request to verify email with 6-digit OTP."""
+    code: Optional[str] = Field(None, description="6-digit email verification OTP")
+    token: Optional[str] = Field(None, description="Email verification token")
+
+
 class TwoFactorSetupResponse(BaseModel):
     """Response containing 2FA secret and setup URI."""
     secret: str = Field(..., description="Base32 TOTP secret key")
@@ -215,6 +221,28 @@ class PasswordResetConfirm(BaseModel):
         if not any(c.isdigit() or not c.isalnum() for c in v):
             raise ValueError("Password must contain at least one digit or special character")
         return v
+
+
+class VerifyEmailOtpRequest(BaseModel):
+    """Request to verify email with 6-digit OTP or confirmation token."""
+    code: Optional[str] = Field(None, description="6-digit email verification OTP")
+    token: Optional[str] = Field(None, description="Email verification token")
+
+
+class ResendEmailOtpRequest(BaseModel):
+    """Request to resend email verification OTP."""
+    email: Optional[str] = Field(None, description="Email to resend OTP to (required if not authenticated)")
+
+
+class VerifyPasswordResetOtpRequest(BaseModel):
+    """Request to verify password reset OTP."""
+    email: str = Field(..., description="Email address")
+    code: str = Field(..., min_length=6, max_length=6, description="6-digit password reset OTP")
+
+
+class ResendPasswordResetOtpRequest(BaseModel):
+    """Request to resend password reset OTP."""
+    email: str = Field(..., description="Email address")
 
 
 class ProfileUpdate(BaseModel):

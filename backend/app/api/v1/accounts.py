@@ -11,7 +11,6 @@ from backend.app.api.deps import get_current_user, get_current_verified_user
 from backend.app.services.account_service import AccountService
 from backend.app.core.schemas.account import (
     ConnectAccountRequest,
-    DirectConnectAccountRequest,
     SocialAccountResponse,
     SocialAccountListResponse,
     UpdateAccountRequest,
@@ -32,18 +31,6 @@ async def connect_account(
     """Connect a social account for the authenticated user via OAuth."""
     service = AccountService(db)
     return await service.connect_account(current_user.id, request)
-
-
-@router.post("/direct-connect", response_model=SocialAccountResponse, status_code=status.HTTP_201_CREATED)
-async def direct_connect_account(
-    request: DirectConnectAccountRequest,
-    current_user: User = Depends(get_current_verified_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Connect a social account directly by Username, Profile URL, Channel ID, or Custom API Token."""
-    service = AccountService(db)
-    return await service.direct_connect_account(current_user.id, request)
-
 
 
 @router.get("", response_model=SocialAccountListResponse)

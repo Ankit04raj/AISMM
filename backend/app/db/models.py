@@ -80,6 +80,23 @@ class EncryptedText(TypeDecorator):
         return SecretVault().decrypt(value) if value.startswith("v2$") else value
 
 
+class OtpChallenge(Base):
+    """Server-side OTP tracking for email verification and password reset."""
+    __tablename__ = "otp_challenges"
+
+    id = Column(GUID(), primary_key=True, default=uuid4)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    email = Column(String(255), nullable=True, index=True)
+    purpose = Column(String(32), nullable=False, index=True)  # EMAIL_VERIFICATION, PASSWORD_RESET
+    otp_hash = Column(String(64), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    attempt_count = Column(Integer, nullable=False, default=0)
+    max_attempts = Column(Integer, nullable=False, default=5)
+    used_at = Column(DateTime, nullable=True)
+    revoked_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC).replace(tzinfo=None), nullable=False)
+
+
 class AuthSession(Base):
     __tablename__ = "auth_sessions"
     id = Column(String(64), primary_key=True)
@@ -142,6 +159,9 @@ class User(Base):
     email_verification_token = Column(String(255), nullable=True)
     email_verification_expiry = Column(DateTime, nullable=True)
 
+    # Email verified timestamp
+    email_verified_at = Column(DateTime, nullable=True)
+
     # Phone verification fields
     phone_number = Column(String(20), nullable=True, unique=True, index=True)
     phone_verified = Column(Boolean, default=False, nullable=False)
@@ -177,6 +197,7 @@ class SocialAccount(Base):
     access_token = Column(EncryptedText(), nullable=True)
     refresh_token = Column(EncryptedText(), nullable=True)
     token_expires_at = Column(DateTime, nullable=True)
+    oauth_verified_at = Column(DateTime, nullable=True)
     permissions = Column(JSON, nullable=True, default=list)
     account_metadata = Column(JSON, nullable=True, default=dict)
     is_active = Column(Boolean, default=True, nullable=False)

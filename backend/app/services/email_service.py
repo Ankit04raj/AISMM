@@ -6,7 +6,11 @@ from email.mime.multipart import MIMEMultipart
 from typing import Optional, Dict, Any
 import logging
 
-from backend.app.config.settings import settings
+try:
+    from backend.app.config.settings import settings, get_settings
+except Exception:
+    settings = None
+    get_settings = None
 
 logger = logging.getLogger(__name__)
 
@@ -14,23 +18,139 @@ logger = logging.getLogger(__name__)
 class EmailService:
     """Service for sending transactional emails and OTP codes via SMTP."""
 
-    def __init__(self):
-        """Initialize email service with SMTP configuration from settings."""
-        self.smtp_host = settings.SMTP_HOST
-        self.smtp_port = settings.SMTP_PORT
-        self.smtp_user = settings.SMTP_USER
-        self.smtp_password = settings.SMTP_PASSWORD
-        self.from_email = settings.FROM_EMAIL
-        self.from_name = settings.FROM_NAME
+    def __init__(
+        self,
+        smtp_host: Optional[str] = None,
+        smtp_port: Optional[int] = None,
+        smtp_user: Optional[str] = None,
+        smtp_password: Optional[str] = None,
+        from_email: Optional[str] = None,
+        from_name: Optional[str] = None,
+    ):
+        """Initialize email service with SMTP configuration from settings or explicit parameters."""
+        self._smtp_host = smtp_host
+        self._smtp_port = smtp_port
+        self._smtp_user = smtp_user
+        self._smtp_password = smtp_password
+        self._from_email = from_email
+        self._from_name = from_name
+
+    @property
+    def _settings(self):
+        """Fetch current settings dynamically."""
+        if get_settings:
+            try:
+                return get_settings()
+            except Exception:
+                pass
+        return settings
+
+    @property
+    def smtp_host(self) -> Optional[str]:
+        if self._smtp_host is not None:
+            return self._smtp_host
+        s = self._settings
+        return getattr(s, "SMTP_HOST", None) if s else None
+
+    @smtp_host.setter
+    def smtp_host(self, value: Optional[str]):
+        self._smtp_host = value
+
+    @property
+    def smtp_port(self) -> int:
+        if self._smtp_port is not None:
+            try:
+                return int(self._smtp_port)
+            except (ValueError, TypeError):
+                return 587
+        s = self._settings
+        port = getattr(s, "SMTP_PORT", 587) if s else 587
+        try:
+            return int(port) if port is not None else 587
+        except (ValueError, TypeError):
+            return 587
+
+    @smtp_port.setter
+    def smtp_port(self, value: Optional[int]):
+        self._smtp_port = value
+
+    @property
+    def smtp_user(self) -> Optional[str]:
+        if self._smtp_user is not None:
+            return self._smtp_user
+        s = self._settings
+        if not s:
+            return None
+        return getattr(s, "SMTP_USER", None) or getattr(s, "SMTP_USERNAME", None)
+
+    @smtp_user.setter
+    def smtp_user(self, value: Optional[str]):
+        self._smtp_user = value
+
+    @property
+    def smtp_password(self) -> Optional[str]:
+        if self._smtp_password is not None:
+            return self._smtp_password
+        s = self._settings
+        return getattr(s, "SMTP_PASSWORD", None) if s else None
+
+    @smtp_password.setter
+    def smtp_password(self, value: Optional[str]):
+        self._smtp_password = value
+
+    @property
+    def from_email(self) -> str:
+        if self._from_email is not None:
+            return self._from_email
+        s = self._settings
+        if not s:
+            return "noreply@aismm.app"
+        return getattr(s, "FROM_EMAIL", None) or getattr(s, "SMTP_FROM_EMAIL", None) or "noreply@aismm.app"
+
+    @from_email.setter
+    def from_email(self, value: Optional[str]):
+        self._from_email = value
+
+    @property
+    def from_name(self) -> str:
+        if self._from_name is not None:
+            return self._from_name
+        s = self._settings
+        if not s:
+            return "AISMM"
+        return getattr(s, "FROM_NAME", None) or getattr(s, "SMTP_FROM_NAME", None) or "AISMM"
+
+    @from_name.setter
+    def from_name(self, value: Optional[str]):
+        self._from_name = value
+
+    @property
+    def frontend_url(self) -> str:
+        s = self._settings
+        return getattr(s, "FRONTEND_URL", "http://localhost:3000") if s else "http://localhost:3000"
 
     def verify_connection(self) -> Dict[str, Any]:
-        """Verify SMTP connectivity and credentials. Returns diagnostic dict."""
-        if not all([self.smtp_host, self.smtp_port, self.smtp_user, self.smtp_password]):
+        """Verify SMTP connectivity and credentials. Returns diagnostic dict without leaking secrets."""
+        host = self.smtp_host
+        port = self.smtp_port
+        user = self.smtp_user
+        password = self.smtp_password
+
+        if not all([host, port, user, password]):
+            missing = []
+            if not host:
+                missing.append("SMTP_HOST")
+            if not port:
+                missing.append("SMTP_PORT")
+            if not user:
+                missing.append("SMTP_USER / SMTP_USERNAME")
+            if not password:
+                missing.append("SMTP_PASSWORD")
             return {
                 "success": False,
-                "error": "Incomplete SMTP configuration. Check SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD in .env",
-                "host": self.smtp_host,
-                "port": self.smtp_port,
+                "error": f"Incomplete SMTP configuration. Missing: {', '.join(missing)} in .env",
+                "host": host,
+                "port": port,
             }
 
         try:
@@ -39,40 +159,46 @@ class EmailService:
             return {
                 "success": True,
                 "message": "SMTP Connection Successful! Ready to send emails.",
-                "host": self.smtp_host,
-                "port": self.smtp_port,
-                "mode": "SSL (Port 465)" if self.smtp_port == 465 else "STARTTLS (Port 587/25)",
+                "host": host,
+                "port": port,
+                "mode": "SSL (Port 465)" if port == 465 else "STARTTLS (Port 587/25)",
             }
         except Exception as e:
             logger.error(f"SMTP verification failed: {e}")
             return {
                 "success": False,
                 "error": str(e),
-                "host": self.smtp_host,
-                "port": self.smtp_port,
+                "host": host,
+                "port": port,
             }
 
     def _get_smtp_connection(self):
         """Create and return authenticated SMTP connection."""
-        if not all([self.smtp_host, self.smtp_port, self.smtp_user, self.smtp_password]):
+        host = self.smtp_host
+        port = self.smtp_port
+        user = self.smtp_user
+        password = self.smtp_password
+
+        if not all([host, port, user, password]):
             raise ValueError(
                 "SMTP configuration incomplete. Check SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD in .env"
             )
 
         try:
             # Use SMTP_SSL if port is 465, otherwise use STARTTLS
-            if self.smtp_port == 465:
-                server = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=10)
+            if port == 465:
+                server = smtplib.SMTP_SSL(host, port, timeout=10)
             else:
-                server = smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=10)
+                server = smtplib.SMTP(host, port, timeout=10)
                 server.ehlo()
-                server.starttls()
-                server.ehlo()
+                if server.has_extn("STARTTLS"):
+                    server.starttls()
+                    server.ehlo()
 
-            server.login(self.smtp_user, self.smtp_password)
+            server.login(user, password)
             return server
         except Exception as e:
-            logger.error(f"Failed to connect to SMTP server ({self.smtp_host}:{self.smtp_port}): {e}")
+            logger.error(f"Failed to connect to SMTP server ({host}:{port}): {e}")
             raise
 
     def send_otp_email(
@@ -102,19 +228,19 @@ class EmailService:
             if purpose == "signup":
                 subject = f"Your AISMM Verification Code: {otp_code} (Expires in {expires_in_minutes} minutes)"
                 title = "Verify Your Account"
-                intro = f"Thank you for signing up for AISMM. Please use the 6-digit verification code below to confirm your account:"
+                intro = "Thank you for signing up for AISMM. Please use the 6-digit verification code below to confirm your account:"
             elif purpose == "login":
                 subject = f"Your AISMM Login Code: {otp_code}"
                 title = "Sign-In Verification"
-                intro = f"A sign-in attempt requires two-factor verification. Enter the code below to complete your login:"
+                intro = "A sign-in attempt requires two-factor verification. Enter the code below to complete your login:"
             elif purpose == "reset":
                 subject = f"Your Password Reset OTP: {otp_code}"
                 title = "Reset Your Password"
-                intro = f"We received a request to reset your AISMM account password. Use the verification code below to proceed:"
+                intro = "We received a request to reset your AISMM account password. Use the verification code below to proceed:"
             else:
                 subject = f"Your AISMM Security Code: {otp_code}"
                 title = "Security Verification"
-                intro = f"Please use the verification code below to authorize this action:"
+                intro = "Please use the verification code below to authorize this action:"
 
             html_body = f"""
             <!DOCTYPE html>
@@ -137,7 +263,7 @@ class EmailService:
                         </div>
 
                         <p style="color: #64748b; font-size: 13px; margin-top: 24px; padding-top: 20px; border-top: 1px solid #1e293b;">
-                            ⏱️ This code will expire in <strong>{expires_in_minutes} minutes</strong>. If you did not request this code, please ignore this email or update your password.
+                            This code will expire in <strong>{expires_in_minutes} minutes</strong>. If you did not request this code, please ignore this email or update your password.
                         </p>
                     </div>
                     <div style="background: #07090e; padding: 18px; text-align: center; border-top: 1px solid #1e293b; color: #64748b; font-size: 11px;">
@@ -186,13 +312,90 @@ AISMM - AI-Powered Social Media Management
             logger.error(f"Failed to send OTP email to {to_email}: {e}")
             return False
 
+    def send_email_verification_otp(
+        self, to_email: str, otp_code: str, user_name: Optional[str] = None
+    ) -> bool:
+        """Send a 6-digit OTP for email verification."""
+        try:
+            greeting = f"Hi {user_name}," if user_name else "Hi,"
+            subject = "Verify your AISMM account"
+            intro = "Thank you for creating an AISMM account. Use the 6-digit verification code below to confirm your email address:"
+
+            html_body = f"""
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="utf-8"></head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; background-color: #07090e; margin: 0; padding: 24px;">
+                <div style="max-width: 540px; margin: 0 auto; background: #0d121f; border: 1px solid #1e293b; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+                    <div style="background: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%); padding: 32px 24px; text-align: center;">
+                        <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px;">AISMM</h1>
+                        <p style="color: rgba(255,255,255,0.9); margin: 6px 0 0 0; font-size: 13px; font-weight: 500;">AI-Powered Social Media Management</p>
+                    </div>
+                    <div style="padding: 36px 30px; background: #0d121f; color: #cbd5e1;">
+                        <h2 style="color: #ffffff; margin-top: 0; font-size: 20px; font-weight: 700;">Verify Your Email Address</h2>
+                        <p style="color: #94a3b8; font-size: 15px; margin-bottom: 20px;">{greeting}</p>
+                        <p style="color: #94a3b8; font-size: 15px; margin-bottom: 28px;">{intro}</p>
+                        <div style="background: #07090e; border: 1px solid #334155; border-radius: 14px; padding: 22px; text-align: center; margin: 28px 0;">
+                            <span style="font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #38bdf8; text-shadow: 0 0 12px rgba(56,189,248,0.4);">{otp_code}</span>
+                            <p style="color: #64748b; font-size: 12px; margin: 8px 0 0 0; text-transform: uppercase; letter-spacing: 1px;">Verification Code</p>
+                        </div>
+                        <p style="color: #64748b; font-size: 13px; margin-top: 24px; padding-top: 20px; border-top: 1px solid #1e293b;">
+                            This code expires in 5 minutes. If you did not create an AISMM account, ignore this email.
+                        </p>
+                    </div>
+                    <div style="background: #07090e; padding: 18px; text-align: center; border-top: 1px solid #1e293b; color: #64748b; font-size: 11px;">
+                        <p style="margin: 0;">© 2026 AISMM. Protected by AISMM Security Engine.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+
+            text_body = f"""
+{greeting}
+
+{intro}
+
+----------------------------------------
+YOUR VERIFICATION CODE: {otp_code}
+----------------------------------------
+
+This code expires in 5 minutes.
+
+If you did not create an AISMM account, ignore this email.
+
+---
+AISMM - AI-Powered Social Media Management
+© 2026 AISMM. All rights reserved.
+            """
+
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = f"{self.from_name} <{self.from_email}>"
+            msg["To"] = to_email
+
+            part1 = MIMEText(text_body, "plain")
+            part2 = MIMEText(html_body, "html")
+            msg.attach(part1)
+            msg.attach(part2)
+
+            with self._get_smtp_connection() as server:
+                server.send_message(msg)
+
+            logger.info(f"Email verification OTP sent successfully to {to_email}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to send email verification OTP to {to_email}: {e}")
+            return False
+
     def send_verification_email(
         self, to_email: str, verification_token: str, user_name: Optional[str] = None
     ) -> bool:
         """Send email verification link and OTP token to user."""
         try:
             # Create verification link
-            verification_link = f"{settings.FRONTEND_URL}/verify-email?token={verification_token}"
+            verification_link = f"{self.frontend_url}/verify-email?token={verification_token}"
             greeting = f"Hi {user_name}," if user_name else "Hi,"
             subject = "Verify your AISMM account"
 
@@ -283,7 +486,7 @@ AISMM - AI-Powered Social Media Management
     ) -> bool:
         """Send password reset link and token to user."""
         try:
-            reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
+            reset_link = f"{self.frontend_url}/reset-password?token={reset_token}"
             greeting = f"Hi {user_name}," if user_name else "Hi,"
             subject = "Reset your AISMM password"
 
@@ -368,6 +571,11 @@ AISMM - AI-Powered Social Media Management
         except Exception as e:
             logger.error(f"Failed to send password reset email to {to_email}: {e}")
             return False
+
+
+# Singleton instance
+email_service = EmailService()
+
 
 
 # Singleton instance

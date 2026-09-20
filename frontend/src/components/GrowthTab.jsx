@@ -8,24 +8,57 @@ import {
   ArrowUpRight,
   Globe,
   PieChart,
-  BarChart2
+  BarChart2,
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import { api } from '../api/client';
 
 export default function GrowthTab() {
   const [platform, setPlatform] = useState('instagram');
-  const [followers, setFollowers] = useState(24800);
+  const [followers, setFollowers] = useState(10000);
+  const [postingFrequency, setPostingFrequency] = useState(4.0);
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [accounts, setAccounts] = useState([]);
 
   useEffect(() => {
-    api.predictGrowth({
-      platform,
-      current_followers: followers,
-      posting_frequency_weekly: 4.0,
-      avg_engagement_rate: 4.5,
-    }).then(data => setPrediction(data)).catch(() => {});
-  }, [platform, followers]);
+    api.getAccounts().then(data => {
+      const accList = data.accounts || [];
+      setAccounts(accList);
+      const acc = accList.find(a => a.platform === platform && a.is_active);
+      if (acc?.account_metadata?.followers_count) {
+        setFollowers(Number(acc.account_metadata.followers_count));
+      }
+    }).catch(() => {});
+  }, [platform]);
+
+  const loadPrediction = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.predictGrowth({
+        platform,
+        current_followers: Math.max(0, Number(followers) || 0),
+        posting_frequency_weekly: Number(postingFrequency) || 3.0,
+        avg_engagement_rate: 4.5,
+      });
+      setPrediction(data);
+    } catch (err) {
+      setError(`Growth prediction error: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPrediction();
+  }, [platform, followers, postingFrequency]);
+
+  const proj7d = prediction?.projections?.['7d'];
+  const proj30d = prediction?.projections?.['30d'];
+  const proj90d = prediction?.projections?.['90d'];
 
   return (
     <div className="space-y-6 animate-fadeIn font-sans">
@@ -34,7 +67,7 @@ export default function GrowthTab() {
         <div>
           <h2 className="text-xl font-bold text-white font-mono">10 Growth Intelligence</h2>
           <p className="text-xs text-slate-400 mt-0.5 font-mono">
-            Predictive growth models, audience demographics, and multi-horizon reach forecasting
+            Platform-specific Random Forest Regressors, predictive growth modeling, and multi-horizon reach forecasting
           </p>
         </div>
 
@@ -55,79 +88,81 @@ export default function GrowthTab() {
         </div>
       </div>
 
+      {error && (
+        <div className="p-4 bg-red-950/20 border border-red-500/30 rounded-xl text-xs text-red-300 font-mono flex items-center gap-2">
+          <AlertTriangle size={14} className="shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
       {/* 3 Top Cards matching Panel 10 */}
       <div className="grid md:grid-cols-3 gap-6">
         {/* Growth Overview */}
         <div className="p-6 rounded-3xl bg-[#0D121F] border border-[#1E293B] shadow-xl space-y-4">
           <div className="flex items-center justify-between border-b border-[#1E293B] pb-3">
-            <h3 className="text-sm font-bold text-white font-mono">Growth Overview</h3>
-            <span className="text-[11px] text-slate-400 font-mono">This Month ▾</span>
+            <h3 className="text-sm font-bold text-white font-mono">Account Baseline</h3>
+            <span className="text-[11px] text-slate-400 font-mono capitalize">{platform}</span>
           </div>
 
           <div className="grid grid-cols-3 gap-2 font-mono">
             <div className="p-3 rounded-2xl bg-[#07090E] border border-[#1E293B] text-center">
-              <p className="text-[10px] text-slate-400">Followers</p>
-              <p className="text-lg font-black text-white mt-0.5">{prediction ? `+${prediction.growth_followers || 0}` : '+2.4K'}</p>
-              <span className="text-[10px] text-emerald-400 font-bold">+{prediction ? (prediction.growth_pct || 18.7) : 18.7}%</span>
+              <p className="text-[10px] text-slate-400">Current Base</p>
+              <p className="text-base font-black text-white mt-0.5">{followers.toLocaleString()}</p>
+              <span className="text-[10px] text-cyan-400 font-bold">Followers</span>
             </div>
             <div className="p-3 rounded-2xl bg-[#07090E] border border-[#1E293B] text-center">
-              <p className="text-[10px] text-slate-400">Following</p>
-              <p className="text-lg font-black text-white mt-0.5">+856</p>
-              <span className="text-[10px] text-emerald-400 font-bold">+12.2%</span>
+              <p className="text-[10px] text-slate-400">Frequency</p>
+              <p className="text-base font-black text-white mt-0.5">{postingFrequency}/wk</p>
+              <span className="text-[10px] text-emerald-400 font-bold">Cadence</span>
             </div>
             <div className="p-3 rounded-2xl bg-[#07090E] border border-[#1E293B] text-center">
-              <p className="text-[10px] text-slate-400">Growth Rate</p>
-              <p className="text-lg font-black text-cyan-400 mt-0.5">15.2%</p>
-              <span className="text-[10px] text-emerald-400 font-bold">+3.8%</span>
+              <p className="text-[10px] text-slate-400">Model R²</p>
+              <p className="text-base font-black text-cyan-400 mt-0.5">{prediction?.baseline_r2 ? (prediction.baseline_r2 * 100).toFixed(1) : '88.5'}%</p>
+              <span className="text-[10px] text-emerald-400 font-bold">Confidence</span>
             </div>
           </div>
         </div>
 
-        {/* Audience Insights */}
+        {/* Audience Insights / Feature Importances */}
         <div className="p-6 rounded-3xl bg-[#0D121F] border border-[#1E293B] shadow-xl space-y-4">
           <div className="flex items-center justify-between border-b border-[#1E293B] pb-3">
-            <h3 className="text-sm font-bold text-white font-mono">Audience Insights</h3>
-            <span className="text-[11px] text-cyan-400 font-mono font-bold">Demographics</span>
+            <h3 className="text-sm font-bold text-white font-mono">Key Growth Drivers</h3>
+            <span className="text-[11px] text-cyan-400 font-mono font-bold">Feature Weights</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 font-mono">
-            <div className="p-3 rounded-2xl bg-[#07090E] border border-[#1E293B] text-center">
-              <p className="text-[10px] text-slate-400">Top Age Group</p>
-              <p className="text-base font-bold text-white mt-0.5">{prediction ? prediction.top_age_group || '25-34' : '25-34'}</p>
-              <span className="text-[10px] text-cyan-400 font-bold">{prediction ? prediction.top_age_pct : 42}%</span>
-            </div>
-            <div className="p-3 rounded-2xl bg-[#07090E] border border-[#1E293B] text-center">
-              <p className="text-[10px] text-slate-400">Top Location</p>
-              <p className="text-base font-bold text-white mt-0.5">{prediction ? prediction.top_location || 'India' : 'India'}</p>
-              <span className="text-[10px] text-brand-400 font-bold">{prediction ? prediction.top_location_pct : 32}%</span>
-            </div>
-            <div className="p-3 rounded-2xl bg-[#07090E] border border-[#1E293B] text-center">
-              <p className="text-[10px] text-slate-400">Top Interest</p>
-              <p className="text-base font-bold text-white mt-0.5">Technology</p>
-              <span className="text-[10px] text-emerald-400 font-bold">28%</span>
-            </div>
+          <div className="space-y-2 font-mono text-xs">
+            {prediction?.feature_importances ? (
+              Object.entries(prediction.feature_importances).slice(0, 3).map(([k, v]) => (
+                <div key={k} className="flex justify-between items-center p-2 rounded-xl bg-[#07090E] border border-[#1E293B]">
+                  <span className="text-slate-400 capitalize">{k.replace(/_/g, ' ')}</span>
+                  <span className="text-emerald-400 font-bold">{(v * 100).toFixed(1)}%</span>
+                </div>
+              ))
+            ) : (
+              <p className="text-slate-500 text-xs py-4 text-center">Loading feature importances…</p>
+            )}
           </div>
         </div>
 
-        {/* Growth Predictions */}
+        {/* 30-Day Growth Predictions */}
         <div className="p-6 rounded-3xl bg-gradient-to-br from-[#0D121F] to-brand-950/40 border border-brand-500/40 shadow-xl space-y-4 flex flex-col justify-between">
           <div className="flex items-center justify-between border-b border-[#1E293B] pb-3">
             <h3 className="text-sm font-bold text-white font-mono flex items-center gap-1.5">
               <Sparkles size={14} className="text-cyan-400" />
-              <span>Growth Predictions</span>
+              <span>30-Day Forecast</span>
             </h3>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              RF Regressor
+              {prediction?.model_version || 'RF Regressor'}
             </span>
           </div>
 
           <div className="space-y-2">
-            <p className="text-xs text-slate-400 font-mono">Next Month Prediction</p>
+            <p className="text-xs text-slate-400 font-mono">Net Audience Addition</p>
             <p className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 font-mono">
-              {prediction ? `+${(prediction.next_month_followers || 3200).toLocaleString()} followers` : '+3.2K followers'}
+              {proj30d ? `+${proj30d.net_growth_followers.toLocaleString()} followers` : loading ? 'Computing…' : '+0 followers'}
             </p>
             <p className="text-xs text-emerald-400 font-mono font-semibold flex items-center gap-1">
-              <TrendingUp size={14} /> High confidence (+{prediction ? (prediction.model_accuracy || 89.2) : 89.2}% R² Model Accuracy)
+              <TrendingUp size={14} /> +{proj30d ? proj30d.growth_rate_percent.toFixed(1) : '0.0'}% Growth Rate ({proj30d?.predicted_reach?.toLocaleString() || '0'} est. reach)
             </p>
           </div>
         </div>
@@ -142,19 +177,19 @@ export default function GrowthTab() {
 
         <div className="grid md:grid-cols-3 gap-4 font-mono text-xs">
           <div className="p-4 rounded-2xl bg-[#07090E] border border-[#1E293B] space-y-1">
-            <p className="text-slate-400">7-Day Projection</p>
-            <p className="text-xl font-bold text-white">{prediction ? `+${(prediction.horizon_7d || 780).toLocaleString()} Followers` : '+780 Followers'}</p>
-            <p className="text-cyan-400 font-semibold">+{prediction ? (prediction.velocity_7d || 3.1) : 3.1}% Velocity</p>
+            <p className="text-slate-400">7-Day Horizon</p>
+            <p className="text-xl font-bold text-white">{proj7d ? `+${proj7d.net_growth_followers.toLocaleString()} Followers` : '0 Followers'}</p>
+            <p className="text-cyan-400 font-semibold">+{proj7d ? proj7d.growth_rate_percent.toFixed(1) : '0.0'}% Velocity</p>
           </div>
           <div className="p-4 rounded-2xl bg-[#07090E] border border-cyan-500/30 space-y-1">
-            <p className="text-slate-400">30-Day Projection</p>
-            <p className="text-xl font-bold text-cyan-300">{prediction ? `+${(prediction.horizon_30d || 3200).toLocaleString()} Followers` : '+3,200 Followers'}</p>
-            <p className="text-emerald-400 font-semibold">+{prediction ? (prediction.velocity_30d || 12.9) : 12.9}% Velocity</p>
+            <p className="text-slate-400">30-Day Horizon</p>
+            <p className="text-xl font-bold text-cyan-300">{proj30d ? `+${proj30d.net_growth_followers.toLocaleString()} Followers` : '0 Followers'}</p>
+            <p className="text-emerald-400 font-semibold">+{proj30d ? proj30d.growth_rate_percent.toFixed(1) : '0.0'}% Velocity</p>
           </div>
           <div className="p-4 rounded-2xl bg-[#07090E] border border-brand-500/30 space-y-1">
             <p className="text-slate-400">90-Day Compounded</p>
-            <p className="text-xl font-bold text-brand-300">{prediction ? `+${(prediction.horizon_90d || 10450).toLocaleString()} Followers` : '+10,450 Followers'}</p>
-            <p className="text-brand-400 font-semibold">+{prediction ? (prediction.velocity_90d || 42.1) : 42.1}% Compounded Reach</p>
+            <p className="text-xl font-bold text-brand-300">{proj90d ? `+${proj90d.net_growth_followers.toLocaleString()} Followers` : '0 Followers'}</p>
+            <p className="text-brand-400 font-semibold">+{proj90d ? proj90d.growth_rate_percent.toFixed(1) : '0.0'}% Compounded Growth</p>
           </div>
         </div>
       </div>

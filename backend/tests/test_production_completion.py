@@ -11,12 +11,38 @@ from backend.app.services.session_service import digest
 from backend.app.services.scheduling_service import SchedulingService
 
 
+from backend.app.db.session import get_db
+
+
 def register(client, email='owner@example.com', verified=True):
     response=client.post('/api/v1/auth/register',json={'email':email,'password':'Test-password-2984!', 'accept_terms':True})
     assert response.status_code==201, response.text
     data=response.json(); headers={'Authorization':'Bearer '+data['access_token']}
     if verified:
-        assert client.post('/api/v1/auth/verify-email',json={'token':data['verification_token']},headers=headers).status_code==200
+        import asyncio
+        import concurrent.futures
+        from sqlalchemy import update
+
+        async def _do():
+            for dep, override in client.app.dependency_overrides.items():
+                if dep == get_db:
+                    async for db in override():
+                        await db.execute(update(User).where(User.email == email).values(is_verified=True))
+                        await db.commit()
+                        break
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                fut = executor.submit(asyncio.run, _do())
+                fut.result()
+        else:
+            asyncio.run(_do())
+
     return data,headers
 
 

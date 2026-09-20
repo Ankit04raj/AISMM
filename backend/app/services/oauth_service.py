@@ -112,13 +112,14 @@ def configured_adapter(platform: str, redirect_uri: str):
         str(client_secret).startswith("your_")
     )
 
-    # In development mode, provide fallback mock credentials if real OAuth app is not configured
+    # Fail closed in every environment: simulated OAuth must never be created.
     if is_unconfigured:
-        if settings.ENVIRONMENT == "development" or settings.DEBUG:
-            client_id = f"dev_{platform_key}_client_id"
-            client_secret = f"dev_{platform_key}_secret"
-        else:
-            raise HTTPException(503, f'{platform} OAuth credentials are not configured by the operator.')
+        raise HTTPException(
+            503,
+            f'{platform} OAuth credentials are not configured by the operator. '
+            f'Set {platform_key.upper()}_CLIENT_ID and {platform_key.upper()}_CLIENT_SECRET '
+            f'in .env to enable real OAuth 2.0.',
+        )
 
     return PlatformRegistry.get_adapter(
         platform_key,
@@ -133,21 +134,9 @@ async def initiate(db, user_id, platform, redirect_uri):
     adapter = configured_adapter(platform_key, valid_redirect)
 
     state = secrets.token_urlsafe(32)
-    settings = get_settings()
-
-    # Check if we are in dev simulation mode (no real credentials set in .env)
-    real_client_id = getattr(settings, f'{platform_key.upper()}_CLIENT_ID', None)
-    real_client_secret = getattr(settings, f'{platform_key.upper()}_CLIENT_SECRET', None)
-
-    if settings.ENVIRONMENT == "development" and (not real_client_id or not real_client_secret or real_client_id.startswith("your_")):
-        # Generate seamless local dev authorization redirect directly to callback
-        dev_code = f"dev_auth_{platform_key}_{secrets.token_hex(12)}"
-        url = f"{valid_redirect}?code={dev_code}&state={state}"
-        code_verifier = secrets.token_urlsafe(64)
-    else:
-        url, _ = adapter.auth.get_authorization_url(state=state)
-        entry = adapter.auth._state_store.get(state, {})
-        code_verifier = entry.get('code_verifier')
+    url, _ = adapter.auth.get_authorization_url(state=state)
+    entry = adapter.auth._state_store.get(state, {})
+    code_verifier = entry.get('code_verifier')
 
     expiry = now() + timedelta(minutes=15)
 
@@ -196,6 +185,10 @@ async def exchange(db, user_id, platform, code, state, redirect_uri, page_id: st
     if not attempt:
         raise HTTPException(400, 'OAuth state is invalid, expired, or already used.')
 
+    # The callback must return to the exact redirect the flow started with.
+    if (attempt.redirect_uri or '') != valid_redirect:
+        raise HTTPException(400, 'OAuth redirect does not match the original authorization request.')
+
     consumed = await db.execute(update(OAuthAttempt).where(
         OAuthAttempt.state_hash == digest(state),
         OAuthAttempt.consumed.is_(False)
@@ -209,34 +202,9 @@ async def exchange(db, user_id, platform, code, state, redirect_uri, page_id: st
     await state_svc.consume_state(state, user_id=user_id)
     await db.commit()
 
-    # Handle development code exchange
-    if code and code.startswith("dev_auth_"):
-        from backend.app.db.models import User
-        user_record = await db.scalar(select(User).where(User.id == user_id))
-        user_handle = (user_record.email.split("@")[0].lower() if user_record and user_record.email else "ankit_raj")
-        user_display = (user_record.full_name if user_record and user_record.full_name else "Ankit Raj")
-        user_avatar = user_record.avatar_url if user_record and user_record.avatar_url else f"https://api.dicebear.com/7.x/identicon/svg?seed={user_handle}"
-
-        tokens = {
-            "access_token": f"dev_access_token_{platform_key}_{secrets.token_hex(16)}",
-            "refresh_token": f"dev_refresh_token_{platform_key}_{secrets.token_hex(16)}",
-            "expires_in": 5184000,  # 60 days
-            "token_type": "Bearer",
-            "scope": "read,write,insights,publish"
-        }
-
-        profile = {
-            "id": f"{platform_key}_{user_handle}",
-            "username": f"{user_handle}",
-            "name": f"{user_display}",
-            "display_name": f"{user_display}",
-            "profile_picture_url": user_avatar,
-            "account_type": "creator",
-            "followers_count": 28450,
-            "media_count": 42,
-            "is_verified": True
-        }
-        return tokens, profile
+    # Synthetic development codes never reach a provider and must never mint an account.
+    if not code or code.startswith("dev_auth_"):
+        raise HTTPException(400, 'Synthetic authorization codes are not accepted. Complete a real OAuth authorization.')
 
     adapter = configured_adapter(platform_key, valid_redirect)
 
@@ -284,8 +252,14 @@ async def exchange(db, user_id, platform, code, state, redirect_uri, page_id: st
         else:
             profile = await adapter.auth.get_user_profile(tokens['access_token'])
 
+        if not tokens.get('access_token'):
+            raise ValueError('Provider did not return an access token')
         if not profile or not profile.get('id'):
             raise ValueError('Provider did not return an account identity')
+
+        # Strip provider secrets before anything is persisted into account metadata.
+        profile = {key: value for key, value in profile.items()
+                   if key not in {"access_token", "refresh_token", "token", "client_secret", "page_access_token"}}
 
         return tokens, profile
     except HTTPException:

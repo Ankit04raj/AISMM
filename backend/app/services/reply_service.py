@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
 from backend.app.core.platform_adapters import PlatformRegistry
+from backend.app.services.owned_adapter import owned_adapter
 from backend.app.ai.reply import (
     TFIDFReplyEngine,
     ReplyConfig,
@@ -72,13 +73,23 @@ class ReplyService:
         post_id: str = "",
         author_name: str = "",
         author_id: str = "",
+        user_id: Optional[UUID] = None,
+        account_id: Optional[UUID] = None,
     ) -> ProcessCommentResponse:
         """Process incoming comment through classification, policy evaluation, and optional auto-execution."""
         p_key = platform.lower()
         if not PlatformRegistry.is_registered(p_key):
             raise ValidationError(f"Unsupported platform: {platform}")
 
-        adapter = PlatformRegistry.get_adapter(p_key)
+        adapter = None
+        if user_id:
+            try:
+                adapter = await owned_adapter(self.db, user_id, p_key, account_id=account_id)
+            except Exception:
+                adapter = None
+        else:
+            adapter = PlatformRegistry.get_adapter(p_key)
+
         suggestion = self.engine.generate_reply(comment_text, comment_id=comment_id)
 
         action_taken = "ROUTED_TO_MANUAL"
@@ -123,13 +134,19 @@ class ReplyService:
         comment_id: str,
         reply_text: str,
         post_id: str = "",
+        user_id: Optional[UUID] = None,
+        account_id: Optional[UUID] = None,
     ) -> ApproveReplyResponse:
-        """Approve and execute a reply on the target platform."""
+        """Approve and execute a reply on the target platform with tenant credentials."""
         p_key = platform.lower()
         if not PlatformRegistry.is_registered(p_key):
             raise ValidationError(f"Unsupported platform: {platform}")
 
-        adapter = PlatformRegistry.get_adapter(p_key)
+        if user_id:
+            adapter = await owned_adapter(self.db, user_id, p_key, account_id=account_id)
+        else:
+            adapter = PlatformRegistry.get_adapter(p_key)
+
         if not adapter:
             raise PlatformError(f"Adapter not available for: {platform}")
 
