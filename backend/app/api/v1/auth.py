@@ -1391,14 +1391,21 @@ async def forgot_password(request: PasswordResetRequest, db: AsyncSession = Depe
 
         # Send real email
         if settings.ENABLE_EMAIL_NOTIFICATIONS and settings.SMTP_HOST:
-            await asyncio.to_thread(
-                email_service.send_otp_email,
-                to_email=user.email,
-                otp_code=reset_otp,
-                purpose="reset",
-                user_name=user.full_name,
-                expires_in_minutes=5,
-            )
+            try:
+                sent = await asyncio.to_thread(
+                    email_service.send_otp_email,
+                    to_email=user.email,
+                    otp_code=reset_otp,
+                    purpose="reset",
+                    user_name=user.full_name,
+                    expires_in_minutes=5,
+                )
+                if not sent:
+                    logging.error(f"Failed to send password reset email to {user.email}")
+            except Exception as e:
+                logging.error(f"Error sending password reset email to {user.email}: {e}")
+        else:
+            logging.warning("Password reset requested but SMTP is not configured in .env.")
 
         default_audit_logger.log_event(
             event_type=AuditEventType.SETTINGS_UPDATED,
