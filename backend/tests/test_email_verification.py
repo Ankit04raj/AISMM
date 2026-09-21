@@ -263,6 +263,81 @@ class TestEmailVerification:
         assert resend_resp.status_code == 200
         assert "sent" in resend_resp.json()["message"].lower()
 
+    @pytest.mark.parametrize("test_email,test_name", [
+        ("user.alpha@gmail.com", "Alpha User"),
+        ("sarah.creator@yahoo.com", "Sarah Creator"),
+        ("alex.developer@outlook.com", "Alex Developer"),
+        ("marketing.lead@customdomain.io", "Marketing Lead"),
+        ("enterprise.admin@company.org", "Enterprise Admin"),
+    ])
+    @pytest.mark.asyncio
+    async def test_any_user_email_domain_e2e_verification_lifecycle(
+        self, client, async_test_db, monkeypatch, test_email, test_name
+    ):
+        """Proof: ANY user with ANY email domain receives an OTP, verifies, and activates their account."""
+        from backend.app.config import get_settings
+        from backend.app.services.email_service import email_service
+        settings = get_settings()
+
+        dispatched_emails = {}
+        def mock_send(to_email, otp_code, user_name=None):
+            dispatched_emails[to_email] = (otp_code, user_name)
+            return True
+
+        monkeypatch.setattr(email_service, "send_email_verification_otp", mock_send)
+        monkeypatch.setattr(settings, "ENABLE_EMAIL_NOTIFICATIONS", True)
+        monkeypatch.setattr(settings, "SMTP_HOST", "smtp.test.example")
+
+        # 1. User registers with their personal/work email
+        reg_resp = client.post(
+            "/api/v1/auth/register",
+            json={"email": test_email, "password": "StrongPassword123!", "full_name": test_name, "accept_terms": True},
+        )
+        assert reg_resp.status_code == 201
+        reg_data = reg_resp.json()
+        assert reg_data["user"]["email"] == test_email
+        assert reg_data["user"]["is_verified"] is False
+        assert reg_data.get("verification_token") is None  # Never leaked in API response
+
+        # 2. Email was dispatched to that exact user's mailbox
+        assert test_email in dispatched_emails
+        sent_otp, sent_name = dispatched_emails[test_email]
+        assert len(sent_otp) == 6
+        assert sent_name == test_name
+
+        # 3. Before OTP verification, login is blocked
+        unverified_login = client.post("/api/v1/auth/login", json={
+            "email": test_email,
+            "password": "StrongPassword123!",
+        })
+        assert unverified_login.status_code == 403
+        assert "verification required" in unverified_login.json()["detail"].lower()
+
+        # 4. User copies OTP from their mailbox and submits it
+        headers = _auth_headers(reg_data["access_token"])
+        verify_resp = client.post(
+            "/api/v1/auth/verify-email",
+            headers=headers,
+            json={"code": sent_otp},
+        )
+        assert verify_resp.status_code == 200
+        assert verify_resp.json()["verified"] is True
+        assert verify_resp.json()["email"] == test_email
+
+        # 5. Database is verified and challenge is marked used
+        user = await _get_user(async_test_db, test_email)
+        assert user.is_verified is True
+        assert user.email_verified_at is not None
+        assert user.email_verification_token is None
+
+        # 6. User can now sign in normally
+        login_resp = client.post("/api/v1/auth/login", json={
+            "email": test_email,
+            "password": "StrongPassword123!",
+        })
+        assert login_resp.status_code == 200
+        assert login_resp.json()["user"]["is_verified"] is True
+
     def test_verification_token_never_present_in_production_response(self, client, monkeypatch):
         """Proof: verification_token is strictly NEVER included in registration response."""
         from backend.app.config import get_settings
