@@ -168,7 +168,8 @@ class SchedulingService:
                         publication.status = 'published'
                         publication.published_at = now
                         executed += 1
-                    except Exception:
+                    except Exception as e:
+                        logger.warning(f"Failed to publish schedule {schedule.id} on platform {publication.platform}: {e}")
                         publication.status = 'failed'
                         publication.error_message = 'Publication not confirmed. Review provider before retrying.'
                         success = False

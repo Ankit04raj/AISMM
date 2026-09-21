@@ -1,18 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Calendar as CalendarIcon,
   Clock,
-  Sparkles,
-  CheckCircle2,
-  TrendingUp,
-  Flame,
-  AlertTriangle,
-  RefreshCw,
-  Plus,
-  Send,
-  Layers,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  AlertCircle
 } from 'lucide-react';
 import { api } from '../api/client';
 
@@ -20,43 +12,70 @@ export default function SchedulingTab() {
   const [platform, setPlatform] = useState('instagram');
   const [caption, setCaption] = useState('Exciting updates coming soon to our multi-platform AI architecture! 🚀');
   const [loading, setLoading] = useState(false);
-  const [queue, setQueue] = useState([]);
   const [scheduledOk, setScheduledOk] = useState(false);
+  const [scheduleError, setScheduleError] = useState(null);
+  const [monthOffset, setMonthOffset] = useState(0);
 
   const [bestTimes, setBestTimes] = useState([
     { day: "Today", time: "7:00 PM", quality: "Optimal", tag: "Great", impact: "+45% reach", optimal: true },
     { day: "Tomorrow", time: "6:30 PM", quality: "Good", tag: "Good", impact: "+30% reach", optimal: false },
   ]);
-  const [calendarDays, setCalendarDays] = useState([]);
 
-  useEffect(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
+  const viewDate = useMemo(() => {
+    const target = new Date();
+    target.setMonth(target.getMonth() + monthOffset);
+    return target;
+  }, [monthOffset]);
+
+  const calendarDays = useMemo(() => {
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const firstDay = new Date(year, month, 1).getDay();
+    const today = new Date();
+    const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+
     const days = [];
     for (let i = 0; i < firstDay; i++) days.push({ d: null, empty: true });
     for (let d = 1; d <= daysInMonth; d++) {
-      days.push({ d, active: true, scheduled: d % 7 === 0 || d === now.getDate() });
+      days.push({
+        d,
+        active: true,
+        scheduled: d % 7 === 0 || (isCurrentMonth && d === today.getDate())
+      });
     }
-    setCalendarDays(days);
-    api.recommendTimes({ platform }).then(res => {
-      if (res?.recommendations?.length) setBestTimes(res.recommendations);
-    }).catch(() => {});
+    return days;
+  }, [viewDate]);
+
+  useEffect(() => {
+    let active = true;
+    api.recommendTimes({ platform })
+      .then(res => {
+        if (active && res?.recommendations?.length) {
+          setBestTimes(res.recommendations);
+        }
+      })
+      .catch((err) => {
+        console.warn("Temporal recommendations notice:", err.message);
+      });
+    return () => { active = false; };
   }, [platform]);
 
   const handleSchedulePost = async () => {
+    if (!caption.trim()) {
+      setScheduleError("Please enter post content to schedule.");
+      return;
+    }
     setLoading(true);
+    setScheduleError(null);
+    setScheduledOk(false);
     try {
       await api.autoSchedule({ platform, text: caption, content_type: 'post' });
       window.dispatchEvent(new CustomEvent('aismm:content-published'));
       setScheduledOk(true);
-      setTimeout(() => setScheduledOk(false), 3000);
+      setTimeout(() => setScheduledOk(false), 4000);
     } catch (err) {
-      console.warn("Schedule response:", err.message);
-      setScheduledOk(true);
-      setTimeout(() => setScheduledOk(false), 3000);
+      setScheduleError(err.message || "Failed to schedule post. Please check platform connection.");
     } finally {
       setLoading(false);
     }
@@ -88,6 +107,13 @@ export default function SchedulingTab() {
           ))}
         </div>
       </div>
+
+      {scheduleError && (
+        <div className="p-4 bg-rose-950/20 border border-rose-500/30 rounded-2xl text-xs text-rose-300 font-mono flex items-center gap-2">
+          <AlertCircle size={16} className="shrink-0 text-rose-400" />
+          <span>{scheduleError}</span>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-12 gap-6">
         {/* Left: Best Time to Post */}
@@ -148,19 +174,34 @@ export default function SchedulingTab() {
             className="w-full py-3.5 bg-gradient-to-r from-brand-600 to-cyan-600 hover:opacity-95 text-white font-bold rounded-2xl text-xs font-mono transition-all shadow-xl shadow-brand-600/25 flex items-center justify-center gap-2"
           >
             <CalendarIcon size={16} />
-            <span>{scheduledOk ? "✓ Post Added to Schedule" : "Schedule Post"}</span>
+            <span>{loading ? "Scheduling with AI..." : scheduledOk ? "✓ Post Added to Schedule" : "Schedule Post"}</span>
           </button>
         </div>
 
         {/* Right: Calendar View */}
         <div className="lg:col-span-5 p-6 rounded-3xl bg-[#0D121F] border border-[#1E293B] shadow-xl space-y-5 flex flex-col justify-between">
           <div className="flex items-center justify-between border-b border-[#1E293B] pb-4">
-            <h3 className="text-sm font-bold text-white font-mono">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3>
+            <h3 className="text-sm font-bold text-white font-mono">{viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3>
             <div className="flex items-center gap-2">
-              <button className="p-1.5 rounded-lg bg-[#07090E] text-slate-400 hover:text-white border border-[#1E293B]">
+              <button
+                onClick={() => setMonthOffset((o) => o - 1)}
+                aria-label="Previous Month"
+                className="p-1.5 rounded-lg bg-[#07090E] text-slate-400 hover:text-white border border-[#1E293B] transition-colors"
+              >
                 <ChevronLeft size={14} />
               </button>
-              <button className="p-1.5 rounded-lg bg-[#07090E] text-slate-400 hover:text-white border border-[#1E293B]">
+              <button
+                onClick={() => setMonthOffset(0)}
+                aria-label="Current Month"
+                className="px-2 py-1 rounded-lg bg-[#07090E] text-slate-400 hover:text-white border border-[#1E293B] text-[10px] font-mono transition-colors"
+              >
+                Today
+              </button>
+              <button
+                onClick={() => setMonthOffset((o) => o + 1)}
+                aria-label="Next Month"
+                className="p-1.5 rounded-lg bg-[#07090E] text-slate-400 hover:text-white border border-[#1E293B] transition-colors"
+              >
                 <ChevronRight size={14} />
               </button>
             </div>
@@ -183,8 +224,8 @@ export default function SchedulingTab() {
               <div
                 key={idx}
                 className={`h-9 rounded-xl flex flex-col items-center justify-center relative transition-all ${
-                  cell.selected
-                    ? 'bg-brand-600 text-white font-bold shadow-md'
+                  cell.empty
+                    ? 'opacity-0 pointer-events-none'
                     : cell.scheduled
                     ? 'bg-[#07090E] border border-cyan-500/40 text-slate-200'
                     : 'bg-[#07090E]/60 text-slate-400'

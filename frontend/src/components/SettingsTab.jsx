@@ -13,8 +13,8 @@ import { api, clearAuthSession } from '../api/client';
 
 export default function SettingsTab({ onUser }) {
   const [user, setUser] = useState(null);
-  const [name, setName] = useState('Ankit Raj');
-  const [email, setEmail] = useState('ankit@example.com');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [timezoneVal, setTimezoneVal] = useState('Asia/Kolkata');
   const [language, setLanguage] = useState('English');
   const [theme, setTheme] = useState('Dark');
@@ -35,8 +35,8 @@ export default function SettingsTab({ onUser }) {
     api.getMe()
       .then(me => {
         setUser(me);
-        setName(me.full_name || 'Ankit Raj');
-        setEmail(me.email || 'ankit@example.com');
+        setName(me.full_name || '');
+        setEmail(me.email || '');
       })
       .catch(err => setError(err.message));
   };

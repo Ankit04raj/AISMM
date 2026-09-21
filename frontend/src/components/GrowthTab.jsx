@@ -1,15 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   TrendingUp,
-  Users,
-  Target,
-  Activity,
   Sparkles,
-  ArrowUpRight,
-  Globe,
-  PieChart,
-  BarChart2,
-  RefreshCw,
   AlertTriangle
 } from 'lucide-react';
 import { api } from '../api/client';
@@ -21,39 +13,41 @@ export default function GrowthTab() {
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [accounts, setAccounts] = useState([]);
 
   useEffect(() => {
+    let active = true;
     api.getAccounts().then(data => {
+      if (!active) return;
       const accList = data.accounts || [];
-      setAccounts(accList);
       const acc = accList.find(a => a.platform === platform && a.is_active);
       if (acc?.account_metadata?.followers_count) {
         setFollowers(Number(acc.account_metadata.followers_count));
       }
     }).catch(() => {});
+    return () => { active = false; };
   }, [platform]);
 
-  const loadPrediction = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api.predictGrowth({
-        platform,
-        current_followers: Math.max(0, Number(followers) || 0),
-        posting_frequency_weekly: Number(postingFrequency) || 3.0,
-        avg_engagement_rate: 4.5,
-      });
-      setPrediction(data);
-    } catch (err) {
-      setError(`Growth prediction error: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadPrediction();
+    let active = true;
+    (async () => {
+      try {
+        const data = await api.predictGrowth({
+          platform,
+          current_followers: Math.max(0, Number(followers) || 0),
+          posting_frequency_weekly: Number(postingFrequency) || 3.0,
+          avg_engagement_rate: 4.5,
+        });
+        if (active) {
+          setPrediction(data);
+          setError(null);
+        }
+      } catch (err) {
+        if (active) setError(`Growth prediction error: ${err.message}`);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
   }, [platform, followers, postingFrequency]);
 
   const proj7d = prediction?.projections?.['7d'];
@@ -112,12 +106,22 @@ export default function GrowthTab() {
             </div>
             <div className="p-3 rounded-2xl bg-[#07090E] border border-[#1E293B] text-center">
               <p className="text-[10px] text-slate-400">Frequency</p>
-              <p className="text-base font-black text-white mt-0.5">{postingFrequency}/wk</p>
-              <span className="text-[10px] text-emerald-400 font-bold">Cadence</span>
+              <select
+                value={postingFrequency}
+                onChange={(e) => setPostingFrequency(Number(e.target.value))}
+                className="bg-transparent text-sm font-black text-white mt-0.5 outline-none text-center cursor-pointer"
+              >
+                {[1, 2, 3, 4, 5, 7, 10, 14].map((f) => (
+                  <option key={f} value={f} className="bg-[#07090E] text-white">
+                    {f}/wk
+                  </option>
+                ))}
+              </select>
+              <span className="text-[10px] text-emerald-400 font-bold block">Cadence</span>
             </div>
             <div className="p-3 rounded-2xl bg-[#07090E] border border-[#1E293B] text-center">
               <p className="text-[10px] text-slate-400">Model R²</p>
-              <p className="text-base font-black text-cyan-400 mt-0.5">{prediction?.baseline_r2 ? (prediction.baseline_r2 * 100).toFixed(1) : '88.5'}%</p>
+              <p className="text-base font-black text-cyan-400 mt-0.5">{prediction?.baseline_r2 != null ? `${(prediction.baseline_r2 * 100).toFixed(1)}%` : '—'}</p>
               <span className="text-[10px] text-emerald-400 font-bold">Confidence</span>
             </div>
           </div>

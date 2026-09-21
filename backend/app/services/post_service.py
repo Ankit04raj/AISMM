@@ -47,8 +47,12 @@ class PostService:
         data.pop('platform', None)
         response = await self.create_multi_platform_post(user_id, MultiPlatformPostRequest(
             platforms=[request.platform], **data))
-        result = response.results[request.platform]
-        result.id = response.post_id
+        p_key = request.platform.lower()
+        result = response.results.get(p_key) or response.results.get(request.platform)
+        if not result and response.results:
+            result = next(iter(response.results.values()))
+        if result:
+            result.id = response.post_id
         return result
 
     async def create_multi_platform_post(
@@ -268,7 +272,7 @@ class PostService:
 
         if pub.status != 'failed':
             raise ValidationError('Only failed publications can be retried')
-        adapter = await owned_adapter(self.db, user_id, platform)
+        adapter = await owned_adapter(self.db, user_id, platform, account_id=getattr(pub, 'account_id', None))
         if not adapter:
             raise PlatformError(f"Adapter not available for {platform}")
 

@@ -6,14 +6,10 @@ import {
   Hash,
   HeartPulse,
   CheckCircle2,
-  AlertTriangle,
   RefreshCw,
-  Copy,
-  Check,
   Lightbulb,
-  ArrowRight,
-  TrendingUp,
-  Zap
+  Zap,
+  AlertCircle
 } from 'lucide-react';
 import { api } from '../api/client';
 
@@ -106,6 +102,13 @@ export default function AIEngineTab() {
           );
         })}
       </div>
+
+      {error && (
+        <div className="p-4 bg-rose-950/20 border border-rose-500/30 rounded-2xl text-xs text-rose-300 font-mono flex items-center gap-2">
+          <AlertCircle size={16} className="shrink-0 text-rose-400" />
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* Main Grid */}
       <div className="grid lg:grid-cols-12 gap-6">

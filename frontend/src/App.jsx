@@ -38,27 +38,37 @@ function Studio({ user, onLogout, onUser }) {
   const location = useLocation();
   const [menu, setMenu] = useState(false);
   const [refresh, setRefresh] = useState(0);
-  const [visited, setVisited] = useState(new Set([tab]));
+  const [renderedTabs, setRenderedTabs] = useState(() => [tab]);
+  const [prevTab, setPrevTab] = useState(tab);
+
+  if (tab !== prevTab) {
+    setPrevTab(tab);
+    if (!renderedTabs.includes(tab) && tabs[tab]) {
+      setRenderedTabs([...renderedTabs, tab]);
+    }
+  }
+
   const scroll = useRef({});
   const container = useRef(null);
   useEffect(() => {
-    setVisited(v => new Set([...v, tab]));
     const element = container.current;
-    if (element) element.scrollTop = scroll.current[tab] || 0;
-    return () => { if (element) scroll.current[tab] = element.scrollTop; };
+    const scrollMap = scroll.current;
+    if (element) element.scrollTop = scrollMap[tab] || 0;
+    return () => {
+      if (element) scrollMap[tab] = element.scrollTop;
+    };
   }, [tab]);
   if (!user) return <Navigate to="/login" state={{ from: location.pathname }} replace/>;
   if (!user.is_verified && !user.phone_verified) return <Navigate to="/verify-email" replace/>;
   if (!tabs[tab]) return <Navigate to="/app/overview" replace/>;
   const go = (name) => { setMenu(false); navigate(`/app/${name}`); };
-  const rendered = new Set([...visited, tab]);
   return <div className="h-screen flex flex-col overflow-hidden bg-obsidian-bg">
     <Navbar activeTab={tab} currentUser={user} onGoHome={()=>navigate('/')} onRefresh={()=>setRefresh(x=>x+1)} onLogout={onLogout}/>
     <div className="lg:hidden px-4 border-b border-slate-800"><button className="flex items-center gap-2 text-sm" onClick={()=>setMenu(!menu)} aria-expanded={menu} aria-label="Toggle navigation">{menu ? <X size={18}/> : <Menu size={18}/>} Navigation</button></div>
     <div className="flex flex-1 min-h-0">
       <div className={`${menu ? 'block absolute z-40 left-0 top-28 bottom-0 w-64 shadow-2xl' : 'hidden'} lg:block overflow-y-auto bg-obsidian-bg`}><Sidebar activeTab={tab} setActiveTab={go}/></div>
       <main ref={container} id="main-content" className="flex-1 min-w-0 overflow-y-auto p-4 lg:p-8">
-        {Array.from(rendered).filter(name=>tabs[name]).map(name=> {
+        {renderedTabs.filter(name=>tabs[name]).map(name=> {
           const Component = tabs[name];
           return <div key={name} hidden={name!==tab} className="max-w-7xl mx-auto"><Component key={name==='composer' ? name : `${name}-${refresh}`} onNavigateTab={go} onUser={onUser}/></div>;
         })}
@@ -77,34 +87,70 @@ function ResetPassword() {
 }
 
 function OAuthCallback() {
-  const [message,setMessage] = useState('Completing your secure platform connection…'); const [error,setError] = useState(false); const done = useRef(false);
-  useEffect(()=> { if(done.current) return; done.current=true; const query = new URLSearchParams(window.location.search);
-    if(query.get('error')) { setError(true); setMessage('Platform authorization was cancelled or denied. No account was connected.'); return; }
+  const query = new URLSearchParams(window.location.search);
+  const initialError = !!query.get('error');
+  const [message, setMessage] = useState(
+    initialError
+      ? 'Platform authorization was cancelled or denied. No account was connected.'
+      : 'Completing your secure platform connection…'
+  );
+  const [error, setError] = useState(initialError);
+  const done = useRef(false);
+  useEffect(() => {
+    if (done.current) return;
+    done.current = true;
+    const q = new URLSearchParams(window.location.search);
+    if (q.get('error')) return;
     const platform = sessionStorage.getItem('aismm_oauth_platform');
-    api.completeOAuth({ platform, code:query.get('code'), state:query.get('state'), redirect_uri: `${window.location.origin}/oauth/callback` })
-      .then(()=>{
+    api.completeOAuth({ platform, code: q.get('code'), state: q.get('state'), redirect_uri: `${window.location.origin}/oauth/callback` })
+      .then(() => {
         sessionStorage.removeItem('aismm_oauth_platform');
         setMessage('Your platform account is connected.');
         window.dispatchEvent(new CustomEvent('aismm:accounts-updated'));
-        window.history.replaceState({},'', '/oauth/callback');
+        window.history.replaceState({}, '', '/oauth/callback');
       })
-      .catch(err=>{setError(true);setMessage(err.message);});
-  },[]);
-  return <div className="max-w-lg mx-auto p-6 mt-16 panel"><h1 className="text-2xl font-bold mb-6">Platform connection</h1><p className={error?'error':'notice'}>{message}</p><Link className="btn mt-6" to="/app/platforms">Back to platforms</Link></div>;
+      .catch(err => {
+        setError(true);
+        setMessage(err.message);
+      });
+  }, []);
+  return <div className="max-w-lg mx-auto p-6 mt-16 panel"><h1 className="text-2xl font-bold mb-6">Platform connection</h1><p className={error ? 'error' : 'notice'}>{message}</p><Link className="btn mt-6" to="/app/platforms">Back to platforms</Link></div>;
 }
 
 function Application() {
-  const [user,setUser] = useState(getStoredUser); const [checking,setChecking] = useState(true); const [error,setError] = useState('');
-  const navigate=useNavigate(); const location=useLocation();
-  useEffect(()=> {
+  const [user, setUser] = useState(getStoredUser);
+  const [checking, setChecking] = useState(true);
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+  const location = useLocation();
+  useEffect(() => {
     const hash = window.location.hash.slice(1);
-    if(hash.startsWith('tab-')) navigate(`/app/${hash.slice(4)}`, {replace:true});
-    else if(['terms','privacy'].includes(hash)) navigate(`/${hash}`, {replace:true});
-    let alive=true;
-    api.getMe().then(me=>{ if(alive){setUser(me);setAuthSession(null,null,me);} }).catch(()=>{if(alive){clearAuthSession();setUser(null);}}).finally(()=>{if(alive)setChecking(false);});
-    const expired=()=>{setUser(null);navigate('/login');}; window.addEventListener('aismm:session-expired',expired);
-    return ()=>{alive=false;window.removeEventListener('aismm:session-expired',expired);};
-  },[]);
+    if (hash.startsWith('tab-')) navigate(`/app/${hash.slice(4)}`, { replace: true });
+    else if (['terms', 'privacy'].includes(hash)) navigate(`/${hash}`, { replace: true });
+    let alive = true;
+    api.getMe().then(me => {
+      if (alive) {
+        setUser(me);
+        setAuthSession(null, null, me);
+      }
+    }).catch(() => {
+      if (alive) {
+        clearAuthSession();
+        setUser(null);
+      }
+    }).finally(() => {
+      if (alive) setChecking(false);
+    });
+    const expired = () => {
+      setUser(null);
+      navigate('/login');
+    };
+    window.addEventListener('aismm:session-expired', expired);
+    return () => {
+      alive = false;
+      window.removeEventListener('aismm:session-expired', expired);
+    };
+  }, [navigate]);
   async function logout() { setError(''); try { await api.logout(); clearAuthSession(); Object.keys(sessionStorage).filter(k=>k.startsWith('aismm')).forEach(k=>sessionStorage.removeItem(k)); setUser(null); navigate('/'); } catch(err){setError(`Logout could not be confirmed: ${err.message} Please retry.`);} }
   const success = me => {setUser(me);navigate(location.state?.from || '/app/overview',{replace:true});};
   const updateUser = me => {setUser(me);setAuthSession(null,null,me);};

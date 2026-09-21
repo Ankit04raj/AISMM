@@ -85,7 +85,7 @@ class OtpChallenge(Base):
     __tablename__ = "otp_challenges"
 
     id = Column(GUID(), primary_key=True, default=uuid4)
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    user_id = Column(GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     email = Column(String(255), nullable=True, index=True)
     purpose = Column(String(32), nullable=False, index=True)  # EMAIL_VERIFICATION, PASSWORD_RESET
     otp_hash = Column(String(64), nullable=False)

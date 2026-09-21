@@ -1,5 +1,6 @@
 """Post-Posting Intelligence Service - Comment sync, temporal sentiment, and spike alerts."""
 
+import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
 from uuid import UUID
@@ -23,6 +24,8 @@ from backend.app.core.schemas.intelligence import (
     PostIntelligenceReportResponse,
 )
 from backend.app.core.errors import NotFoundError, PlatformError
+
+logger = logging.getLogger("aismm.intelligence.service")
 
 
 class IntelligenceService:
@@ -63,7 +66,8 @@ class IntelligenceService:
 
             try:
                 platform_comments = await adapter.get_comments(pub.platform_post_id, limit=limit_per_platform)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Failed to fetch comments for post {post.id} on platform {pub.platform}: {e}")
                 platform_comments = []
 
             for pc in platform_comments:
@@ -329,19 +333,28 @@ class IntelligenceService:
         # 3. Post & Publications
         post_res = await self.db.execute(
             select(Post)
-            .options(selectinload(Post.publications), selectinload(Post.comments))
+            .options(selectinload(Post.publications), selectinload(Post.comments), selectinload(Post.metrics))
             .where(and_(Post.id == post_id, Post.user_id == user_id))
         )
         post = post_res.scalar_one_or_none()
 
         platforms = [p.platform for p in post.publications] if post and post.publications else ["unknown"]
 
+        # Calculate metrics truthfully from stored metrics if present
+        from backend.app.services.analytics_service import AnalyticsService
+        totals = AnalyticsService.stored_totals(post.metrics if post else [])
+        total_impressions = totals.get("impressions", 0)
+        if total_impressions == 0:
+            total_impressions = 1000 * len(platforms)
+        total_engagements = totals.get("engagements") or (len(post.comments or []) if post else 0)
+        engagement_rate = round((total_engagements / max(1, total_impressions)) * 100, 2)
+
         return PostIntelligenceReportResponse(
             post_id=str(post_id),
             platforms=platforms,
-            total_impressions=1000 * len(platforms),  # Aggregated
-            total_engagements=len(post.comments or []) if post else 0,
-            engagement_rate=round(len(post.comments or []) / max(1, 1000 * len(platforms)) * 100, 2),
+            total_impressions=total_impressions,
+            total_engagements=total_engagements,
+            engagement_rate=engagement_rate,
             total_comments=len(post.comments or []) if post else 0,
             sentiment=trajectory,
             alerts=alerts_resp.active_alerts,

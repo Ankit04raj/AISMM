@@ -5,7 +5,6 @@ import {
   PenTool,
   Calendar,
   Sparkles,
-  MessageSquare,
   TrendingUp,
   Share2,
   Inbox,

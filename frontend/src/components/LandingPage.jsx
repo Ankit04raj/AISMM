@@ -4,24 +4,19 @@ import {
   Layers,
   Sparkles,
   ArrowRight,
-  ShieldCheck,
   Cpu,
-  Zap,
   Lock,
   TrendingUp,
-  Share2,
   CheckCircle2,
-  Clock,
   Heart,
   MessageCircle,
-  Repeat2,
-  Eye,
   Activity
 } from 'lucide-react';
 
 export default function LandingPage({ onLaunchDashboard, onOpenAuth }) {
   const [activePlatform, setActivePlatform] = useState('instagram');
-  const [inputText, setInputText] = useState('Just launched our new AI-powered analytics dashboard! 🚀 The insights are incredible! #AI #Analytics #Dashboard');
+  const [inputText] = useState('Just launched our new AI-powered analytics dashboard! 🚀 The insights are incredible! #AI #Analytics #Dashboard');
+  const [optimizing, setOptimizing] = useState(false);
 
   const adaptedOutputs = {
     instagram: {
@@ -59,6 +54,16 @@ export default function LandingPage({ onLaunchDashboard, onOpenAuth }) {
       color: "from-red-600 to-rose-700",
       badge: "YouTube"
     }
+  };
+
+  const handleOptimizeClick = () => {
+    setOptimizing(true);
+    const platforms = ['instagram', 'x', 'linkedin', 'facebook', 'youtube'];
+    const nextIdx = (platforms.indexOf(activePlatform) + 1) % platforms.length;
+    setTimeout(() => {
+      setActivePlatform(platforms[nextIdx]);
+      setOptimizing(false);
+    }, 300);
   };
 
   return (
@@ -192,11 +197,12 @@ export default function LandingPage({ onLaunchDashboard, onOpenAuth }) {
                   <p className="text-xs text-slate-300 font-mono leading-relaxed">{inputText}</p>
                 </div>
                 <button
-                  onClick={() => {}}
-                  className="w-full py-2.5 bg-gradient-to-r from-brand-600 to-cyan-600 text-white font-bold rounded-xl text-xs shadow-lg shadow-brand-600/20 flex items-center justify-center gap-2 font-mono"
+                  onClick={handleOptimizeClick}
+                  disabled={optimizing}
+                  className="w-full py-2.5 bg-gradient-to-r from-brand-600 to-cyan-600 text-white font-bold rounded-xl text-xs shadow-lg shadow-brand-600/20 flex items-center justify-center gap-2 font-mono transition-all hover:opacity-90"
                 >
-                  <Sparkles size={14} />
-                  <span>Optimize Content</span>
+                  <Sparkles size={14} className={optimizing ? "animate-spin" : ""} />
+                  <span>{optimizing ? "Adapting for Algorithm..." : "Optimize & Adapt Content"}</span>
                 </button>
               </div>
 

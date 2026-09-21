@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Bot, RefreshCw, AlertTriangle, Send, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { RefreshCw, AlertTriangle } from 'lucide-react';
 import { api } from '../api/client';
 
 export default function AutoReplyTab() {
@@ -9,17 +9,24 @@ export default function AutoReplyTab() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const getSuggestion = async () => {
+  const getSuggestion = useCallback(async () => {
     if (!commentText.trim()) return;
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await api.suggestReply(commentText, "demo_comment_1", mode);
       setSuggestion(data);
-    } catch (err) { setError(`Unable to reach AISMM backend. ${err.message}`); }
-    finally { setLoading(false); }
-  };
+    } catch (err) {
+      setError(`Unable to reach AISMM backend. ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [commentText, mode]);
 
-  useEffect(() => { const timer = setTimeout(getSuggestion, 400); return () => clearTimeout(timer); }, [commentText, mode]);
+  useEffect(() => {
+    const timer = setTimeout(getSuggestion, 400);
+    return () => clearTimeout(timer);
+  }, [getSuggestion]);
 
   return <div className="space-y-6 animate-fadeIn">
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">

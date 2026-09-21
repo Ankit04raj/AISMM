@@ -52,7 +52,7 @@ export default function AuthView({ onAuthSuccess, onCancel, initialMode = 'login
           throw new Error('Please enter your email address.');
         }
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
-          throw new Error('Please enter a valid email address with a dot (e.g. ankit.freelance04@gmail.com).');
+          throw new Error('Please enter a valid email address (e.g. name@example.com).');
         }
       }
 

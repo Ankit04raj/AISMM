@@ -3,6 +3,7 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.utils import formataddr, formatdate, make_msgid
 from typing import Optional, Dict, Any
 import logging
 
@@ -15,17 +16,20 @@ except Exception:
 logger = logging.getLogger(__name__)
 
 
+_UNSET = object()
+
+
 class EmailService:
     """Service for sending transactional emails and OTP codes via SMTP."""
 
     def __init__(
         self,
-        smtp_host: Optional[str] = None,
-        smtp_port: Optional[int] = None,
-        smtp_user: Optional[str] = None,
-        smtp_password: Optional[str] = None,
-        from_email: Optional[str] = None,
-        from_name: Optional[str] = None,
+        smtp_host: Any = _UNSET,
+        smtp_port: Any = _UNSET,
+        smtp_user: Any = _UNSET,
+        smtp_password: Any = _UNSET,
+        from_email: Any = _UNSET,
+        from_name: Any = _UNSET,
     ):
         """Initialize email service with SMTP configuration from settings or explicit parameters."""
         self._smtp_host = smtp_host
@@ -47,7 +51,7 @@ class EmailService:
 
     @property
     def smtp_host(self) -> Optional[str]:
-        if self._smtp_host is not None:
+        if self._smtp_host is not _UNSET:
             return self._smtp_host
         s = self._settings
         return getattr(s, "SMTP_HOST", None) if s else None
@@ -58,7 +62,7 @@ class EmailService:
 
     @property
     def smtp_port(self) -> int:
-        if self._smtp_port is not None:
+        if self._smtp_port is not _UNSET:
             try:
                 return int(self._smtp_port)
             except (ValueError, TypeError):
@@ -76,7 +80,7 @@ class EmailService:
 
     @property
     def smtp_user(self) -> Optional[str]:
-        if self._smtp_user is not None:
+        if self._smtp_user is not _UNSET:
             return self._smtp_user
         s = self._settings
         if not s:
@@ -89,7 +93,7 @@ class EmailService:
 
     @property
     def smtp_password(self) -> Optional[str]:
-        if self._smtp_password is not None:
+        if self._smtp_password is not _UNSET:
             return self._smtp_password
         s = self._settings
         return getattr(s, "SMTP_PASSWORD", None) if s else None
@@ -100,12 +104,17 @@ class EmailService:
 
     @property
     def from_email(self) -> str:
-        if self._from_email is not None:
+        if self._from_email is not _UNSET and self._from_email is not None:
             return self._from_email
         s = self._settings
-        if not s:
-            return "noreply@aismm.app"
-        return getattr(s, "FROM_EMAIL", None) or getattr(s, "SMTP_FROM_EMAIL", None) or "noreply@aismm.app"
+        explicit_from = getattr(s, "FROM_EMAIL", None) or getattr(s, "SMTP_FROM_EMAIL", None) if s else None
+        if explicit_from and explicit_from != "noreply@aismm.app":
+            return explicit_from
+        # Auto-align sender with SMTP_USER if sending via authenticated mailbox
+        user = self.smtp_user
+        if user and "@" in str(user):
+            return str(user)
+        return explicit_from or "noreply@aismm.app"
 
     @from_email.setter
     def from_email(self, value: Optional[str]):
@@ -113,7 +122,7 @@ class EmailService:
 
     @property
     def from_name(self) -> str:
-        if self._from_name is not None:
+        if self._from_name is not _UNSET and self._from_name is not None:
             return self._from_name
         s = self._settings
         if not s:
@@ -294,8 +303,13 @@ AISMM - AI-Powered Social Media Management
 
             msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
-            msg["From"] = f"{self.from_name} <{self.from_email}>"
+            msg["From"] = formataddr((self.from_name, self.from_email))
             msg["To"] = to_email
+            msg["Date"] = formatdate(localtime=True)
+            domain = self.from_email.split("@")[-1] if "@" in self.from_email else "aismm.app"
+            msg["Message-ID"] = make_msgid(domain=domain)
+            msg["Auto-Submitted"] = "auto-generated"
+            msg["X-Auto-Response-Suppress"] = "All"
 
             part1 = MIMEText(text_body, "plain")
             part2 = MIMEText(html_body, "html")
@@ -371,8 +385,13 @@ AISMM - AI-Powered Social Media Management
 
             msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
-            msg["From"] = f"{self.from_name} <{self.from_email}>"
+            msg["From"] = formataddr((self.from_name, self.from_email))
             msg["To"] = to_email
+            msg["Date"] = formatdate(localtime=True)
+            domain = self.from_email.split("@")[-1] if "@" in self.from_email else "aismm.app"
+            msg["Message-ID"] = make_msgid(domain=domain)
+            msg["Auto-Submitted"] = "auto-generated"
+            msg["X-Auto-Response-Suppress"] = "All"
 
             part1 = MIMEText(text_body, "plain")
             part2 = MIMEText(html_body, "html")
@@ -463,8 +482,13 @@ AISMM - AI-Powered Social Media Management
 
             msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
-            msg["From"] = f"{self.from_name} <{self.from_email}>"
+            msg["From"] = formataddr((self.from_name, self.from_email))
             msg["To"] = to_email
+            msg["Date"] = formatdate(localtime=True)
+            domain = self.from_email.split("@")[-1] if "@" in self.from_email else "aismm.app"
+            msg["Message-ID"] = make_msgid(domain=domain)
+            msg["Auto-Submitted"] = "auto-generated"
+            msg["X-Auto-Response-Suppress"] = "All"
 
             part1 = MIMEText(text_body, "plain")
             part2 = MIMEText(html_body, "html")
@@ -554,8 +578,13 @@ AISMM - AI-Powered Social Media Management
 
             msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
-            msg["From"] = f"{self.from_name} <{self.from_email}>"
+            msg["From"] = formataddr((self.from_name, self.from_email))
             msg["To"] = to_email
+            msg["Date"] = formatdate(localtime=True)
+            domain = self.from_email.split("@")[-1] if "@" in self.from_email else "aismm.app"
+            msg["Message-ID"] = make_msgid(domain=domain)
+            msg["Auto-Submitted"] = "auto-generated"
+            msg["X-Auto-Response-Suppress"] = "All"
 
             part1 = MIMEText(text_body, "plain")
             part2 = MIMEText(html_body, "html")

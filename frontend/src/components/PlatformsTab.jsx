@@ -5,13 +5,8 @@ import {
   CheckCircle2,
   ExternalLink,
   ShieldCheck,
-  Zap,
   Plus,
-  Link as LinkIcon,
-  Key,
-  X,
-  User,
-  Globe
+  X
 } from 'lucide-react';
 import { api } from '../api/client';
 import {
@@ -57,7 +52,27 @@ export default function PlatformsTab() {
   };
 
   useEffect(() => {
-    loadData();
+    let active = true;
+    (async () => {
+      try {
+        const [platformsData, accountsData] = await Promise.all([
+          api.listPlatforms(),
+          api.getAccounts(),
+        ]);
+        if (active) {
+          setPlatformList((platformsData.platforms || []).filter(p => p !== 'twitter'));
+          setOauthStatus(platformsData.oauth_status || {});
+          setUserAccounts(accountsData.accounts || []);
+          setError(null);
+        }
+      } catch (err) {
+        console.error("Failed loading platforms data:", err);
+        if (active) setError("Unable to reach AISMM backend. Please verify your connection.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
   }, []);
 
   const platformsMeta = {
@@ -150,7 +165,7 @@ export default function PlatformsTab() {
   const handleSync = async (accountId) => {
     setSyncingAccountId(accountId);
     try {
-      const res = await api.syncAccount(accountId);
+      await api.syncAccount(accountId);
       setNotice(`Profile synced! Follower metrics & public data refreshed.`);
       setTimeout(() => setNotice(null), 4000);
       window.dispatchEvent(new CustomEvent('aismm:accounts-updated'));
