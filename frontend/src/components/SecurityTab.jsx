@@ -10,19 +10,46 @@ export default function SecurityTab() {
   const [error, setError] = useState(null);
 
   const loadHealth = async () => {
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const [live, ready, telem] = await Promise.all([
         api.getLiveness(),
         api.getReadiness(),
         api.getTelemetry(),
       ]);
-      setLiveness(live); setReadiness(ready); setTelemetry(telem);
-    } catch (err) { setError(`Unable to reach AISMM backend. ${err.message}`); }
-    finally { setLoading(false); }
+      setLiveness(live);
+      setReadiness(ready);
+      setTelemetry(telem);
+    } catch (err) {
+      setError(`Unable to reach AISMM backend. ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { loadHealth(); }, []);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const [live, ready, telem] = await Promise.all([
+          api.getLiveness(),
+          api.getReadiness(),
+          api.getTelemetry(),
+        ]);
+        if (active) {
+          setLiveness(live);
+          setReadiness(ready);
+          setTelemetry(telem);
+        }
+      } catch (err) {
+        if (active) setError(`Unable to reach AISMM backend. ${err.message}`);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   return <div className="space-y-6 animate-fadeIn">
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">

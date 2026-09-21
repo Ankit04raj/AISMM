@@ -1,40 +1,51 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, RefreshCw, AlertTriangle, Activity } from 'lucide-react';
+import { RefreshCw, AlertTriangle } from 'lucide-react';
 import { api } from '../api/client';
 
 export default function IntelligenceTab() {
   const [posts, setPosts] = useState([]);
   const [selectedPostId, setSelectedPostId] = useState('');
   const [trajectory, setTrajectory] = useState(null);
-  const [alerts, setAlerts] = useState(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
 
-  const loadPosts = async () => {
-    setLoading(true); setError(null);
-    try {
-      const res = await api.getPosts(1, 30);
-      const postList = res.posts || [];
-      setPosts(postList);
-      if (postList.length > 0) setSelectedPostId(postList[0].id);
-    } catch (err) { setError(`Unable to reach AISMM backend. ${err.message}`); }
-    finally { setLoading(false); }
-  };
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await api.getPosts(1, 30);
+        const postList = res.posts || [];
+        if (active) {
+          setPosts(postList);
+          if (postList.length > 0) setSelectedPostId(postList[0].id);
+          setError(null);
+        }
+      } catch (err) {
+        if (active) setError(`Unable to reach AISMM backend. ${err.message}`);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
-  const loadDetails = async (id) => {
-    if (!id) return;
-    try {
-      const [traj, alt] = await Promise.all([
-        api.getPostSentimentTrajectory(id).catch(() => null),
-        api.getPostAlerts(id).catch(() => null),
-      ]);
-      setTrajectory(traj); setAlerts(alt);
-    } catch (err) { setError(`Unable to fetch post intelligence: ${err.message}`); }
-  };
-
-  useEffect(() => { loadPosts(); }, []);
-  useEffect(() => { if (selectedPostId) loadDetails(selectedPostId); }, [selectedPostId]);
+  useEffect(() => {
+    if (!selectedPostId) return;
+    let active = true;
+    (async () => {
+      try {
+        const [traj] = await Promise.all([
+          api.getPostSentimentTrajectory(selectedPostId).catch(() => null),
+          api.getPostAlerts(selectedPostId).catch(() => null),
+        ]);
+        if (active) setTrajectory(traj);
+      } catch (err) {
+        if (active) setError(`Unable to fetch post intelligence: ${err.message}`);
+      }
+    })();
+    return () => { active = false; };
+  }, [selectedPostId]);
 
   const syncComments = async () => {
     if (!selectedPostId) return;

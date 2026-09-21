@@ -201,7 +201,7 @@ class AccountService:
             return False
         # If token expires within window_hours, refresh via adapter
         from datetime import datetime, timezone
-        if account.token_expires_at > datetime.now(timezone.utc) - timedelta(hours=window_hours):
+        if account.token_expires_at <= datetime.now(timezone.utc) + timedelta(hours=window_hours):
             adapter = await owned_adapter(self.db, user_id, account.platform, account_id=str(account.id))
             try:
                 result = await adapter.refresh_token()
@@ -209,7 +209,9 @@ class AccountService:
             except Exception:
                 # Phase 3 failure path: mark for reconnection, don't crash
                 account.is_active = False
-                account.needs_reconnection = True  # requires DB column addition if not present
+                meta = dict(account.account_metadata or {})
+                meta["needs_reconnection"] = True
+                account.account_metadata = meta
                 await self.db.commit()
                 return False
         return False

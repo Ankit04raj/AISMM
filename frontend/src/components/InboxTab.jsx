@@ -1,18 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   Inbox,
-  MessageSquare,
-  AtSign,
   Send,
   Bot,
   RefreshCw,
   AlertTriangle,
-  Filter,
   CheckCircle2,
-  User,
-  Sparkles,
-  Heart,
-  MessageCircle,
   Clock
 } from 'lucide-react';
 import { api } from '../api/client';

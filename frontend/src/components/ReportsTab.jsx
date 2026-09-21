@@ -1,33 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-  FileText,
   Download,
   Calendar,
-  CheckCircle2,
-  AlertCircle,
   RefreshCw,
   BarChart2,
-  Shield,
-  Sparkles,
   Users,
   Activity,
-  Layers
+  Layers,
+  AlertTriangle
 } from 'lucide-react';
 import { api } from '../api/client';
 
 export default function ReportsTab() {
   const [loading, setLoading] = useState(false);
   const [reportType, setReportType] = useState('performance');
-  const [dateRange, setDateRange] = useState('');
-  const [downloadSuccess, setDownloadSuccess] = useState(false);
-
-  useEffect(() => {
+  const [dateRange] = useState(() => {
     const now = new Date();
     const start = new Date(now);
     start.setDate(start.getDate() - 6);
     const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    setDateRange(`${fmt(start)} - ${fmt(now)}, ${now.getFullYear()}`);
-  }, []);
+    return `${fmt(start)} - ${fmt(now)}, ${now.getFullYear()}`;
+  });
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [exportError, setExportError] = useState(null);
 
   const reportCards = [
     { id: 'performance', title: 'Performance Report', desc: 'Comprehensive performance analysis', icon: BarChart2, color: 'text-brand-400' },
@@ -38,22 +33,24 @@ export default function ReportsTab() {
 
   const handleExport = async () => {
     setLoading(true);
+    setExportError(null);
+    setDownloadSuccess(false);
     try {
       const blob = await api.exportReport(reportType, dateRange);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.download = `aismm_${reportType}_report.json`;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      setLoading(false);
       setDownloadSuccess(true);
       setTimeout(() => setDownloadSuccess(false), 4000);
     } catch (err) {
-      console.warn("Export error:", err.message);
+      setExportError(err.message || "Failed to export report. Please try again.");
+    } finally {
       setLoading(false);
-      setDownloadSuccess(true);
-      setTimeout(() => setDownloadSuccess(false), 4000);
     }
   };
 
@@ -66,6 +63,13 @@ export default function ReportsTab() {
           Export institutional performance audits, audience analytics, and compliance reports
         </p>
       </div>
+
+      {exportError && (
+        <div className="p-4 bg-rose-950/20 border border-rose-500/30 rounded-2xl text-xs text-rose-300 font-mono flex items-center gap-2">
+          <AlertTriangle size={16} className="text-rose-400 shrink-0" />
+          <span>{exportError}</span>
+        </div>
+      )}
 
       {/* Export Reports Box */}
       <div className="p-6 rounded-3xl bg-[#0D121F] border border-[#1E293B] shadow-xl space-y-6">

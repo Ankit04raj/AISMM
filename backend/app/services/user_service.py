@@ -49,14 +49,15 @@ class UserService:
             "has_next": (page * page_size) < total,
         }
 
-    async def update_user(self, user_id: UUID, name: Optional[str] = None, email: Optional[str] = None) -> Optional[User]:
+    async def update_user(self, user_id: UUID, name: Optional[str] = None, email: Optional[str] = None, full_name: Optional[str] = None) -> Optional[User]:
         """Update a user."""
         user = await self.get_user(user_id)
         if not user:
             return None
 
-        if name:
-            user.name = name
+        eff_name = full_name or name
+        if eff_name:
+            user.full_name = eff_name
         if email:
             user.email = email
         await self.db.commit()

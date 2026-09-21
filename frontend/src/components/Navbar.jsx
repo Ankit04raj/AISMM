@@ -1,16 +1,9 @@
 import React from 'react';
 import {
-  Zap,
-  Activity,
-  ShieldCheck,
   Home,
-  Bell,
   RefreshCw,
-  Search,
-  User,
   LogOut,
-  LogIn,
-  Calendar
+  LogIn
 } from 'lucide-react';
 import { getStoredUser } from '../api/client';
 
